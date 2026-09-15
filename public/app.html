@@ -1309,9 +1309,9 @@
       const estado = cleanHeader(row[idx.estado]);
       if (!estado) continue;
 
-      allDescRaw.push({ desc: cleanHeader(row[idx.descripcion]), fecha: row[idx.fechaRegistro] });
+      allDescRaw.push({ desc: cleanHeader(row[idx.descripcion]), fecha: parseArandaDate(row[idx.fechaRegistro]) });
 
-      if (estado === 'Cancelado'){ cancelledRaw.push(row[idx.fechaRegistro]); continue; }
+      if (estado === 'Cancelado'){ cancelledRaw.push(parseArandaDate(row[idx.fechaRegistro])); continue; }
 
       const progresoRaw = row[idx.progreso] == null ? '' : String(row[idx.progreso]);
       const pctMatch = progresoRaw.match(/(-?\d+(?:[.,]\d+)?)\s*%/);
@@ -1326,8 +1326,8 @@
         especialista: cleanHeader(row[idx.especialista]) || '—',
         asunto: cleanHeader(row[idx.asunto]) || '(sin asunto)',
         descripcion: cleanHeader(row[idx.descripcion]) || '(sin descripción)',
-        fechaCierre: row[idx.fechaCierre],
-        fechaRegistro: row[idx.fechaRegistro],
+        fechaCierre: parseArandaDate(row[idx.fechaCierre]),
+        fechaRegistro: parseArandaDate(row[idx.fechaRegistro]),
         solucion: cleanHeader(row[idx.solucion]) || '—',
         tipoRegistro: cleanHeader(row[idx.tipoRegistro]) || '—',
         tiempo: row[idx.tiempo] == null ? '—' : String(row[idx.tiempo]),
