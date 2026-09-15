@@ -747,9 +747,9 @@
               <th data-key="especialista">Especialista</th>
               <th data-key="fechaRegistro">Fecha registro</th>
               <th data-key="fechaCierre">Fecha cierre</th>
+              <th data-key="tiempo">Tiempo</th>
               <th data-key="solucion">Solución</th>
               <th data-key="tipoRegistro">Tipo de registro</th>
-              <th data-key="tiempo">Tiempo</th>
             </tr>
             <tr class="filter-row">
               <th><input type="text" class="col-filter" data-key="ticket" placeholder="Filtrar…"></th>
@@ -759,9 +759,9 @@
               <th><select class="col-filter" data-key="especialista"><option value="">Todos</option></select></th>
               <th><input type="text" class="col-filter" data-key="fechaRegistro" placeholder="Filtrar…"></th>
               <th><input type="text" class="col-filter" data-key="fechaCierre" placeholder="Filtrar…"></th>
+              <th><input type="text" class="col-filter" data-key="tiempo" placeholder="Filtrar…"></th>
               <th><input type="text" class="col-filter" data-key="solucion" placeholder="Filtrar…"></th>
               <th><select class="col-filter" data-key="tipoRegistro"><option value="">Todos</option></select></th>
-              <th><input type="text" class="col-filter" data-key="tiempo" placeholder="Filtrar…"></th>
             </tr>
           </thead>
           <tbody id="detailBody"></tbody>
@@ -2753,9 +2753,9 @@
         <td>${escapeHtml(r.especialista)}</td>
         <td class="mono">${fmtDate(r.fechaRegistro)}</td>
         <td class="mono">${fmtDate(r.fechaCierre)}</td>
+        <td class="mono"${currentView === 'abiertos' ? ` style="color:${daysColor(r.diasAbierto)}; font-weight:600;"` : ''}>${currentView === 'abiertos' ? (r.minutosAbierto == null ? '—' : formatDuration(r.minutosAbierto)) : escapeHtml(r.tiempo)}</td>
         <td class="cell-solucion" title="${escapeHtml(r.solucion)}">${escapeHtml(r.solucion)}</td>
         <td>${escapeHtml(r.tipoRegistro)}</td>
-        <td class="mono"${currentView === 'abiertos' ? ` style="color:${daysColor(r.diasAbierto)}; font-weight:600;"` : ''}>${currentView === 'abiertos' ? (r.minutosAbierto == null ? '—' : formatDuration(r.minutosAbierto)) : escapeHtml(r.tiempo)}</td>
       </tr>
     `;
     }).join('');
