@@ -1244,7 +1244,14 @@
   // o valores Date ya parseados por SheetJS (formato de la sábana de tickets) a un Date real.
   function parseArandaDate(v){
     if (v == null || v === '') return null;
-    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    if (v instanceof Date){
+      if (isNaN(v.getTime())) return null;
+      // SheetJS (cellDates:true) ancla la fecha/hora literal de la celda en UTC,
+      // no en hora local. Los componentes UTC son el valor real que escribió
+      // Aranda (hora de Perú), así que los reconstruimos como hora local para
+      // que coincidan con cómo se muestran y filtran en el resto del dashboard.
+      return new Date(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate(), v.getUTCHours(), v.getUTCMinutes(), v.getUTCSeconds());
+    }
     const s = String(v).trim();
     const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
     if (m){
