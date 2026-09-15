@@ -722,12 +722,13 @@
 
     <section class="table-section">
       <div class="view-tabs">
-        <button class="tab-btn active" id="tabVencidos" data-view="vencidos">Vencidos <span class="count" id="tabCountVencidos">0</span></button>
+        <button class="tab-btn active" id="tabAbiertos" data-view="abiertos">Abiertos <span class="count" id="tabCountAbiertos">0</span></button>
+        <button class="tab-btn" id="tabVencidos" data-view="vencidos">Vencidos <span class="count" id="tabCountVencidos">0</span></button>
         <button class="tab-btn" id="tabCumplen" data-view="cumplen">Cumplen SLA <span class="count" id="tabCountCumplen">0</span></button>
       </div>
       <div class="table-head">
         <div>
-          <h3 id="tableTitle">Tickets vencidos (&gt;100% de progreso)</h3>
+          <h3 id="tableTitle">Tickets abiertos (ordenados por antigüedad)</h3>
           <div class="sub" id="detailSub">0 registros</div>
         </div>
         <div class="table-actions">
@@ -979,8 +980,9 @@
   let allRowsRaw = [];     // evaluated (non-cancelled) rows, sin filtrar por fecha (fuente de verdad)
   let vencidos = [];        // subset >100%
   let cumplen = [];         // subset <=100%
-  let currentView = 'vencidos';
-  let sortState = { key: 'progreso', dir: 'desc' };
+  let abiertos = [];        // tickets sin fecha de cierre (independiente de si cumplen o no el SLA)
+  let currentView = 'abiertos';
+  let sortState = { key: 'fechaRegistro', dir: 'asc' };
   let columnFilters = { ticket:'', progreso:'', estado:'', servicio:'', especialista:'', fechaRegistro:'', fechaCierre:'', solucion:'', tipoRegistro:'', tiempo:'' };
 
   let taskMap = new Map();  // Tarea -> fila normalizada (permite cargar varios archivos y fusionarlos)
@@ -1203,6 +1205,16 @@
     allRows = allRowsRaw.filter(r => dateInRange(toDateSafe(r.fechaRegistro), range));
     vencidos = allRows.filter(r => !r.cumple);
     cumplen = allRows.filter(r => r.cumple);
+
+    // Tickets abiertos: sin Fecha de Cierre, sin importar si ya superaron o no el % de SLA.
+    // El "Tiempo" que se muestra en esta vista se recalcula contra el momento actual
+    // (igual que en Tareas abiertas), no se toma del texto "Tiempo" que trae el export.
+    const now = new Date();
+    abiertos = allRows.filter(r => r.fechaCierre == null);
+    abiertos.forEach(r => {
+      r.diasAbierto = r.fechaRegistro ? (now - r.fechaRegistro) / 86400000 : null;
+      r.minutosAbierto = r.fechaRegistro ? Math.round((now - r.fechaRegistro) / 60000) : null;
+    });
 
     const allTasks = Array.from(taskMap.values());
     const inRangeTasks = allTasks.filter(t => dateInRange(t.fechaRegistro, range));
@@ -2406,6 +2418,7 @@
       renderEspecialistaChart(groupBy(allRows, r => r.especialista));
     } catch(err){ console.error('Error al renderizar cumplimiento por especialista:', err); }
 
+    $('tabCountAbiertos').textContent = abiertos.length;
     $('tabCountVencidos').textContent = vencidos.length;
     $('tabCountCumplen').textContent = cumplen.length;
 
@@ -2611,25 +2624,32 @@
   searchBox.addEventListener('input', applySortAndFilter);
 
   const emptyDetailTexts = {
+    abiertos: 'No hay tickets abiertos en este periodo.',
     vencidos: 'Ningún ticket superó el 100% de progreso en este periodo.',
     cumplen: 'Ningún ticket cumplió el SLA en este periodo.'
   };
   const tableTitles = {
+    abiertos: 'Tickets abiertos (ordenados por antigüedad)',
     vencidos: 'Tickets vencidos (&gt;100% de progreso)',
     cumplen: 'Tickets que cumplen SLA (&le;100% de progreso)'
   };
   const exportNames = {
+    abiertos: 'tickets_abiertos.csv',
     vencidos: 'tickets_vencidos.csv',
     cumplen: 'tickets_cumplen.csv'
   };
 
-  [$('tabVencidos'), $('tabCumplen')].forEach(btn => {
+  [$('tabAbiertos'), $('tabVencidos'), $('tabCumplen')].forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.dataset.view === currentView) return;
       currentView = btn.dataset.view;
+      $('tabAbiertos').classList.toggle('active', currentView === 'abiertos');
       $('tabVencidos').classList.toggle('active', currentView === 'vencidos');
       $('tabCumplen').classList.toggle('active', currentView === 'cumplen');
       $('tableTitle').innerHTML = tableTitles[currentView];
+      const defaults = currentView === 'abiertos' ? { key: 'fechaRegistro', dir: 'asc' } : { key: 'progreso', dir: 'desc' };
+      sortState.key = defaults.key;
+      sortState.dir = defaults.dir;
       applySortAndFilter();
     });
   });
@@ -2672,7 +2692,7 @@
 
   function applySortAndFilter(){
     const term = searchBox.value.trim().toLowerCase();
-    const sourceList = currentView === 'cumplen' ? cumplen : vencidos;
+    const sourceList = currentView === 'cumplen' ? cumplen : (currentView === 'abiertos' ? abiertos : vencidos);
     let list = sourceList.filter(r => {
       if (term){
         const matchesTerm = String(r.ticket).toLowerCase().includes(term)
@@ -2702,6 +2722,7 @@
     list = list.slice().sort((a,b) => {
       let av, bv;
       if (key === 'progreso'){ av = a.pct; bv = b.pct; }
+      else if (key === 'tiempo' && currentView === 'abiertos'){ av = a.minutosAbierto ?? -Infinity; bv = b.minutosAbierto ?? -Infinity; }
       else if (key === 'fechaRegistro' || key === 'fechaCierre'){
         av = a[key] ? new Date(a[key]).getTime() : 0;
         bv = b[key] ? new Date(b[key]).getTime() : 0;
@@ -2734,7 +2755,7 @@
         <td class="mono">${fmtDate(r.fechaCierre)}</td>
         <td class="cell-solucion" title="${escapeHtml(r.solucion)}">${escapeHtml(r.solucion)}</td>
         <td>${escapeHtml(r.tipoRegistro)}</td>
-        <td class="mono">${escapeHtml(r.tiempo)}</td>
+        <td class="mono"${currentView === 'abiertos' ? ` style="color:${daysColor(r.diasAbierto)}; font-weight:600;"` : ''}>${currentView === 'abiertos' ? (r.minutosAbierto == null ? '—' : formatDuration(r.minutosAbierto)) : escapeHtml(r.tiempo)}</td>
       </tr>
     `;
     }).join('');
@@ -2770,7 +2791,7 @@
 
   $('btnExport').addEventListener('click', () => {
     const term = searchBox.value.trim().toLowerCase();
-    const sourceList = currentView === 'cumplen' ? cumplen : vencidos;
+    const sourceList = currentView === 'cumplen' ? cumplen : (currentView === 'abiertos' ? abiertos : vencidos);
     const list = sourceList.filter(r => !term
       || String(r.ticket).toLowerCase().includes(term)
       || r.especialista.toLowerCase().includes(term)
@@ -2782,7 +2803,9 @@
     const lines = [headerRow.join(';')];
     list.forEach(r => {
       const vals = cols.map(c => {
-        let v = c === 'fechaRegistro' || c === 'fechaCierre' ? fmtDate(r[c]) : r[c];
+        let v = c === 'fechaRegistro' || c === 'fechaCierre' ? fmtDate(r[c])
+          : (c === 'tiempo' && currentView === 'abiertos') ? (r.minutosAbierto == null ? '' : formatDuration(r.minutosAbierto))
+          : r[c];
         v = String(v ?? '').replace(/;/g, ',').replace(/\n/g,' ');
         return v;
       });
