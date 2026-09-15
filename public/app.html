@@ -1259,7 +1259,7 @@
   // getters locales del navegador (que darían la hora de la zona del
   // dispositivo, no la de Perú).
   function peruParts(d){
-    const t = new Date(d.getTime() + PERU_OFFSET_MIN * 60000);
+    const t = new Date(d.getTime() - PERU_OFFSET_MIN * 60000);
     return {
       y: t.getUTCFullYear(), mo: t.getUTCMonth(), day: t.getUTCDate(),
       h: t.getUTCHours(), mi: t.getUTCMinutes(), s: t.getUTCSeconds()
