@@ -1136,7 +1136,8 @@
   }
   function fmtDateShort(d){
     const pad = n => String(n).padStart(2, '0');
-    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    const p = peruParts(d);
+    return `${pad(p.day)}/${pad(p.mo + 1)}/${p.y}`;
   }
 
   function computeDateBounds(){
@@ -1240,6 +1241,31 @@
     applyGlobalFilters();
   });
 
+  // Perú no usa horario de verano: el offset respecto a UTC es siempre -5h.
+  const PERU_OFFSET_MIN = 5 * 60;
+
+  // Construye un Date cuya marca de tiempo real corresponde a esa fecha/hora
+  // "de reloj de pared" en Perú, sin importar la zona horaria del navegador
+  // que esté ejecutando la app. Antes se usaba new Date(y, m, d, h, mi, se),
+  // que asume la zona local del dispositivo -> si alguien abre la app fuera
+  // de Perú (o el hosting corre en otro huso), el conteo de "tiempo abierto"
+  // quedaba desfasado.
+  function fromPeruWallClock(y, mo, d, h, mi, se){
+    return new Date(Date.UTC(y, mo, d, h, mi, se) + PERU_OFFSET_MIN * 60000);
+  }
+
+  // Camino inverso: dado un Date real (instante correcto), devuelve los
+  // componentes de reloj de pared tal como se ven en Perú, sin usar los
+  // getters locales del navegador (que darían la hora de la zona del
+  // dispositivo, no la de Perú).
+  function peruParts(d){
+    const t = new Date(d.getTime() + PERU_OFFSET_MIN * 60000);
+    return {
+      y: t.getUTCFullYear(), mo: t.getUTCMonth(), day: t.getUTCDate(),
+      h: t.getUTCHours(), mi: t.getUTCMinutes(), s: t.getUTCSeconds()
+    };
+  }
+
   // Convierte fechas de texto "dd/mm/yyyy h:mm:ss" (formato de los exports de Tareas)
   // o valores Date ya parseados por SheetJS (formato de la sábana de tickets) a un Date real.
   function parseArandaDate(v){
@@ -1248,19 +1274,21 @@
       if (isNaN(v.getTime())) return null;
       // SheetJS (cellDates:true) ancla la fecha/hora literal de la celda en UTC,
       // no en hora local. Los componentes UTC son el valor real que escribió
-      // Aranda (hora de Perú), así que los reconstruimos como hora local para
-      // que coincidan con cómo se muestran y filtran en el resto del dashboard.
-      return new Date(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate(), v.getUTCHours(), v.getUTCMinutes(), v.getUTCSeconds());
+      // Aranda (hora de Perú), así que los reconstruimos como hora Perú explícita
+      // (no como hora local del navegador) para que el cálculo de tiempo sea
+      // correcto sin importar dónde se abra la app.
+      return fromPeruWallClock(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate(), v.getUTCHours(), v.getUTCMinutes(), v.getUTCSeconds());
     }
     const s = String(v).trim();
     const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
     if (m){
       const [, d, mo, y, h, mi, se] = m;
-      return new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), se ? Number(se) : 0);
+      return fromPeruWallClock(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), se ? Number(se) : 0);
     }
     const d2 = new Date(s);
     return isNaN(d2.getTime()) ? null : d2;
   }
+
 
   function processTicketRows(rows, headerRowIdx, fileName, opts){
     const shouldPersist = !opts || opts.persist !== false;
@@ -1946,13 +1974,18 @@
       const fechaRegistro = parseArandaDate(row[idx.fechaRegistro]);
       const fechaCierreRaw = row[idx.fechaCierre];
       const fechaCierre = (fechaCierreRaw === '' || fechaCierreRaw == null) ? null : parseArandaDate(fechaCierreRaw);
+      const estadoTarea = cleanHeader(row[idx.estado]) || '—';
+      // Algunos exports de Aranda dejan "Fecha de cierre" vacía aunque el Estado
+      // ya diga Finalizada/Cerrada/Resuelta/Cancelada. No basta con mirar la fecha:
+      // si el Estado ya es uno de estos, la tarea se considera cerrada igual.
+      const esEstadoCerrado = /^(finalizad[oa]|cerrad[oa]|resuelt[oa]|cancelad[oa])$/i.test(estadoTarea);
 
       taskMap.set(tareaId, {
         tarea: tareaId,
         caso: cleanHeader(row[idx.caso]) || '—',
         tipoCaso: cleanHeader(row[idx.tipoCaso]) || '—',
         proyecto: cleanHeader(row[idx.proyecto]) || '—',
-        estado: cleanHeader(row[idx.estado]) || '—',
+        estado: estadoTarea,
         fechaRegistro,
         asunto: cleanHeader(row[idx.asunto]) || '(sin asunto)',
         razon: cleanHeader(row[idx.razon]) || '—',
@@ -1960,7 +1993,7 @@
         grupoResponsable: cleanHeader(row[idx.grupoResponsable]) || '—',
         receptor: cleanHeader(row[idx.receptor]) || '—',
         fechaCierre,
-        abierta: fechaCierre == null
+        abierta: fechaCierre == null && !esEstadoCerrado
       });
       added++;
     }
@@ -2338,7 +2371,8 @@
     let d = v instanceof Date ? v : new Date(v);
     if (isNaN(d.getTime())) return String(v);
     const pad = n => String(n).padStart(2,'0');
-    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const p = peruParts(d);
+    return `${pad(p.day)}/${pad(p.mo+1)}/${p.y} ${pad(p.h)}:${pad(p.mi)}`;
   }
 
   function render(){
