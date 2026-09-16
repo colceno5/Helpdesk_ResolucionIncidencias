@@ -356,6 +356,11 @@
     display:inline-block; margin-left:7px; font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:600;
     padding:1px 7px; border-radius:100px; background:var(--accent-ink); color:var(--accent); vertical-align:middle;
   }
+  .fecha-mod-badge{
+    display:block; margin-top:3px; font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:600;
+    padding:1px 7px; border-radius:100px; background:var(--surface-sunken); color:var(--ink-soft);
+    border:1px solid var(--border); width:fit-content;
+  }
   .ticket-id.clickable{ cursor:pointer; }
   .ticket-id.clickable:hover{ text-decoration:underline; }
 
@@ -1337,6 +1342,10 @@
     // "Categoría" es opcional: si el export no la trae, la tendencia por categoría
     // usa "Servicio" como respaldo en vez de bloquear la carga del archivo.
     const categoriaIdx = header.findIndex(h => h === 'Categoría');
+    // "Fecha de modificación" también es opcional: solo se usa para mostrar cuándo
+    // pasó a Resuelto un ticket que aún no tiene Fecha Cierre. Si el archivo no la
+    // trae, simplemente no se muestra ese dato (no bloquea la carga).
+    const fechaModIdx = header.findIndex(h => h === 'Fecha de modificación');
 
     const evaluated = [];
     cancelledRaw = [];
@@ -1368,6 +1377,7 @@
         descripcion: cleanHeader(row[idx.descripcion]) || '(sin descripción)',
         fechaCierre: parseArandaDate(row[idx.fechaCierre]),
         fechaRegistro: parseArandaDate(row[idx.fechaRegistro]),
+        fechaModificacion: fechaModIdx === -1 ? null : parseArandaDate(row[fechaModIdx]),
         solucion: cleanHeader(row[idx.solucion]) || '—',
         tipoRegistro: cleanHeader(row[idx.tipoRegistro]) || '—',
         tiempo: row[idx.tiempo] == null ? '—' : String(row[idx.tiempo]),
@@ -2748,7 +2758,7 @@
       <tr data-descripcion="${escapeHtml(r.descripcion)}">
         <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.ticket)}" title="Ver tareas de este caso">${escapeHtml(r.ticket)}${tCount ? `<span class="task-count-badge">${tCount} tarea${tCount === 1 ? '' : 's'}</span>` : ''}</td>
         <td><span class="pct-badge ${r.cumple ? 'ok' : ''}">${r.pct}%</span></td>
-        <td>${escapeHtml(r.estado)}</td>
+        <td>${escapeHtml(r.estado)}${(r.estado === 'Resuelto' && r.fechaModificacion) ? `<span class="fecha-mod-badge">${fmtDate(r.fechaModificacion)}</span>` : ''}</td>
         <td class="cell-servicio" title="${escapeHtml(r.servicio)}">${escapeHtml(r.servicio)}</td>
         <td>${escapeHtml(r.especialista)}</td>
         <td class="mono">${fmtDate(r.fechaRegistro)}</td>
