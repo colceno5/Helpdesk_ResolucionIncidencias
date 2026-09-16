@@ -1281,12 +1281,16 @@
     if (v == null || v === '') return null;
     if (v instanceof Date){
       if (isNaN(v.getTime())) return null;
-      // SheetJS (cellDates:true) ancla la fecha/hora literal de la celda en UTC,
-      // no en hora local. Los componentes UTC son el valor real que escribió
-      // Aranda (hora de Perú), así que los reconstruimos como hora Perú explícita
-      // (no como hora local del navegador) para que el cálculo de tiempo sea
-      // correcto sin importar dónde se abra la app.
-      return fromPeruWallClock(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate(), v.getUTCHours(), v.getUTCMinutes(), v.getUTCSeconds());
+      // SheetJS (cellDates:true) construye el Date usando el constructor LOCAL
+      // (new Date(y,m,d,h,mi,s)), no Date.UTC. Es decir: los getters LOCALES
+      // (getHours, no getUTCHours) son los que reproducen el dígito literal que
+      // escribió Aranda, y ese resultado depende del huso horario del navegador
+      // que procesó el archivo. Si se leen los getters UTC (como se hacía antes),
+      // en un navegador en Perú (UTC-5) ya vienen adelantados/atrasados por ese
+      // mismo offset, y fromPeruWallClock le suma el offset de Perú una segunda
+      // vez -> desfase de +5h. Usando los getters locales, el dígito literal es
+      // siempre el mismo sin importar la zona horaria del navegador.
+      return fromPeruWallClock(v.getFullYear(), v.getMonth(), v.getDate(), v.getHours(), v.getMinutes(), v.getSeconds());
     }
     const s = String(v).trim();
     const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
