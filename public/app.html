@@ -1123,7 +1123,8 @@
 
   function toInputDate(d){
     const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const p = peruParts(d);
+    return `${p.y}-${pad(p.mo + 1)}-${pad(p.day)}`;
   }
   function fmtDateShort(d){
     const pad = n => String(n).padStart(2, '0');
@@ -1172,10 +1173,17 @@
   function getDateRange(){
     const fromVal = $('dateFrom').value;
     const toVal = $('dateTo').value;
-    return {
-      from: fromVal ? new Date(fromVal + 'T00:00:00') : null,
-      to: toVal ? new Date(toVal + 'T23:59:59.999') : null
-    };
+    const parseYmd = s => s.split('-').map(Number); // [y, m, d]
+    let from = null, to = null;
+    if (fromVal){
+      const [y, m, d] = parseYmd(fromVal);
+      from = fromPeruWallClock(y, m - 1, d, 0, 0, 0);
+    }
+    if (toVal){
+      const [y, m, d] = parseYmd(toVal);
+      to = fromPeruWallClock(y, m - 1, d, 23, 59, 59);
+    }
+    return { from, to };
   }
 
   function dateInRange(d, range){
@@ -1452,7 +1460,8 @@
     return isNaN(d.getTime()) ? null : d;
   }
   function monthKeyFromDate(d){
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const p = peruParts(d);
+    return `${p.y}-${String(p.mo + 1).padStart(2, '0')}`;
   }
   function monthLabelFromKey(key){
     const [y, m] = key.split('-');
