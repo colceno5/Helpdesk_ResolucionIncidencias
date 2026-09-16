@@ -19,6 +19,7 @@ export async function GET() {
       descripcion: r.descripcion,
       fechaCierre: r.fecha_cierre,
       fechaRegistro: r.fecha_registro,
+      fechaModificacion: r.fecha_modificacion,
       solucion: r.solucion,
       tipoRegistro: r.tipo_registro,
       tiempo: r.tiempo,
@@ -53,8 +54,9 @@ export async function POST(req) {
         await client.query(
           `INSERT INTO tickets (
              ticket, estado, servicio, categoria, especialista, asunto, descripcion,
-             fecha_cierre, fecha_registro, solucion, tipo_registro, tiempo, progreso_raw, pct, cumple, updated_at
-           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now())
+             fecha_cierre, fecha_registro, fecha_modificacion, solucion, tipo_registro,
+             tiempo, progreso_raw, pct, cumple, updated_at
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, now())
            ON CONFLICT (ticket) DO UPDATE SET
              estado = EXCLUDED.estado,
              servicio = EXCLUDED.servicio,
@@ -64,6 +66,7 @@ export async function POST(req) {
              descripcion = EXCLUDED.descripcion,
              fecha_cierre = EXCLUDED.fecha_cierre,
              fecha_registro = EXCLUDED.fecha_registro,
+             fecha_modificacion = COALESCE(EXCLUDED.fecha_modificacion, tickets.fecha_modificacion),
              solucion = EXCLUDED.solucion,
              tipo_registro = EXCLUDED.tipo_registro,
              tiempo = EXCLUDED.tiempo,
@@ -81,6 +84,7 @@ export async function POST(req) {
             t.descripcion ?? null,
             t.fechaCierre ?? null,
             t.fechaRegistro ?? null,
+            t.fechaModificacion ?? null,
             t.solucion ?? null,
             t.tipoRegistro ?? null,
             t.tiempo ?? null,
