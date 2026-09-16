@@ -2834,10 +2834,10 @@
 
   function syntheticTicketRows(objs){
     const header = ['Numero Ticket','Estado','Servicio','Categoría','Especialista','Asunto','Descripción',
-      'Fecha Cierre','Fecha Registro','Solución','Tipo de Registro','Progreso','Progreso','Tiempo'];
+      'Fecha Cierre','Fecha Registro','Fecha de modificación','Solución','Tipo de Registro','Progreso','Progreso','Tiempo'];
     const rows = objs.map(o => ([
       o.ticket, o.estado, o.servicio, o.categoria, o.especialista, o.asunto, o.descripcion,
-      o.fechaCierre, o.fechaRegistro, o.solucion, o.tipoRegistro,
+      o.fechaCierre, o.fechaRegistro, o.fechaModificacion, o.solucion, o.tipoRegistro,
       '', (o.pct != null ? o.pct + '%' : ''), o.tiempo
     ]));
     return [header, ...rows];
@@ -2858,11 +2858,13 @@
     try{
       const tickets = evaluatedRows.map(r => {
         const fr = toDateSafe(r.fechaRegistro), fc = toDateSafe(r.fechaCierre);
+        const fm = toDateSafe(r.fechaModificacion);
         return {
           ticket: r.ticket, estado: r.estado, servicio: r.servicio, categoria: r.categoria,
           especialista: r.especialista, asunto: r.asunto, descripcion: r.descripcion,
           fechaCierre: fc ? fc.toISOString() : null,
           fechaRegistro: fr ? fr.toISOString() : null,
+          fechaModificacion: fm ? fm.toISOString() : null,
           solucion: r.solucion, tipoRegistro: r.tipoRegistro, tiempo: r.tiempo,
           progresoRaw: r.progresoRaw, pct: r.pct, cumple: r.cumple
         };
