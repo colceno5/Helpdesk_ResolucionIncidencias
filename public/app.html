@@ -1064,22 +1064,6 @@
     return (h==null ? '' : String(h)).replace(/\s+/g,' ').trim();
   }
 
-  function findHeaderRowIndex(rows){
-    // The real header row isn't always row 1 — some exports (e.g. "Sabana de datos...")
-    // prepend title/date rows before the actual column headers. Scan the first
-    // rows for the one that actually contains the required column names.
-    const scanLimit = Math.min(rows.length, 25);
-    for (let r = 0; r < scanLimit; r++){
-      const row = rows[r];
-      if (!row) continue;
-      const cleaned = row.map(cleanHeader);
-      if (cleaned.includes(HEADERS.ticket) && cleaned.includes(HEADERS.estado)){
-        return r;
-      }
-    }
-    return 0; // fallback: assume first row
-  }
-
   // Detecta si un archivo es una sábana de tickets o un export de Tareas,
   // buscando en las primeras filas la que contenga las columnas "firma" de cada tipo.
   function detectFileType(rows){
