@@ -729,7 +729,6 @@
       <div class="table-head">
         <div>
           <h3 id="tableTitle">Tickets abiertos (ordenados por antigüedad)</h3>
-          <div class="sub" id="detailSub">0 registros</div>
         </div>
         <div class="table-actions">
           <input type="text" class="search-box" id="searchBox" placeholder="Buscar ticket, especialista, servicio…">
@@ -750,18 +749,6 @@
               <th data-key="tiempo">Tiempo</th>
               <th data-key="solucion">Solución</th>
               <th data-key="tipoRegistro">Tipo de registro</th>
-            </tr>
-            <tr class="filter-row">
-              <th><input type="text" class="col-filter" data-key="ticket" placeholder="Filtrar…"></th>
-              <th><input type="text" class="col-filter" data-key="progreso" placeholder="Filtrar…"></th>
-              <th><select class="col-filter" data-key="estado"><option value="">Todos</option></select></th>
-              <th><select class="col-filter" data-key="servicio"><option value="">Todos</option></select></th>
-              <th><select class="col-filter" data-key="especialista"><option value="">Todos</option></select></th>
-              <th><input type="text" class="col-filter" data-key="fechaRegistro" placeholder="Filtrar…"></th>
-              <th class="col-fecha-cierre"><input type="text" class="col-filter" data-key="fechaCierre" placeholder="Filtrar…"></th>
-              <th><input type="text" class="col-filter" data-key="tiempo" placeholder="Filtrar…"></th>
-              <th><input type="text" class="col-filter" data-key="solucion" placeholder="Filtrar…"></th>
-              <th><select class="col-filter" data-key="tipoRegistro"><option value="">Todos</option></select></th>
             </tr>
           </thead>
           <tbody id="detailBody"></tbody>
@@ -3004,7 +2991,6 @@
 
     updateSortArrow('#detailTable', key, dir);
 
-    $('detailSub').textContent = `${list.length} registro${list.length===1?'':'s'}`;
     document.getElementById('detailTable').classList.toggle('hidden', list.length === 0);
     $('emptyDetail').textContent = emptyDetailTexts[currentView];
     $('emptyDetail').classList.toggle('hidden', list.length !== 0);
