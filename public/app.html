@@ -1311,7 +1311,10 @@
     const range = getDateRange();
 
     allRows = allRowsRaw.filter(r => dateInRange(toDateSafe(r.fechaRegistro), range));
-    vencidos = allRows.filter(r => !r.cumple);
+    // "Vencidos" solo debe listar tickets que ya están Cerrado: los vencidos que
+    // aún están Resuelto/En Proceso (sin Fecha Cierre) ya se muestran en la
+    // pestaña Abiertos, así que no deben aparecer duplicados aquí también.
+    vencidos = allRows.filter(r => !r.cumple && r.estado === 'Cerrado');
     cumplen = allRows.filter(r => r.cumple);
 
     // Tickets abiertos: sin Fecha de Cierre, sin importar si ya superaron o no el % de SLA.
@@ -2867,12 +2870,12 @@
 
   const emptyDetailTexts = {
     abiertos: 'No hay tickets abiertos en este periodo.',
-    vencidos: 'Ningún ticket superó el 100% de progreso en este periodo.',
+    vencidos: 'Ningún ticket cerrado superó el 100% de progreso en este periodo.',
     cumplen: 'Ningún ticket cumplió el SLA en este periodo.'
   };
   const tableTitles = {
     abiertos: 'Tickets abiertos (ordenados por antigüedad)',
-    vencidos: 'Tickets vencidos (&gt;100% de progreso)',
+    vencidos: 'Tickets cerrados vencidos (&gt;100% de progreso)',
     cumplen: 'Tickets que cumplen SLA (&le;100% de progreso)'
   };
   const exportNames = {
