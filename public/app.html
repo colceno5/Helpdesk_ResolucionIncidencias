@@ -1477,7 +1477,8 @@
     const impactoIdx = header.findIndex(h => h === 'Impacto');
     const urgenciaIdx = header.findIndex(h => h === 'Urgencia');
 
-    const evaluated = [];
+    const evaluated = [];   // solo para el análisis (SLA, tendencias, tabla) — igual que antes
+    const syncRows = [];    // TODO lo leído del archivo, para mantener sincronizada la base de datos
     cancelledRaw = [];
     allDescRaw = [];
 
@@ -1490,14 +1491,16 @@
 
       allDescRaw.push({ desc: cleanHeader(row[idx.descripcion]), fecha: parseArandaDate(row[idx.fechaRegistro]) });
 
-      if (estado === 'Cancelado'){ cancelledRaw.push(parseArandaDate(row[idx.fechaRegistro])); continue; }
-
       const progresoRaw = row[idx.progreso] == null ? '' : String(row[idx.progreso]);
       const pctMatch = progresoRaw.match(/(-?\d+(?:[.,]\d+)?)\s*%/);
-      if (!pctMatch) continue; // skip rows without a readable progress value
-      const pct = parseFloat(pctMatch[1].replace(',', '.'));
+      const pct = pctMatch ? parseFloat(pctMatch[1].replace(',', '.')) : null;
 
-      evaluated.push({
+      // Datos de la fila, sin importar si entra o no al análisis de SLA. Se
+      // guardan siempre en el servidor (incluidos Cancelado o sin Progreso
+      // legible) para que, si un ticket cambia de estado en un archivo
+      // posterior, esa actualización sí llegue a la base de datos en vez de
+      // quedarse el registro anterior desactualizado para siempre.
+      const base = {
         ticket: cleanHeader(row[idx.ticket]) || '',
         estado,
         servicio: cleanHeader(row[idx.servicio]) || '—',
@@ -1518,15 +1521,22 @@
         tiempo: row[idx.tiempo] == null ? '—' : String(row[idx.tiempo]),
         progresoRaw,
         pct,
-        cumple: pct <= 100
-      });
+        cumple: pct == null ? null : pct <= 100
+      };
+
+      syncRows.push(base);
+
+      if (estado === 'Cancelado'){ cancelledRaw.push(base.fechaRegistro); continue; }
+      if (pct == null) continue; // sin Progreso legible: no entra al análisis de SLA
+
+      evaluated.push(base);
     }
 
     allRowsRaw = evaluated;
     noiseDismissed = false;
     renderNoiseWarning();
 
-    registerLoadedFile(fileName, `${evaluated.length} tickets evaluados`, 'ticket');
+    registerLoadedFile(fileName, `${evaluated.length} tickets evaluados de ${syncRows.length} leídos`, 'ticket');
     revealDashboard();
     $('ticketSection').classList.remove('hidden');
     $('trendsSection').classList.remove('hidden');
@@ -1536,8 +1546,9 @@
     refreshDateBoundsUI();
     applyGlobalFilters();
 
-    if (shouldPersist) persistTicketsToServer(evaluated);
+    if (shouldPersist) persistTicketsToServer(syncRows);
   }
+
 
   // ---------------- Detector de ráfagas de tickets duplicados (E) ----------------
   // Busca descripciones idénticas repetidas muchas veces en pocos días (p. ej. un correo
