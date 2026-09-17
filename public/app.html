@@ -489,10 +489,69 @@
 
   .page-tabs{
     display:flex;
-    gap:4px;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
     margin-bottom:14px;
     border-bottom:2px solid var(--border);
   }
+  .page-tabs-left{ display:flex; gap:4px; }
+  .btn-tv{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    padding:7px 14px;
+    margin-bottom:6px;
+    border:1px solid var(--border);
+    border-radius:100px;
+    background:var(--surface);
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .btn-tv:hover{ border-color:var(--accent); color:var(--accent); }
+  .btn-exit-tv{
+    position:fixed;
+    top:16px;
+    right:16px;
+    z-index:60;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    padding:8px 16px;
+    border:none;
+    border-radius:100px;
+    background:var(--ink);
+    color:#fff;
+    cursor:pointer;
+    opacity:.55;
+    transition:opacity .15s ease;
+  }
+  .btn-exit-tv:hover{ opacity:1; }
+
+  /* ---------- Modo pantalla: alterna tickets/tareas cada 10s ---------- */
+  body.tv-mode .brand-banner,
+  body.tv-mode header.top,
+  body.tv-mode .date-range-bar,
+  body.tv-mode .page-tabs,
+  body.tv-mode #noiseWarning,
+  body.tv-mode #ticketSection > section.hero,
+  body.tv-mode #taskSection > h2.section-title,
+  body.tv-mode #taskSection > section.hero,
+  body.tv-mode #taskSection > section.breakdown,
+  body.tv-mode footer.credit,
+  body.tv-mode [data-page="dashboardExtra"]{
+    display:none !important;
+  }
+  body.tv-mode .table-section{ display:none !important; }
+  body.tv-mode #ticketTableBlock.tv-active,
+  body.tv-mode #taskTableBlock.tv-active{
+    display:block !important;
+    animation: tvFadeIn .5s ease;
+  }
+  body.tv-mode .wrap{ padding-top:26px; }
+  @keyframes tvFadeIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+
   .page-tab-btn{
     font-family:'Space Grotesk', sans-serif;
     font-size:14px;
@@ -682,9 +741,13 @@
   <div id="dashboard" class="hidden">
 
    <div class="page-tabs">
-     <button class="page-tab-btn active" id="pageTabGeneral" data-target-page="general">Resumen</button>
-     <button class="page-tab-btn" id="pageTabDashboard" data-target-page="dashboardExtra">Dashboard</button>
+     <div class="page-tabs-left">
+       <button class="page-tab-btn active" id="pageTabGeneral" data-target-page="general">Resumen</button>
+       <button class="page-tab-btn" id="pageTabDashboard" data-target-page="dashboardExtra">Dashboard</button>
+     </div>
+     <button class="btn-tv" id="btnTvMode" title="Alterna automáticamente, cada 10 segundos, entre la tabla de tickets y la de tareas">🖥️ Modo pantalla</button>
    </div>
+   <button id="btnExitTv" class="btn-exit-tv hidden">✕ Salir de modo pantalla</button>
 
    <div id="ticketSection" class="hidden" data-page="general">
     <div id="noiseWarning" class="noise-warning hidden">
@@ -720,7 +783,7 @@
       </div>
     </section>
 
-    <section class="table-section">
+    <section class="table-section" id="ticketTableBlock">
       <div class="view-tabs">
         <button class="tab-btn active" id="tabAbiertos" data-view="abiertos">Abiertos <span class="count" id="tabCountAbiertos">0</span></button>
         <button class="tab-btn" id="tabVencidos" data-view="vencidos">Vencidos <span class="count" id="tabCountVencidos">0</span></button>
@@ -961,7 +1024,7 @@
       </div>
     </section>
 
-    <section class="table-section">
+    <section class="table-section" id="taskTableBlock">
       <div class="view-tabs">
         <button class="tab-btn active" id="tabTaskAbiertas" data-view="abiertas">Abiertas <span class="count" id="tabCountTaskAbiertas">0</span></button>
         <button class="tab-btn" id="tabTaskCerradas" data-view="cerradas">Cerradas <span class="count" id="tabCountTaskCerradas">0</span></button>
@@ -1123,6 +1186,64 @@
   fileInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length) handleFiles(e.target.files);
     fileInput.value = '';
+  });
+
+  // ---------- Modo pantalla: alterna la tabla de tickets y la de tareas cada
+  // 10 segundos, mostrando el contenido en vivo de cada una (pestaña, orden y
+  // búsqueda actuales), pensado para dejarlo puesto en un monitor/TV. ----------
+  let tvInterval = null;
+  let tvCurrent = 'tickets';
+
+  function tvAvailableScreens(){
+    const screens = [];
+    if (!$('ticketSection').classList.contains('hidden')) screens.push('tickets');
+    if (!$('taskSection').classList.contains('hidden')) screens.push('tasks');
+    return screens;
+  }
+
+  function tvShow(which){
+    $('ticketTableBlock').classList.toggle('tv-active', which === 'tickets');
+    $('taskTableBlock').classList.toggle('tv-active', which === 'tasks');
+  }
+
+  function tvTick(){
+    const screens = tvAvailableScreens();
+    if (!screens.length){ stopTvMode(); return; }
+    if (screens.length === 1){ tvCurrent = screens[0]; tvShow(tvCurrent); return; }
+    tvCurrent = tvCurrent === 'tickets' ? 'tasks' : 'tickets';
+    tvShow(tvCurrent);
+  }
+
+  function startTvMode(){
+    const screens = tvAvailableScreens();
+    if (!screens.length) return;
+    $('pageTabGeneral').classList.add('active');
+    $('pageTabDashboard').classList.remove('active');
+    document.body.classList.add('page-view-general');
+    document.body.classList.remove('page-view-dashboardExtra');
+    document.body.classList.add('tv-mode');
+    $('btnExitTv').classList.remove('hidden');
+    tvCurrent = screens[0];
+    tvShow(tvCurrent);
+    if (tvInterval) clearInterval(tvInterval);
+    tvInterval = setInterval(tvTick, 10000);
+  }
+
+  function stopTvMode(){
+    document.body.classList.remove('tv-mode');
+    $('btnExitTv').classList.add('hidden');
+    if (tvInterval){ clearInterval(tvInterval); tvInterval = null; }
+    $('ticketTableBlock').classList.remove('tv-active');
+    $('taskTableBlock').classList.remove('tv-active');
+  }
+
+  $('btnTvMode').addEventListener('click', () => {
+    if (document.body.classList.contains('tv-mode')) stopTvMode();
+    else startTvMode();
+  });
+  $('btnExitTv').addEventListener('click', stopTvMode);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('tv-mode')) stopTvMode();
   });
 
   ['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, (e) => {
