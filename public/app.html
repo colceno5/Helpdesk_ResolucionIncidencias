@@ -1339,18 +1339,41 @@
     $('dateRangeNote').textContent = parts.length ? `${parts.join(' · ')} en el rango seleccionado` : '';
   }
 
+  // Guarda el rango Desde/Hasta en el servidor para que se mantenga igual sin
+  // importar desde qué navegador o dispositivo se abra la app después.
+  async function saveDateRangeToServer(dateFrom, dateTo){
+    try{
+      await fetch('/api/settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dateFrom: dateFrom || null, dateTo: dateTo || null })
+      });
+    }catch(err){
+      console.warn('No se pudo guardar el rango de fechas en el servidor:', err.message);
+    }
+  }
+
   $('btnApplyDateRange').addEventListener('click', () => {
     dateRangeTouchedByUser = true;
     applyGlobalFilters();
+    saveDateRangeToServer($('dateFrom').value, $('dateTo').value);
   });
-  $('dateFrom').addEventListener('change', () => { dateRangeTouchedByUser = true; applyGlobalFilters(); });
-  $('dateTo').addEventListener('change', () => { dateRangeTouchedByUser = true; applyGlobalFilters(); });
+  $('dateFrom').addEventListener('change', () => {
+    dateRangeTouchedByUser = true;
+    applyGlobalFilters();
+    saveDateRangeToServer($('dateFrom').value, $('dateTo').value);
+  });
+  $('dateTo').addEventListener('change', () => {
+    dateRangeTouchedByUser = true;
+    applyGlobalFilters();
+    saveDateRangeToServer($('dateFrom').value, $('dateTo').value);
+  });
   $('btnResetDateRange').addEventListener('click', () => {
     dateRangeTouchedByUser = false;
     const { min, max } = computeDateBounds();
     $('dateFrom').value = min ? toInputDate(min) : '';
     $('dateTo').value = max ? toInputDate(max) : '';
     applyGlobalFilters();
+    saveDateRangeToServer(null, null); // "Restablecer" también limpia lo guardado para todos
   });
 
   // Perú no usa horario de verano: el offset respecto a UTC es siempre -5h.
@@ -3133,15 +3156,25 @@
 
   async function loadFromServer(){
     try{
-      const [tRes, kRes] = await Promise.all([
+      const [tRes, kRes, sRes] = await Promise.all([
         fetch('/api/tickets').then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch('/api/tasks').then(r => r.ok ? r.json() : null).catch(() => null)
+        fetch('/api/tasks').then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/settings').then(r => r.ok ? r.json() : null).catch(() => null)
       ]);
       if (tRes && tRes.ok && tRes.tickets && tRes.tickets.length){
         processTicketRows(syntheticTicketRows(tRes.tickets), 0, `Histórico guardado (${tRes.tickets.length} tickets)`, { persist: false });
       }
       if (kRes && kRes.ok && kRes.tasks && kRes.tasks.length){
         processTaskRows(syntheticTaskRows(kRes.tasks), 0, `Histórico guardado (${kRes.tasks.length} tareas)`, { persist: false });
+      }
+      // Restaura el rango Desde/Hasta que haya quedado guardado en el servidor
+      // (por cualquier persona, desde cualquier navegador), para que la
+      // selección se mantenga igual en vez de volver siempre al rango completo.
+      if (sRes && sRes.ok && (sRes.dateFrom || sRes.dateTo)){
+        if (sRes.dateFrom) $('dateFrom').value = sRes.dateFrom;
+        if (sRes.dateTo) $('dateTo').value = sRes.dateTo;
+        dateRangeTouchedByUser = true;
+        applyGlobalFilters();
       }
     }catch(err){
       console.warn('No se pudo recuperar el histórico guardado:', err.message);
