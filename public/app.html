@@ -592,6 +592,15 @@
     text-overflow:ellipsis;
     white-space:nowrap;
   }
+  /* Tickets abiertos: la columna "Fecha cierre" siempre está vacía (el
+     ticket sigue abierto), así que se oculta en esa vista y el espacio que
+     libera se reparte dándole más aire a Servicio y Solución, que son las
+     columnas que más se recortaban con "…". */
+  #detailTable.no-fecha-cierre .col-fecha-cierre{ display:none; }
+  #detailTable.no-fecha-cierre .cell-servicio,
+  #detailTable.no-fecha-cierre .cell-solucion{
+    max-width:280px;
+  }
   .empty-detail{
     text-align:center;
     padding:30px 20px;
@@ -737,7 +746,7 @@
               <th data-key="servicio">Servicio</th>
               <th data-key="especialista">Especialista</th>
               <th data-key="fechaRegistro">Fecha registro</th>
-              <th data-key="fechaCierre">Fecha cierre</th>
+              <th class="col-fecha-cierre" data-key="fechaCierre">Fecha cierre</th>
               <th data-key="tiempo">Tiempo</th>
               <th data-key="solucion">Solución</th>
               <th data-key="tipoRegistro">Tipo de registro</th>
@@ -749,7 +758,7 @@
               <th><select class="col-filter" data-key="servicio"><option value="">Todos</option></select></th>
               <th><select class="col-filter" data-key="especialista"><option value="">Todos</option></select></th>
               <th><input type="text" class="col-filter" data-key="fechaRegistro" placeholder="Filtrar…"></th>
-              <th><input type="text" class="col-filter" data-key="fechaCierre" placeholder="Filtrar…"></th>
+              <th class="col-fecha-cierre"><input type="text" class="col-filter" data-key="fechaCierre" placeholder="Filtrar…"></th>
               <th><input type="text" class="col-filter" data-key="tiempo" placeholder="Filtrar…"></th>
               <th><input type="text" class="col-filter" data-key="solucion" placeholder="Filtrar…"></th>
               <th><select class="col-filter" data-key="tipoRegistro"><option value="">Todos</option></select></th>
@@ -2945,6 +2954,7 @@
   }
 
   function applySortAndFilter(){
+    document.getElementById('detailTable').classList.toggle('no-fecha-cierre', currentView === 'abiertos');
     const term = searchBox.value.trim().toLowerCase();
     const sourceList = currentView === 'cumplen' ? cumplen : (currentView === 'abiertos' ? abiertos : vencidos);
     let list = sourceList.filter(r => {
@@ -3006,7 +3016,7 @@
         <td class="cell-servicio" title="${escapeHtml(r.servicio)}">${escapeHtml(r.servicio)}</td>
         <td>${escapeHtml(r.especialista)}</td>
         <td class="mono">${fmtDate(r.fechaRegistro)}</td>
-        <td class="mono">${fmtDate(r.fechaCierre)}</td>
+        <td class="mono col-fecha-cierre">${fmtDate(r.fechaCierre)}</td>
         <td class="mono"${currentView === 'abiertos' ? ` style="color:${daysColor(r.diasAbierto)}; font-weight:600;"` : ''}>${currentView === 'abiertos' ? (r.minutosAbierto == null ? '—' : formatDuration(r.minutosAbierto)) : escapeHtml(r.tiempo)}</td>
         <td class="cell-solucion" title="${escapeHtml(r.solucion)}">${escapeHtml(r.solucion)}</td>
         <td>${escapeHtml(r.tipoRegistro)}</td>
