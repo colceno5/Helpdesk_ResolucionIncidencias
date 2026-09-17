@@ -26,6 +26,11 @@ export async function GET() {
       progresoRaw: r.progreso_raw,
       pct: r.pct,
       cumple: r.cumple,
+      clienteFinal: r.cliente_final,
+      autorTicket: r.autor_ticket,
+      prioridad: r.prioridad,
+      impacto: r.impacto,
+      urgencia: r.urgencia,
     }));
     return Response.json({ ok: true, count: tickets.length, tickets });
   } catch (err) {
@@ -55,8 +60,9 @@ export async function POST(req) {
           `INSERT INTO tickets (
              ticket, estado, servicio, categoria, especialista, asunto, descripcion,
              fecha_cierre, fecha_registro, fecha_modificacion, solucion, tipo_registro,
-             tiempo, progreso_raw, pct, cumple, updated_at
-           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, now())
+             tiempo, progreso_raw, pct, cumple,
+             cliente_final, autor_ticket, prioridad, impacto, urgencia, updated_at
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21, now())
            ON CONFLICT (ticket) DO UPDATE SET
              estado = EXCLUDED.estado,
              servicio = EXCLUDED.servicio,
@@ -73,6 +79,11 @@ export async function POST(req) {
              progreso_raw = EXCLUDED.progreso_raw,
              pct = EXCLUDED.pct,
              cumple = EXCLUDED.cumple,
+             cliente_final = COALESCE(EXCLUDED.cliente_final, tickets.cliente_final),
+             autor_ticket = COALESCE(EXCLUDED.autor_ticket, tickets.autor_ticket),
+             prioridad = COALESCE(EXCLUDED.prioridad, tickets.prioridad),
+             impacto = COALESCE(EXCLUDED.impacto, tickets.impacto),
+             urgencia = COALESCE(EXCLUDED.urgencia, tickets.urgencia),
              updated_at = now();`,
           [
             String(t.ticket),
@@ -91,6 +102,11 @@ export async function POST(req) {
             t.progresoRaw ?? null,
             typeof t.pct === 'number' ? t.pct : null,
             typeof t.cumple === 'boolean' ? t.cumple : null,
+            t.clienteFinal ?? null,
+            t.autorTicket ?? null,
+            t.prioridad ?? null,
+            t.impacto ?? null,
+            t.urgencia ?? null,
           ]
         );
         upserted++;
