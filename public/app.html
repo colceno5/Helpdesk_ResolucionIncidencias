@@ -1564,7 +1564,12 @@
         const wsName = wb.SheetNames[0];
         const ws = wb.Sheets[wsName];
         const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', raw:true });
-        routeRows(rows, file.name);
+        // Texto tal como lo muestra Excel (según el formato de celda), sin pasar
+        // por el objeto Date de SheetJS. Se usa solo para las columnas de fecha
+        // de tickets, para eliminar la ambigüedad de zona horaria que introduce
+        // reconstruir un Date a partir de sus getters (ver parseArandaDate).
+        const textRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', raw:false });
+        routeRows(rows, file.name, textRows);
       }catch(err){
         console.error(err);
         errorMsg.textContent = 'No se pudo leer "' + file.name + '". Verifica que sea un .xlsx exportado de Aranda.';
@@ -1595,14 +1600,14 @@
     return { idx: 0, type: null };
   }
 
-  function routeRows(rows, fileName){
+  function routeRows(rows, fileName, textRows){
     if (!rows || rows.length < 2){
       errorMsg.textContent = 'El archivo "' + fileName + '" no contiene filas de datos.';
       return;
     }
     const found = detectFileType(rows);
     if (found.type === 'ticket'){
-      processTicketRows(rows, found.idx, fileName);
+      processTicketRows(rows, found.idx, fileName, null, textRows);
     } else if (found.type === 'task'){
       processTaskRows(rows, found.idx, fileName);
     } else {
@@ -1843,10 +1848,12 @@
   }
 
 
-  function processTicketRows(rows, headerRowIdx, fileName, opts){
+  function processTicketRows(rows, headerRowIdx, fileName, opts, textRows){
     const shouldPersist = !opts || opts.persist !== false;
     const header = rows[headerRowIdx].map(cleanHeader);
     rows = rows.slice(headerRowIdx); // drop any title/meta rows above the header
+    // Mismo recorte para mantener alineados índice a índice con `rows`.
+    if (textRows) textRows = textRows.slice(headerRowIdx);
 
     // find repeated Progreso/Tiempo blocks -> take the SECOND "Progreso" occurrence (column AP in the template)
     const progresoIdxs = [];
@@ -1899,11 +1906,22 @@
     for (let r = 1; r < rows.length; r++){
       const row = rows[r];
       if (!row || row.every(c => c === '' || c == null)) continue;
+      const textRow = textRows ? textRows[r] : null;
+      // Para columnas de fecha: prioriza el texto tal como lo formatea Excel
+      // (lo que ve el analista) en vez del objeto Date de SheetJS, que obliga
+      // a adivinar cómo esa librería construyó internamente el timestamp.
+      // Si no hay texto disponible para esa celda (p.ej. al recargar el
+      // histórico ya guardado en el servidor, que llega como ISO string),
+      // cae de vuelta al valor original de `row`.
+      const cellDate = (colIdx) => {
+        const t = textRow ? textRow[colIdx] : null;
+        return parseArandaDate((t !== undefined && t !== null && t !== '') ? t : row[colIdx]);
+      };
 
       const estado = cleanHeader(row[idx.estado]);
       if (!estado) continue;
 
-      allDescRaw.push({ desc: cleanHeader(row[idx.descripcion]), fecha: parseArandaDate(row[idx.fechaRegistro]) });
+      allDescRaw.push({ desc: cleanHeader(row[idx.descripcion]), fecha: cellDate(idx.fechaRegistro) });
 
       const progresoRaw = row[idx.progreso] == null ? '' : String(row[idx.progreso]);
       const pctMatch = progresoRaw.match(/(-?\d+(?:[.,]\d+)?)\s*%/);
@@ -1922,9 +1940,9 @@
         especialista: cleanHeader(row[idx.especialista]) || '—',
         asunto: cleanHeader(row[idx.asunto]) || '(sin asunto)',
         descripcion: cleanHeader(row[idx.descripcion]) || '(sin descripción)',
-        fechaCierre: parseArandaDate(row[idx.fechaCierre]),
-        fechaRegistro: parseArandaDate(row[idx.fechaRegistro]),
-        fechaModificacion: fechaModIdx === -1 ? null : parseArandaDate(row[fechaModIdx]),
+        fechaCierre: cellDate(idx.fechaCierre),
+        fechaRegistro: cellDate(idx.fechaRegistro),
+        fechaModificacion: fechaModIdx === -1 ? null : cellDate(fechaModIdx),
         clienteFinal: clienteFinalIdx === -1 ? null : (cleanHeader(row[clienteFinalIdx]) || '—'),
         autorTicket: autorTicketIdx === -1 ? null : (cleanHeader(row[autorTicketIdx]) || '—'),
         prioridad: prioridadIdx === -1 ? null : (cleanHeader(row[prioridadIdx]) || '—'),
