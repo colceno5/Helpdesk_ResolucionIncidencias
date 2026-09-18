@@ -540,7 +540,8 @@
   body.tv-mode #taskSection > section.hero,
   body.tv-mode #taskSection > section.breakdown,
   body.tv-mode footer.credit,
-  body.tv-mode [data-page="dashboardExtra"]{
+  body.tv-mode [data-page="dashboardExtra"],
+  body.tv-mode [data-page="analysis"]{
     display:none !important;
   }
   body.tv-mode .table-section{ display:none !important; }
@@ -699,6 +700,104 @@
     font-size:11.5px;
     margin-top:26px;
   }
+
+  /* ---------- Pestaña "Análisis y Mejora" ---------- */
+  body.page-view-general [data-page="analysis"],
+  body.page-view-dashboardExtra [data-page="analysis"]{ display:none !important; }
+  body.page-view-analysis [data-page="general"],
+  body.page-view-analysis [data-page="dashboardExtra"]{ display:none !important; }
+
+  .an-toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m);
+    padding:12px 14px; margin-bottom:14px;
+  }
+  .an-toolbar label{ font-size:12.5px; color:var(--ink-soft); margin-right:4px; }
+  .an-toolbar select, .an-toolbar input{
+    font-family:'IBM Plex Sans', sans-serif; font-size:13px; border:1px solid var(--border);
+    border-radius:var(--radius-s); padding:5px 8px; background:var(--surface); color:var(--ink);
+  }
+  .an-toolbar .an-check{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); }
+  .an-spacer{ flex:1 1 auto; }
+
+  .an-section{ margin-bottom:22px; }
+  .an-section > h2{
+    font-family:'Space Grotesk', sans-serif; font-size:16px; margin:0 0 4px; color:var(--ink);
+  }
+  .an-section > .an-sub{ font-size:12.5px; color:var(--ink-soft); margin:0 0 10px; }
+
+  .an-grid{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;
+  }
+  @media (max-width:980px){ .an-grid{ grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:560px){ .an-grid{ grid-template-columns:1fr; } }
+  .an-stat{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m);
+    padding:12px 14px;
+  }
+  .an-stat .l{ font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .an-stat .n{ font-family:'Space Grotesk', sans-serif; font-size:20px; font-weight:600; color:var(--ink); }
+  .an-stat .n.ok{ color:var(--success); }
+  .an-stat .n.bad{ color:var(--danger); }
+  .an-stat .delta{ font-size:11px; margin-top:3px; }
+  .an-stat .delta.up{ color:var(--success); }
+  .an-stat .delta.down{ color:var(--danger); }
+
+  .an-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m); padding:14px 16px;
+  }
+  .an-empty{ color:var(--ink-faint); font-size:13px; padding:14px 0; }
+
+  .an-badge{
+    display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:100px;
+  }
+  .an-badge.leve{ background:var(--success-bg); color:var(--success); }
+  .an-badge.moderado{ background:var(--warning-bg); color:var(--warning); }
+  .an-badge.alto{ background:#FDE4D8; color:#B5502A; }
+  .an-badge.critico{ background:var(--danger-bg); color:var(--danger); }
+  .an-badge.pendiente{ background:var(--surface-sunken); color:var(--ink-soft); }
+  .an-badge.potencial-alta{ background:var(--success-bg); color:var(--success); }
+  .an-badge.potencial-media{ background:var(--warning-bg); color:var(--warning); }
+  .an-badge.potencial-baja{ background:var(--surface-sunken); color:var(--ink-soft); }
+
+  .an-trend-up{ color:var(--danger); }
+  .an-trend-down{ color:var(--success); }
+  .an-trend-flat{ color:var(--ink-faint); }
+
+  .an-select-inline{
+    font-family:'IBM Plex Sans', sans-serif; font-size:12px; border:1px solid var(--border);
+    border-radius:var(--radius-s); padding:3px 5px; background:var(--surface); color:var(--ink); max-width:150px;
+  }
+
+  .an-why{ font-size:13.5px; line-height:1.65; color:var(--ink); }
+  .an-why ul{ margin:6px 0 0 18px; padding:0; }
+  .an-why li{ margin-bottom:4px; }
+
+  .an-kb-list{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:10px; }
+  @media (max-width:820px){ .an-kb-list{ grid-template-columns:1fr; } }
+  .an-kb-card{ border:1px solid var(--border); border-radius:var(--radius-s); padding:10px 12px; background:var(--surface-sunken); }
+  .an-kb-card h4{ margin:0 0 4px; font-size:13.5px; font-family:'Space Grotesk', sans-serif; }
+  .an-kb-card .meta{ font-size:11px; color:var(--ink-soft); margin-bottom:6px; }
+  .an-kb-card .actions{ margin-top:8px; display:flex; gap:8px; }
+  .an-kb-card .actions button{ font-size:11.5px; padding:4px 9px; }
+
+  .an-form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+  @media (max-width:640px){ .an-form-grid{ grid-template-columns:1fr; } }
+  .an-form-grid label{ font-size:11.5px; color:var(--ink-soft); display:block; margin-bottom:3px; }
+  .an-form-grid input, .an-form-grid select, .an-form-grid textarea{
+    width:100%; font-family:'IBM Plex Sans', sans-serif; font-size:13px; border:1px solid var(--border);
+    border-radius:var(--radius-s); padding:6px 8px; background:var(--surface); color:var(--ink);
+  }
+  .an-form-grid textarea{ resize:vertical; min-height:52px; }
+  .an-form-grid .full{ grid-column:1 / -1; }
+  .an-form-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+
+  .an-toolrow{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+  .an-toolrow input[type=text]{
+    font-family:'IBM Plex Sans', sans-serif; font-size:13px; border:1px solid var(--border);
+    border-radius:var(--radius-s); padding:6px 9px; background:var(--surface); color:var(--ink); min-width:180px;
+  }
+
 </style>
 </head>
 <body class="page-view-general">
@@ -744,6 +843,7 @@
      <div class="page-tabs-left">
        <button class="page-tab-btn active" id="pageTabGeneral" data-target-page="general">Resumen</button>
        <button class="page-tab-btn" id="pageTabDashboard" data-target-page="dashboardExtra">Dashboard</button>
+       <button class="page-tab-btn" id="pageTabAnalysis" data-target-page="analysis">Análisis y Mejora</button>
      </div>
      <button class="btn-tv" id="btnTvMode" title="Alterna automáticamente, cada 10 segundos, entre la tabla de tickets y la de tareas">🖥️ Modo pantalla</button>
    </div>
@@ -1087,6 +1187,197 @@
     </section>
    </div>
 
+   <div id="analysisSection" class="hidden" data-page="analysis">
+
+    <div class="an-toolbar">
+      <label for="anWeekMode">Semana analizada</label>
+      <select id="anWeekMode">
+        <option value="actual">Semana actual</option>
+        <option value="anterior">Semana anterior</option>
+        <option value="select">Seleccionar semana…</option>
+      </select>
+      <select id="anWeekSelect" class="hidden"></select>
+      <label class="an-check"><input type="checkbox" id="anCompare" checked> Comparar con semana anterior</label>
+      <div class="an-spacer"></div>
+      <label for="anTrendWindow">Tendencia</label>
+      <select id="anTrendWindow">
+        <option value="8">Últimas 8 semanas</option>
+        <option value="12" selected>Últimas 12 semanas</option>
+        <option value="26">Últimas 26 semanas</option>
+      </select>
+      <button class="btn-primary" id="anBtnReport">Generar análisis semanal</button>
+    </div>
+
+    <p class="an-empty hidden" id="anNoData">Aún no hay tickets cargados para analizar por semana.</p>
+
+    <div id="anContent" class="hidden">
+
+      <section class="an-section">
+        <h2 id="anWeekTitle">Resumen ejecutivo</h2>
+        <p class="an-sub" id="anWeekSub"></p>
+        <div class="an-grid" id="anExecGrid"></div>
+      </section>
+
+      <section class="an-section">
+        <h2>Evolución semanal del cumplimiento SLA</h2>
+        <p class="an-sub">% de tickets que cumplen SLA por semana, frente a la meta configurada.</p>
+        <div class="an-card">
+          <canvas id="anTrendChart" height="90"></canvas>
+        </div>
+      </section>
+
+      <section class="an-section">
+        <h2>¿Dónde estamos fallando?</h2>
+        <p class="an-sub">Tickets ya cerrados que vencieron el SLA en la semana, agrupados por servicio, especialista y categoría (los que aún están abiertos se cuentan aparte, en "Vencidos pendientes").</p>
+        <div class="an-card" style="margin-bottom:10px;">
+          <div class="table-scroll">
+            <table id="anByServicioTable">
+              <thead><tr><th>Servicio</th><th>Vencidos</th><th>% del total</th><th>Exceso prom.</th><th>Mayor exceso</th><th>Tendencia</th></tr></thead>
+              <tbody id="anByServicioBody"></tbody>
+            </table>
+          </div>
+          <p class="an-empty hidden" id="anByServicioEmpty">No hubo tickets vencidos en esta semana.</p>
+        </div>
+        <div class="an-card" style="margin-bottom:10px;">
+          <div class="table-scroll">
+            <table id="anByEspecialistaTable">
+              <thead><tr><th>Especialista</th><th>Atendidos</th><th>Vencidos</th><th>% cumplimiento</th><th>Exceso prom.</th><th>Abiertos actualmente</th></tr></thead>
+              <tbody id="anByEspecialistaBody"></tbody>
+            </table>
+          </div>
+          <p class="an-empty hidden" id="anByEspecialistaEmpty">No hay tickets evaluados en esta semana.</p>
+        </div>
+        <div class="an-card">
+          <div class="table-scroll">
+            <table id="anByCategoriaTable">
+              <thead><tr><th>Categoría / tipo</th><th>Vencidos</th><th>% del total</th></tr></thead>
+              <tbody id="anByCategoriaBody"></tbody>
+            </table>
+          </div>
+          <p class="an-empty hidden" id="anByCategoriaEmpty">No hubo tickets vencidos en esta semana.</p>
+        </div>
+      </section>
+
+      <section class="an-section">
+        <h2>Exceso de SLA y causas de demora</h2>
+        <p class="an-sub">Cada ticket cerrado que venció el SLA, clasificado por severidad del exceso (mismo criterio que la pestaña "Vencidos" del resumen). Umbrales configurables (en puntos porcentuales de progreso sobre el 100%). La causa se puede registrar aquí mismo.</p>
+        <div class="an-toolrow">
+          <label class="an-check">Leve ≤ <input type="number" id="anThLeve" style="width:54px;" min="1"></label>
+          <label class="an-check">Moderado ≤ <input type="number" id="anThModerado" style="width:54px;" min="1"></label>
+          <label class="an-check">Alto ≤ <input type="number" id="anThAlto" style="width:54px;" min="1"></label>
+          <span class="an-sub" style="margin:0;">(más de "Alto" se clasifica como Crítico)</span>
+          <button id="anBtnSaveThresholds">Guardar umbrales</button>
+        </div>
+        <div class="an-card">
+          <div class="table-scroll">
+            <table id="anExcesoTable">
+              <thead><tr><th>Ticket</th><th>Servicio</th><th>Especialista</th><th>Registro</th><th>Exceso</th><th>Nivel</th><th>Causa</th></tr></thead>
+              <tbody id="anExcesoBody"></tbody>
+            </table>
+          </div>
+          <p class="an-empty hidden" id="anExcesoEmpty">No hubo tickets vencidos en esta semana.</p>
+        </div>
+        <div class="an-card" style="margin-top:10px;">
+          <h3 style="margin:0 0 8px; font-size:13.5px;">Principales causas de incumplimiento</h3>
+          <div class="table-scroll">
+            <table id="anCausasTable">
+              <thead><tr><th>Causa</th><th>Tickets</th><th>%</th><th>Exceso prom.</th><th>Tendencia</th></tr></thead>
+              <tbody id="anCausasBody"></tbody>
+            </table>
+          </div>
+          <p class="an-empty hidden" id="anCausasEmpty">No hubo tickets vencidos en esta semana.</p>
+        </div>
+      </section>
+
+      <section class="an-section">
+        <h2>Problemas recurrentes detectados</h2>
+        <p class="an-sub">Agrupados por descripción similar, a lo largo de todo el histórico cargado (no solo la semana enfocada). Haz clic en un problema para ver los tickets relacionados.</p>
+        <div class="an-card">
+          <div class="table-scroll">
+            <table id="anRecurTable">
+              <thead><tr><th>Patrón</th><th>Tickets</th><th>Servicio</th><th>Vencidos</th><th>Esta semana</th><th>1ª aparición</th><th>Última</th><th>Tendencia</th><th>Potencial KB</th><th></th></tr></thead>
+              <tbody id="anRecurBody"></tbody>
+            </table>
+          </div>
+          <p class="an-empty hidden" id="anRecurEmpty">No se detectaron patrones recurrentes con los datos actuales.</p>
+        </div>
+      </section>
+
+      <section class="an-section">
+        <h2>Tareas y cuellos de botella</h2>
+        <p class="an-sub">Casos de la semana con 2 o más tareas asociadas (una tarea abierta hace más de 15 días se considera estancada).</p>
+        <div class="an-grid" id="anTaskGrid" style="margin-bottom:10px;"></div>
+        <div class="an-card">
+          <div class="table-scroll">
+            <table id="anBottleneckWeekTable">
+              <thead><tr><th>Caso</th><th>Tareas</th><th>Grupos</th><th>Grupo más lento</th><th>Duración</th><th>Estado</th></tr></thead>
+              <tbody id="anBottleneckWeekBody"></tbody>
+            </table>
+          </div>
+          <p class="an-empty hidden" id="anBottleneckWeekEmpty">No hay casos con 2 o más tareas en esta semana.</p>
+        </div>
+      </section>
+
+      <section class="an-section">
+        <h2>¿Por qué nos estamos demorando?</h2>
+        <div class="an-card an-why" id="anWhyBox"></div>
+      </section>
+
+      <section class="an-section">
+        <h2>Base de conocimientos</h2>
+        <p class="an-sub">Convierte problemas recurrentes en artículos reutilizables. Los datos de solución provienen de los tickets o de lo que registres manualmente.</p>
+        <div class="an-toolrow">
+          <input type="text" id="anKbSearch" placeholder="Buscar por título, problema o palabra clave…">
+          <select id="anKbServicio"><option value="">Todos los servicios</option></select>
+          <select id="anKbEstado">
+            <option value="">Todos los estados</option>
+            <option>Borrador</option><option>En revisión</option><option>Publicado</option><option>Obsoleto</option>
+          </select>
+          <div class="an-spacer"></div>
+          <button class="btn-primary" id="anBtnNewKb">+ Nuevo artículo</button>
+        </div>
+        <div class="an-kb-list" id="anKbList"></div>
+        <p class="an-empty hidden" id="anKbEmpty">No hay artículos que coincidan con el filtro.</p>
+        <div class="an-card" style="margin-top:12px;">
+          <h3 style="margin:0 0 8px; font-size:13.5px;">Calidad de las soluciones registradas (semana enfocada)</h3>
+          <div class="an-grid" id="anSolutionQualityGrid"></div>
+        </div>
+      </section>
+
+      <section class="an-section">
+        <h2>Acciones de mejora</h2>
+        <div class="an-toolrow">
+          <div class="an-spacer"></div>
+          <button class="btn-primary" id="anBtnNewAccion">+ Registrar acción</button>
+        </div>
+        <div class="an-card">
+          <div class="table-scroll">
+            <table id="anAccionesTable">
+              <thead><tr><th>Acción</th><th>Problema</th><th>Responsable</th><th>Compromiso</th><th>Estado</th><th>Prioridad</th><th>Antes → Después</th><th></th></tr></thead>
+              <tbody id="anAccionesBody"></tbody>
+            </table>
+          </div>
+          <p class="an-empty hidden" id="anAccionesEmpty">Aún no se han registrado acciones de mejora.</p>
+        </div>
+      </section>
+
+    </div>
+   </div>
+
+   <div class="modal-overlay hidden" id="anModalOverlay">
+     <div class="modal-box" style="max-width:640px;">
+       <div class="modal-head">
+         <div>
+           <h3 id="anModalTitle">—</h3>
+           <div class="sub" id="anModalSub"></div>
+         </div>
+         <button class="modal-close" id="anModalClose">&times;</button>
+       </div>
+       <div class="modal-body" id="anModalBody"></div>
+     </div>
+   </div>
+
+
   </div>
 
   <footer class="credit">Procesado localmente en el navegador · ningún dato sale de este equipo</footer>
@@ -1219,8 +1510,10 @@
     if (!screens.length) return;
     $('pageTabGeneral').classList.add('active');
     $('pageTabDashboard').classList.remove('active');
+    $('pageTabAnalysis').classList.remove('active');
     document.body.classList.add('page-view-general');
     document.body.classList.remove('page-view-dashboardExtra');
+    document.body.classList.remove('page-view-analysis');
     document.body.classList.add('tv-mode');
     $('btnExitTv').classList.remove('hidden');
     tvCurrent = screens[0];
@@ -2992,13 +3285,15 @@
     cumplen: 'tickets_cumplen.csv'
   };
 
-  [$('pageTabGeneral'), $('pageTabDashboard')].forEach(btn => {
+  [$('pageTabGeneral'), $('pageTabDashboard'), $('pageTabAnalysis')].forEach(btn => {
     btn.addEventListener('click', () => {
       const page = btn.dataset.targetPage;
       $('pageTabGeneral').classList.toggle('active', page === 'general');
       $('pageTabDashboard').classList.toggle('active', page === 'dashboardExtra');
+      $('pageTabAnalysis').classList.toggle('active', page === 'analysis');
       document.body.classList.toggle('page-view-general', page === 'general');
       document.body.classList.toggle('page-view-dashboardExtra', page === 'dashboardExtra');
+      document.body.classList.toggle('page-view-analysis', page === 'analysis');
       // Los gráficos (Chart.js) de esta pestaña se dibujan cuando llegan datos, que puede
       // pasar mientras el usuario todavía está en "Resumen" (contenedor en display:none).
       // Un canvas creado con tamaño 0 puede quedar en blanco, así que al entrar a
@@ -3010,6 +3305,9 @@
         trendCategoria.redraw();
         renderEspecialistaChart(groupBy(allRows, r => r.especialista));
       }
+      // Igual que arriba: el gráfico de evolución semanal de "Análisis y Mejora" necesita
+      // tamaño real, así que se vuelve a dibujar cada vez que se entra a esa pestaña.
+      if (page === 'analysis' && typeof anRenderAll === 'function') anRenderAll();
     });
   });
 
@@ -3311,6 +3609,900 @@
       console.warn('No se pudo recuperar el histórico guardado:', err.message);
     }
   }
+
+
+  // =====================================================================
+  // PESTAÑA "ANÁLISIS Y MEJORA" — construida sobre los mismos datos que ya
+  // procesa el resto de la app (allRowsRaw = tickets evaluados sin Cancelado,
+  // taskMap/tasksByCaso = tareas). No crea una segunda fuente de verdad: solo
+  // agrupa por semana y añade tres tablas propias (causas, artículos de
+  // conocimiento, acciones de mejora) persistidas en /api/causas, /api/kb y
+  // /api/acciones.
+  // =====================================================================
+
+  const AN_CAUSAS = ['Espera de usuario','Espera de proveedor','Falta de información','Escalamiento',
+    'Dependencia de otra área','Complejidad técnica','Saturación del equipo','Problema de infraestructura',
+    'Incidencia recurrente','Error de procedimiento','Falta de conocimiento','Otros'];
+  const AN_PENDIENTE = 'Pendiente de análisis';
+
+  let anWeekMode = 'actual';
+  let anSelectedWeekKey = null;
+  let anCompare = true;
+  let anTrendWindow = 12;
+  let anThresholds = { leve: 10, moderado: 25, alto: 50 };
+  let anCausasMap = new Map();     // ticket -> { causa, nota }
+  let anKbArticulos = [];
+  let anAcciones = [];
+  let anRecurCache = null;         // se recalcula cuando cambian los tickets
+
+  function anIsoWeek(d){
+    const p = peruParts(d);
+    const utcDay = new Date(Date.UTC(p.y, p.mo, p.day));
+    const dayNum = (utcDay.getUTCDay() + 6) % 7; // lunes=0 … domingo=6
+    const monday = new Date(utcDay); monday.setUTCDate(monday.getUTCDate() - dayNum);
+    const sunday = new Date(monday); sunday.setUTCDate(sunday.getUTCDate() + 6);
+    const thursday = new Date(monday); thursday.setUTCDate(thursday.getUTCDate() + 3);
+    const firstThursday = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
+    const fDayNum = (firstThursday.getUTCDay() + 6) % 7;
+    firstThursday.setUTCDate(firstThursday.getUTCDate() - fDayNum + 3);
+    const week = 1 + Math.round((thursday - firstThursday) / (7 * 86400000));
+    const year = thursday.getUTCFullYear();
+    const key = `${year}-S${String(week).padStart(2,'0')}`;
+    return { year, week, key, label: `S${String(week).padStart(2,'0')} '${String(year).slice(2)}`, start: monday, end: sunday };
+  }
+  function anStepWeek(info, delta){
+    return anIsoWeek(new Date(info.start.getTime() + delta * 7 * 86400000));
+  }
+  function anFmtRange(info){
+    return `${fmtDateShort(info.start)} – ${fmtDateShort(info.end)}`;
+  }
+
+  function anBucketWeeks(){
+    const map = new Map();
+    allRowsRaw.forEach(r => {
+      const fr = toDateSafe(r.fechaRegistro);
+      if (!fr) return;
+      const info = anIsoWeek(fr);
+      if (!map.has(info.key)) map.set(info.key, { info, rows: [] });
+      map.get(info.key).rows.push(r);
+    });
+    return map;
+  }
+
+  function anGetWeekRows(buckets, key){
+    const b = buckets.get(key);
+    return b ? b.rows : [];
+  }
+
+  // Resuelve qué semana queda "enfocada" según el selector activo.
+  function anResolveFocusedInfo(buckets){
+    const keys = Array.from(buckets.keys()).sort();
+    if (!keys.length) return null;
+    const lastInfo = buckets.get(keys[keys.length - 1]).info;
+    if (anWeekMode === 'actual') return anIsoWeek(new Date()); // semana calendario real, aunque no tenga tickets
+    if (anWeekMode === 'anterior') return anStepWeek(anIsoWeek(new Date()), -1);
+    if (anWeekMode === 'select' && anSelectedWeekKey && buckets.has(anSelectedWeekKey)) return buckets.get(anSelectedWeekKey).info;
+    return lastInfo;
+  }
+
+  function anTicketFechaMap(){
+    const m = new Map();
+    allRowsRaw.forEach(r => { if (r.ticket) m.set(r.ticket, r); });
+    return m;
+  }
+
+  function anClassifyExceso(exceso){
+    if (exceso <= anThresholds.leve) return 'leve';
+    if (exceso <= anThresholds.moderado) return 'moderado';
+    if (exceso <= anThresholds.alto) return 'alto';
+    return 'critico';
+  }
+  function anNivelLabel(n){
+    return { leve:'Leve', moderado:'Moderado', alto:'Alto', critico:'Crítico' }[n] || n;
+  }
+
+  function anTrendArrow(curr, prev){
+    if (prev == null || curr == null) return '<span class="an-trend-flat">—</span>';
+    if (curr > prev) return '<span class="an-trend-up">▲ subió</span>';
+    if (curr < prev) return '<span class="an-trend-down">▼ bajó</span>';
+    return '<span class="an-trend-flat">▬ igual</span>';
+  }
+
+  // ------------------------------------------------------------------
+  // Orquestador: se llama cada vez que cambian los datos o los controles.
+  // ------------------------------------------------------------------
+  function anRenderAll(){
+    if (!$('analysisSection')) return;
+    const buckets = anBucketWeeks();
+    if (!buckets.size){
+      $('anNoData').classList.remove('hidden');
+      $('anContent').classList.add('hidden');
+      return;
+    }
+    $('anNoData').classList.add('hidden');
+    $('anContent').classList.remove('hidden');
+
+    const focused = anResolveFocusedInfo(buckets);
+    const prevInfo = anStepWeek(focused, -1);
+    const weekRows = anGetWeekRows(buckets, focused.key);
+    const prevRows = anGetWeekRows(buckets, prevInfo.key);
+
+    anPopulateWeekSelect(buckets, focused.key);
+
+    $('anWeekTitle').textContent = `Resumen ejecutivo — ${focused.label}`;
+    $('anWeekSub').textContent = `${anFmtRange(focused)}${anCompare ? ` · comparado con ${prevInfo.label} (${anFmtRange(prevInfo)})` : ''}`;
+
+    anRenderExecSummary(weekRows, anCompare ? prevRows : null);
+    anRenderTrendChart(buckets, focused);
+    const incumpl = anRenderIncumplimientos(weekRows, prevRows);
+    anRenderExcesoYCausas(weekRows, prevRows);
+    anRenderRecurring(focused, weekRows);
+    anRenderTasksBottleneck(focused, weekRows);
+    anRenderWhy(focused, weekRows, incumpl);
+    anRenderSolutionQuality(weekRows);
+  }
+
+  function anPopulateWeekSelect(buckets, focusedKey){
+    const sel = $('anWeekSelect');
+    const keys = Array.from(buckets.keys()).sort().reverse();
+    const prevValue = sel.value;
+    sel.innerHTML = keys.map(k => {
+      const info = buckets.get(k).info;
+      return `<option value="${k}">${info.label} (${anFmtRange(info)}) — ${buckets.get(k).rows.length} tickets</option>`;
+    }).join('');
+    if (keys.includes(anSelectedWeekKey)) sel.value = anSelectedWeekKey;
+    else if (keys.includes(prevValue)) sel.value = prevValue;
+    sel.classList.toggle('hidden', anWeekMode !== 'select');
+  }
+
+  // ---------------- Resumen ejecutivo ----------------
+  function anExecStat(label, value, cls, delta){
+    return `<div class="an-stat"><div class="l">${escapeHtml(label)}</div><div class="n${cls ? ' ' + cls : ''}">${value}</div>${delta ? `<div class="delta ${delta.cls}">${delta.text}</div>` : ''}</div>`;
+  }
+  function anDelta(curr, prev, fmt, higherIsBetter){
+    if (prev == null || curr == null) return null;
+    const diff = curr - prev;
+    if (Math.abs(diff) < 1e-9) return { cls:'', text:'Igual que la semana anterior' };
+    const good = higherIsBetter ? diff > 0 : diff < 0;
+    return { cls: good ? 'up' : 'down', text: `${diff > 0 ? '+' : ''}${fmt(diff)} vs. semana anterior` };
+  }
+
+  function anWeekMetrics(rows){
+    const total = rows.length;
+    const cumplen = rows.filter(r => r.cumple).length;
+    const vencidos = total - cumplen;
+    const pct = total ? (cumplen / total * 100) : null;
+    const abiertos = rows.filter(r => !r.fechaCierre).length;
+    const vencidosAbiertos = rows.filter(r => !r.cumple && !r.fechaCierre).length;
+    const cerrados = rows.filter(r => r.fechaCierre && r.fechaRegistro);
+    const resolMedDias = median(cerrados.map(r => (r.fechaCierre - r.fechaRegistro) / 86400000));
+    const vencidosArr = rows.filter(r => !r.cumple && r.estado === 'Cerrado'); // vencido "confirmado": igual criterio que la tabla Vencidos del resto de la app
+    const excesoProm = vencidosArr.length ? (vencidosArr.reduce((s,r) => s + (r.pct - 100), 0) / vencidosArr.length) : null;
+    let mayorExceso = null;
+    vencidosArr.forEach(r => { const e = r.pct - 100; if (!mayorExceso || e > mayorExceso.exceso) mayorExceso = { exceso: e, ticket: r.ticket }; });
+    return { total, cumplen, vencidos, pct, abiertos, vencidosAbiertos, resolMedDias, excesoProm, mayorExceso };
+  }
+
+  function anRenderExecSummary(rows, prevRows){
+    const m = anWeekMetrics(rows);
+    const pm = prevRows ? anWeekMetrics(prevRows) : null;
+    const recurCount = anDetectRecurring().filter(g => g.enFoco).length;
+
+    const cards = [];
+    cards.push(anExecStat('Tickets evaluados', m.total, '', pm && anDelta(m.total, pm.total, v=>Math.round(v), true)));
+    cards.push(anExecStat('Cumplen SLA', m.cumplen, 'ok'));
+    cards.push(anExecStat('Vencidos', m.vencidos, m.vencidos ? 'bad' : '', pm && anDelta(m.vencidos, pm.vencidos, v=>Math.round(v), false)));
+    cards.push(anExecStat('% cumplimiento SLA', m.pct == null ? '—' : m.pct.toFixed(1) + '%', m.pct != null && m.pct >= META ? 'ok' : 'bad',
+      pm && pm.pct != null && m.pct != null ? anDelta(m.pct, pm.pct, v=>v.toFixed(1)+' pts', true) : null));
+    cards.push(anExecStat('Meta SLA', META + '%'));
+    cards.push(anExecStat('Brecha vs. meta', m.pct == null ? '—' : Math.max(0, META - m.pct).toFixed(1) + ' pts', (m.pct != null && m.pct < META) ? 'bad' : 'ok'));
+    cards.push(anExecStat('Tickets abiertos', m.abiertos));
+    cards.push(anExecStat('Vencidos pendientes', m.vencidosAbiertos, m.vencidosAbiertos ? 'bad' : ''));
+    cards.push(anExecStat('Tiempo prom. de resolución', m.resolMedDias == null ? '—' : m.resolMedDias.toFixed(1) + ' d'));
+    cards.push(anExecStat('Exceso prom. en vencidos', m.excesoProm == null ? '—' : '+' + m.excesoProm.toFixed(1) + ' pts', m.excesoProm ? 'bad' : ''));
+    cards.push(anExecStat('Mayor exceso de SLA', m.mayorExceso == null ? '—' : `+${m.mayorExceso.exceso.toFixed(1)} pts (${escapeHtml(m.mayorExceso.ticket)})`, m.mayorExceso ? 'bad' : ''));
+    cards.push(anExecStat('Incidencias recurrentes', recurCount));
+    $('anExecGrid').innerHTML = cards.join('');
+  }
+
+  // ---------------- Evolución semanal ----------------
+  let anTrendChartInstance = null;
+  function anRenderTrendChart(buckets, focused){
+    const n = anTrendWindow;
+    const weeks = [];
+    for (let i = n - 1; i >= 0; i--) weeks.push(anStepWeek(focused, -i));
+    const labels = weeks.map(w => w.label);
+    const pctData = weeks.map(w => { const m = anWeekMetrics(anGetWeekRows(buckets, w.key)); return m.pct; });
+    const evalData = weeks.map(w => anGetWeekRows(buckets, w.key).length);
+    const vencData = weeks.map(w => anGetWeekRows(buckets, w.key).filter(r => !r.cumple && r.estado === 'Cerrado').length);
+
+    const canvas = $('anTrendChart');
+    if (!canvas) return;
+    if (anTrendChartInstance) anTrendChartInstance.destroy();
+    anTrendChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: '% cumplimiento SLA', data: pctData, borderColor: '#2C5F6F', backgroundColor: 'rgba(44,95,111,.12)', fill: true, tension: .25, spanGaps: true, yAxisID: 'y' },
+          { label: `Meta ${META}%`, data: labels.map(() => META), borderColor: '#D9433D', borderDash: [5,5], pointRadius: 0, borderWidth: 1.3, yAxisID: 'y' },
+          { label: 'Vencidos', data: vencData, type: 'bar', backgroundColor: 'rgba(217,67,61,.35)', yAxisID: 'y1' }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, position: 'left' },
+          y1: { min: 0, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Tickets vencidos' } }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              afterBody: (items) => {
+                const i = items[0].dataIndex;
+                return [`Evaluados: ${evalData[i]}`, `Vencidos: ${vencData[i]}`];
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ---------------- ¿Dónde estamos fallando? ----------------
+  function anGroupExcesoBy(rows, keyFn){
+    const map = new Map();
+    rows.filter(r => !r.cumple && r.estado === 'Cerrado').forEach(r => {
+      const k = keyFn(r) || '—';
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(r);
+    });
+    return map;
+  }
+
+  function anRenderIncumplimientos(rows, prevRows){
+    const totalVencidos = rows.filter(r => !r.cumple && r.estado === 'Cerrado').length;
+    const byServicio = anGroupExcesoBy(rows, r => r.servicio);
+    const prevByServicio = anGroupExcesoBy(prevRows || [], r => r.servicio);
+    const servicioRows = Array.from(byServicio.entries()).map(([servicio, arr]) => {
+      const excesos = arr.map(r => r.pct - 100);
+      return {
+        servicio, count: arr.length,
+        pctTotal: totalVencidos ? (arr.length / totalVencidos * 100) : 0,
+        excesoProm: excesos.reduce((s,v)=>s+v,0) / excesos.length,
+        mayorExceso: Math.max(...excesos),
+        prevCount: (prevByServicio.get(servicio) || []).length
+      };
+    }).sort((a,b) => b.count - a.count);
+
+    $('anByServicioBody').innerHTML = servicioRows.map(r => `
+      <tr>
+        <td>${escapeHtml(r.servicio)}</td>
+        <td class="mono">${r.count}</td>
+        <td class="mono">${r.pctTotal.toFixed(0)}%</td>
+        <td class="mono">+${r.excesoProm.toFixed(1)} pts</td>
+        <td class="mono">+${r.mayorExceso.toFixed(1)} pts</td>
+        <td>${anTrendArrow(r.count, prevRows ? r.prevCount : null)}</td>
+      </tr>`).join('');
+    $('anByServicioTable').classList.toggle('hidden', !servicioRows.length);
+    $('anByServicioEmpty').classList.toggle('hidden', !!servicioRows.length);
+
+    // Por especialista: sobre TODOS los evaluados de la semana (no solo vencidos),
+    // para poder mostrar carga atendida junto al cumplimiento.
+    const byEspAll = new Map();
+    rows.forEach(r => {
+      const k = r.especialista || '—';
+      if (!byEspAll.has(k)) byEspAll.set(k, []);
+      byEspAll.get(k).push(r);
+    });
+    const espRows = Array.from(byEspAll.entries()).map(([especialista, arr]) => {
+      const venc = arr.filter(r => !r.cumple && r.estado === 'Cerrado');
+      const excesos = venc.map(r => r.pct - 100);
+      const abiertosActuales = allRowsRaw.filter(r => r.especialista === especialista && !r.fechaCierre).length;
+      return {
+        especialista, atendidos: arr.length, vencidos: venc.length,
+        pctCumple: arr.length ? ((arr.length - venc.length) / arr.length * 100) : 0,
+        excesoProm: excesos.length ? excesos.reduce((s,v)=>s+v,0)/excesos.length : null,
+        abiertosActuales
+      };
+    }).sort((a,b) => b.vencidos - a.vencidos);
+
+    $('anByEspecialistaBody').innerHTML = espRows.map(r => `
+      <tr>
+        <td>${escapeHtml(r.especialista)}</td>
+        <td class="mono">${r.atendidos}</td>
+        <td class="mono">${r.vencidos}</td>
+        <td class="mono"><span class="pct-badge ${r.pctCumple >= META ? 'ok' : ''}">${r.pctCumple.toFixed(0)}%</span></td>
+        <td class="mono">${r.excesoProm == null ? '—' : '+' + r.excesoProm.toFixed(1) + ' pts'}</td>
+        <td class="mono">${r.abiertosActuales}</td>
+      </tr>`).join('');
+    $('anByEspecialistaTable').classList.toggle('hidden', !espRows.length);
+    $('anByEspecialistaEmpty').classList.toggle('hidden', !!espRows.length);
+
+    const byCat = anGroupExcesoBy(rows, r => r.categoria != null ? r.categoria : r.servicio);
+    const catRows = Array.from(byCat.entries()).map(([categoria, arr]) => ({
+      categoria, count: arr.length, pctTotal: totalVencidos ? (arr.length / totalVencidos * 100) : 0
+    })).sort((a,b) => b.count - a.count);
+    $('anByCategoriaBody').innerHTML = catRows.map(r => `
+      <tr><td>${escapeHtml(r.categoria)}</td><td class="mono">${r.count}</td><td class="mono">${r.pctTotal.toFixed(0)}%</td></tr>`).join('');
+    $('anByCategoriaTable').classList.toggle('hidden', !catRows.length);
+    $('anByCategoriaEmpty').classList.toggle('hidden', !!catRows.length);
+
+    return { servicioTop: servicioRows[0] || null, totalVencidos };
+  }
+
+  // ---------------- Exceso de SLA + causas ----------------
+  function anRenderExcesoYCausas(rows, prevRows){
+    const vencidos = rows.filter(r => !r.cumple && r.estado === 'Cerrado').sort((a,b) => (b.pct - 100) - (a.pct - 100));
+    $('anExcesoBody').innerHTML = vencidos.map(r => {
+      const exceso = r.pct - 100;
+      const nivel = anClassifyExceso(exceso);
+      const causaInfo = anCausasMap.get(r.ticket);
+      const causaVal = causaInfo && causaInfo.causa ? causaInfo.causa : '';
+      return `
+      <tr>
+        <td class="mono">${escapeHtml(r.ticket)}</td>
+        <td>${escapeHtml(r.servicio)}</td>
+        <td>${escapeHtml(r.especialista)}</td>
+        <td class="mono">${fmtDateShort(r.fechaRegistro)}</td>
+        <td class="mono">+${exceso.toFixed(1)} pts</td>
+        <td><span class="an-badge ${nivel}">${anNivelLabel(nivel)}</span></td>
+        <td>
+          <select class="an-select-inline" data-ticket="${escapeHtml(r.ticket)}">
+            <option value="">${AN_PENDIENTE}</option>
+            ${AN_CAUSAS.map(c => `<option value="${escapeHtml(c)}" ${c === causaVal ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+          </select>
+        </td>
+      </tr>`;
+    }).join('');
+    $('anExcesoTable').classList.toggle('hidden', !vencidos.length);
+    $('anExcesoEmpty').classList.toggle('hidden', !!vencidos.length);
+
+    $('anExcesoBody').querySelectorAll('select.an-select-inline').forEach(sel => {
+      sel.addEventListener('change', () => anSaveCausa(sel.dataset.ticket, sel.value));
+    });
+
+    // Principales causas de incumplimiento
+    const grupos = new Map();
+    vencidos.forEach(r => {
+      const causaInfo = anCausasMap.get(r.ticket);
+      const causa = (causaInfo && causaInfo.causa) ? causaInfo.causa : AN_PENDIENTE;
+      if (!grupos.has(causa)) grupos.set(causa, []);
+      grupos.get(causa).push(r);
+    });
+    const prevVencidos = (prevRows || []).filter(r => !r.cumple && r.estado === 'Cerrado');
+    const prevGrupos = new Map();
+    prevVencidos.forEach(r => {
+      const causaInfo = anCausasMap.get(r.ticket);
+      const causa = (causaInfo && causaInfo.causa) ? causaInfo.causa : AN_PENDIENTE;
+      if (!prevGrupos.has(causa)) prevGrupos.set(causa, []);
+      prevGrupos.get(causa).push(r);
+    });
+    const causaRows = Array.from(grupos.entries()).map(([causa, arr]) => {
+      const excesos = arr.map(r => r.pct - 100);
+      return {
+        causa, count: arr.length, pct: vencidos.length ? (arr.length / vencidos.length * 100) : 0,
+        excesoProm: excesos.reduce((s,v)=>s+v,0) / excesos.length,
+        prevCount: (prevGrupos.get(causa) || []).length
+      };
+    }).sort((a,b) => b.count - a.count);
+    $('anCausasBody').innerHTML = causaRows.map(r => `
+      <tr>
+        <td>${r.causa === AN_PENDIENTE ? `<span class="an-badge pendiente">${AN_PENDIENTE}</span>` : escapeHtml(r.causa)}</td>
+        <td class="mono">${r.count}</td>
+        <td class="mono">${r.pct.toFixed(0)}%</td>
+        <td class="mono">+${r.excesoProm.toFixed(1)} pts</td>
+        <td>${anTrendArrow(r.count, prevRows ? r.prevCount : null)}</td>
+      </tr>`).join('');
+    $('anCausasTable').classList.toggle('hidden', !causaRows.length);
+    $('anCausasEmpty').classList.toggle('hidden', !!causaRows.length);
+  }
+
+  async function anSaveCausa(ticket, causa){
+    anCausasMap.set(ticket, { causa, nota: (anCausasMap.get(ticket) || {}).nota || null });
+    try{
+      await fetch('/api/causas', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ticket, causa }) });
+    }catch(err){ console.warn('No se pudo guardar la causa:', err.message); }
+    anRenderAll();
+  }
+
+  async function anLoadCausas(){
+    try{
+      const res = await fetch('/api/causas').then(r => r.ok ? r.json() : null);
+      if (res && res.ok){
+        anCausasMap = new Map(res.causas.map(c => [c.ticket, { causa: c.causa, nota: c.nota }]));
+      }
+    }catch(err){ console.warn('No se pudieron cargar las causas:', err.message); }
+  }
+
+  // ---------------- Problemas recurrentes ----------------
+  // Generaliza el detector de ráfagas (detectNoiseBursts) ya existente: agrupa por
+  // descripción normalizada, pero con un umbral pensado para "problema recurrente"
+  // (3+ tickets) en vez de "ráfaga de ruido" (20+ en <30 días), y sin límite de tiempo.
+  function anDetectRecurring(){
+    if (anRecurCache) return anRecurCache;
+    const buckets = anBucketWeeks();
+    const focused = anResolveFocusedInfo(buckets);
+    const groups = new Map();
+    allRowsRaw.forEach(r => {
+      const desc = (r.descripcion || '').trim().toLowerCase();
+      if (desc.length < 15) return;
+      if (!groups.has(desc)) groups.set(desc, []);
+      groups.get(desc).push(r);
+    });
+    const result = [];
+    groups.forEach((arr, desc) => {
+      if (arr.length < 3) return;
+      const fechas = arr.map(r => toDateSafe(r.fechaRegistro)).filter(Boolean).sort((a,b)=>a-b);
+      if (!fechas.length) return;
+      const servicioCount = groupCount(arr, r => r.servicio);
+      const servicioTop = Object.entries(servicioCount).sort((a,b)=>b[1]-a[1])[0];
+      const venc = arr.filter(r => !r.cumple && r.estado === 'Cerrado');
+      const cerrados = arr.filter(r => r.fechaCierre && r.fechaRegistro);
+      const resolMed = median(cerrados.map(r => (r.fechaCierre - r.fechaRegistro) / 86400000));
+      const usuarios = new Set(arr.map(r => r.clienteFinal).filter(Boolean));
+      const enFocoCount = arr.filter(r => { const fr = toDateSafe(r.fechaRegistro); return fr && anIsoWeek(fr).key === focused.key; }).length;
+      const prevInfo = anStepWeek(focused, -1);
+      const prevCount = arr.filter(r => { const fr = toDateSafe(r.fechaRegistro); return fr && anIsoWeek(fr).key === prevInfo.key; }).length;
+      const solucionMuestra = arr.map(r => r.solucion).find(s => s && s !== '—' && s.length > 15) || null;
+      let potencial = 'baja';
+      if (arr.length >= 10 && solucionMuestra) potencial = 'alta';
+      else if (arr.length >= 5) potencial = 'media';
+      result.push({
+        desc, count: arr.length, servicio: servicioTop ? servicioTop[0] : '—',
+        vencidos: venc.length, pctVencidos: arr.length ? (venc.length/arr.length*100) : 0,
+        resolMed, usuariosAfectados: usuarios.size || null,
+        primera: fechas[0], ultima: fechas[fechas.length-1],
+        enFoco: enFocoCount > 0, enFocoCount, prevCount,
+        solucionMuestra, potencial, tickets: arr.map(r => r.ticket)
+      });
+    });
+    result.sort((a,b) => b.count - a.count);
+    anRecurCache = result;
+    return result;
+  }
+
+  function anRenderRecurring(focused, weekRows){
+    const groups = anDetectRecurring();
+    $('anRecurBody').innerHTML = groups.slice(0, 40).map((g, i) => `
+      <tr>
+        <td title="${escapeHtml(g.desc)}">${escapeHtml(g.desc.length > 70 ? g.desc.slice(0,70)+'…' : g.desc)}</td>
+        <td class="mono">${g.count}</td>
+        <td>${escapeHtml(g.servicio)}</td>
+        <td class="mono">${g.vencidos} (${g.pctVencidos.toFixed(0)}%)</td>
+        <td class="mono">${g.enFocoCount}</td>
+        <td class="mono">${fmtDateShort(g.primera)}</td>
+        <td class="mono">${fmtDateShort(g.ultima)}</td>
+        <td>${anTrendArrow(g.enFocoCount, g.prevCount)}</td>
+        <td><span class="an-badge potencial-${g.potencial}">${g.potencial === 'alta' ? 'Alta' : g.potencial === 'media' ? 'Media' : 'Baja'}</span></td>
+        <td>
+          <button class="an-recur-view" data-idx="${i}" style="font-size:11px; padding:3px 7px;">Ver tickets</button>
+          <button class="an-recur-kb" data-idx="${i}" style="font-size:11px; padding:3px 7px;">Crear artículo</button>
+        </td>
+      </tr>`).join('');
+    $('anRecurTable').classList.toggle('hidden', !groups.length);
+    $('anRecurEmpty').classList.toggle('hidden', !!groups.length);
+
+    $('anRecurBody').querySelectorAll('.an-recur-view').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const g = groups[Number(btn.dataset.idx)];
+        anOpenModal('Tickets del problema recurrente', `${g.count} tickets · ${escapeHtml(g.servicio)}`,
+          `<div class="table-scroll"><table><thead><tr><th>Ticket</th><th>Registro</th><th>Estado</th></tr></thead><tbody>` +
+          g.tickets.map(t => { const row = allRowsRaw.find(r => r.ticket === t); return `<tr><td class="mono">${escapeHtml(t)}</td><td class="mono">${row ? fmtDateShort(row.fechaRegistro) : '—'}</td><td>${row ? escapeHtml(row.estado) : '—'}</td></tr>`; }).join('') +
+          `</tbody></table></div>`);
+      });
+    });
+    $('anRecurBody').querySelectorAll('.an-recur-kb').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const g = groups[Number(btn.dataset.idx)];
+        anOpenKbModal({
+          titulo: g.desc.length > 60 ? g.desc.slice(0,60) + '…' : g.desc,
+          servicio: g.servicio, problema: g.desc,
+          solucion: g.solucionMuestra || '', causa: '',
+          ticketsRelacionados: g.tickets.join(', ')
+        });
+      });
+    });
+  }
+
+  // ---------------- Tareas y cuellos de botella ----------------
+  function anRenderTasksBottleneck(focused, weekRows){
+    const ticketWeek = new Set(weekRows.map(r => r.ticket));
+    const rows = [];
+    tasksByCaso.forEach((tasks, caso) => {
+      if (!ticketWeek.has(caso) || tasks.length < 2) return;
+      const starts = tasks.map(t => t.fechaRegistro).filter(Boolean);
+      if (!starts.length) return;
+      const start = new Date(Math.min(...starts.map(d => d.getTime())));
+      const stillOpen = tasks.some(t => t.abierta);
+      let end;
+      if (stillOpen) end = new Date();
+      else { const closes = tasks.map(t => t.fechaCierre).filter(Boolean); end = closes.length ? new Date(Math.max(...closes.map(d => d.getTime()))) : null; }
+      if (!end) return;
+      const totalMin = Math.round((end - start) / 60000);
+      let slowest = tasks[0];
+      tasks.forEach(t => { if ((t.dias || 0) > (slowest.dias || 0)) slowest = t; });
+      rows.push({ caso, count: tasks.length, groups: new Set(tasks.map(t => t.grupoResponsable)).size, slowestGroup: slowest.grupoResponsable, totalMin, totalDias: totalMin/1440, stillOpen, estancada: stillOpen && totalMin/1440 > STUCK_DAYS });
+    });
+    rows.sort((a,b) => b.totalDias - a.totalDias);
+
+    const withTasks = Array.from(ticketWeek).filter(t => tasksByCaso.has(t));
+    const totalTareasSemana = withTasks.reduce((s,t) => s + tasksByCaso.get(t).length, 0);
+    const promedioTareas = withTasks.length ? (totalTareasSemana / withTasks.length) : null;
+    const estancadas = rows.filter(r => r.estancada).length;
+    const vencidosConVariasTareas = weekRows.filter(r => !r.cumple && r.estado === 'Cerrado' && tasksByCaso.has(r.ticket) && tasksByCaso.get(r.ticket).length >= 2).length;
+    const totalVencidos = weekRows.filter(r => !r.cumple && r.estado === 'Cerrado').length;
+
+    $('anTaskGrid').innerHTML = [
+      anExecStat('Casos con 2+ tareas', rows.length),
+      anExecStat('Tareas estancadas (>15d)', estancadas, estancadas ? 'bad' : ''),
+      anExecStat('Promedio de tareas/caso', promedioTareas == null ? '—' : promedioTareas.toFixed(1)),
+      anExecStat('Vencidos con 2+ tareas', totalVencidos ? `${vencidosConVariasTareas} de ${totalVencidos}` : '—')
+    ].join('');
+
+    $('anBottleneckWeekBody').innerHTML = rows.slice(0, 20).map(r => `
+      <tr>
+        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.caso)}">${escapeHtml(r.caso)}</td>
+        <td class="mono">${r.count}</td>
+        <td class="mono">${r.groups}</td>
+        <td>${escapeHtml(r.slowestGroup)}</td>
+        <td class="mono" style="color:${daysColor(r.totalDias)}; font-weight:600;">${formatDuration(r.totalMin)}</td>
+        <td>${r.stillOpen ? '<span class="estado-badge abierta">En curso</span>' : '<span class="estado-badge cerrada">Completo</span>'}</td>
+      </tr>`).join('');
+    $('anBottleneckWeekTable').classList.toggle('hidden', !rows.length);
+    $('anBottleneckWeekEmpty').classList.toggle('hidden', !!rows.length);
+    $('anBottleneckWeekBody').querySelectorAll('.ticket-id.clickable').forEach(td => {
+      td.addEventListener('click', () => openTaskModal(td.dataset.ticket));
+    });
+
+    return { promedioTareas, estancadas };
+  }
+
+  // ---------------- ¿Por qué nos estamos demorando? ----------------
+  function anRenderWhy(focused, weekRows, incumpl){
+    const vencidos = weekRows.filter(r => !r.cumple && r.estado === 'Cerrado');
+    if (!vencidos.length){
+      $('anWhyBox').innerHTML = '<p>No hay información suficiente para determinar la causa: no se registraron tickets vencidos en esta semana.</p>';
+      return;
+    }
+    const servicioTop = incumpl.servicioTop;
+    const causaCount = new Map();
+    vencidos.forEach(r => {
+      const info = anCausasMap.get(r.ticket);
+      const causa = (info && info.causa) ? info.causa : AN_PENDIENTE;
+      causaCount.set(causa, (causaCount.get(causa) || 0) + 1);
+    });
+    const causaTop = Array.from(causaCount.entries()).sort((a,b) => b[1]-a[1])[0];
+    const sinCausa = vencidos.filter(r => { const info = anCausasMap.get(r.ticket); return !info || !info.causa; }).length;
+    const dependencias = vencidos.filter(r => { const info = anCausasMap.get(r.ticket); return info && (info.causa === 'Espera de proveedor' || info.causa === 'Dependencia de otra área'); }).length;
+    const recurGroups = anDetectRecurring().filter(g => g.enFoco);
+    const recurTop = recurGroups.sort((a,b) => b.count - a.count)[0];
+    const evalCount = new Map();
+    weekRows.forEach(r => evalCount.set(r.servicio, (evalCount.get(r.servicio)||0)+1));
+    const concentracion = Array.from(evalCount.entries()).sort((a,b)=>b[1]-a[1])[0];
+    const top3 = vencidos.slice().sort((a,b) => (b.pct-100)-(a.pct-100)).slice(0,3);
+    const oportunidades = anDetectRecurring().filter(g => g.potencial === 'alta' && !anKbArticulos.some(k => (k.problema||'').toLowerCase().includes(g.desc.slice(0,25)))).length;
+
+    $('anWhyBox').innerHTML = `
+      <ul>
+        <li><b>Principal servicio afectado:</b> ${servicioTop ? `${escapeHtml(servicioTop.servicio)} (${servicioTop.count} vencidos)` : 'No hay información suficiente para determinar la causa.'}</li>
+        <li><b>Principal causa de demora:</b> ${causaTop ? `${escapeHtml(causaTop[0])} (${causaTop[1]} tickets)` : 'No hay información suficiente para determinar la causa.'}</li>
+        <li><b>Problema recurrente más importante:</b> ${recurTop ? `"${escapeHtml(recurTop.desc.slice(0,80))}" — ${recurTop.count} tickets en total, ${recurTop.enFocoCount} esta semana` : 'No se detectó ningún patrón recurrente activo esta semana.'}</li>
+        <li><b>Mayor concentración de tickets:</b> ${concentracion ? `${escapeHtml(concentracion[0])} (${concentracion[1]} tickets evaluados)` : 'No hay información suficiente.'}</li>
+        <li><b>Tickets con mayor exceso de SLA:</b> ${top3.map(r => `${escapeHtml(r.ticket)} (+${(r.pct-100).toFixed(1)} pts)`).join(', ')}</li>
+        <li><b>Dependencias externas involucradas:</b> ${dependencias} de ${vencidos.length} tickets vencidos</li>
+        <li><b>Tickets sin causa de demora registrada:</b> ${sinCausa} de ${vencidos.length}${sinCausa ? ' — regístralas en la tabla de "Exceso de SLA" de arriba' : ''}</li>
+        <li><b>Oportunidades de documentación:</b> ${oportunidades ? `${oportunidades} problema(s) recurrente(s) con alto potencial de convertirse en artículo de conocimiento y sin uno ya creado` : 'No se detectaron oportunidades nuevas esta semana.'}</li>
+      </ul>`;
+  }
+
+  // ---------------- Calidad de las soluciones ----------------
+  function anRenderSolutionQuality(rows){
+    const sinSolucion = rows.filter(r => !r.solucion || r.solucion === '—').length;
+    const cortas = rows.filter(r => r.solucion && r.solucion !== '—' && r.solucion.length < 20).length;
+    const textos = rows.map(r => r.solucion).filter(s => s && s !== '—');
+    const repetidasMap = groupCount(textos, s => s.trim().toLowerCase());
+    const repetidas = Object.values(repetidasMap).filter(c => c > 1).reduce((s,c) => s+c, 0);
+    const potencialAlto = anDetectRecurring().filter(g => g.potencial === 'alta').length;
+    $('anSolutionQualityGrid').innerHTML = [
+      anExecStat('Sin solución registrada', sinSolucion, sinSolucion ? 'bad' : ''),
+      anExecStat('Soluciones muy cortas (<20 car.)', cortas),
+      anExecStat('Soluciones repetidas', repetidas),
+      anExecStat('Problemas con alto potencial KB', potencialAlto, potencialAlto ? 'ok' : '')
+    ].join('');
+  }
+
+  // ---------------- Modal genérico (ver tickets de un problema recurrente, etc.) ----------------
+  function anOpenModal(title, sub, bodyHtml){
+    $('anModalTitle').textContent = title;
+    $('anModalSub').textContent = sub || '';
+    $('anModalBody').innerHTML = bodyHtml;
+    $('anModalOverlay').classList.remove('hidden');
+  }
+  function anCloseModal(){ $('anModalOverlay').classList.add('hidden'); }
+  $('anModalClose').addEventListener('click', anCloseModal);
+  $('anModalOverlay').addEventListener('click', (e) => { if (e.target.id === 'anModalOverlay') anCloseModal(); });
+
+  // ---------------- Base de conocimientos ----------------
+  async function anLoadKb(){
+    try{
+      const res = await fetch('/api/kb').then(r => r.ok ? r.json() : null);
+      if (res && res.ok) anKbArticulos = res.articulos;
+    }catch(err){ console.warn('No se pudo cargar la base de conocimientos:', err.message); }
+    anRenderKbFilters();
+    anRenderKbList();
+  }
+  function anRenderKbFilters(){
+    const sel = $('anKbServicio');
+    const current = sel.value;
+    const servicios = Array.from(new Set(anKbArticulos.map(a => a.servicio).filter(Boolean))).sort();
+    sel.innerHTML = '<option value="">Todos los servicios</option>' + servicios.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    sel.value = current;
+  }
+  function anRenderKbList(){
+    const q = ($('anKbSearch').value || '').toLowerCase().trim();
+    const servicio = $('anKbServicio').value;
+    const estado = $('anKbEstado').value;
+    const filtered = anKbArticulos.filter(a => {
+      if (servicio && a.servicio !== servicio) return false;
+      if (estado && a.estado !== estado) return false;
+      if (q){
+        const hay = `${a.titulo||''} ${a.problema||''} ${a.palabrasClave||''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    $('anKbList').innerHTML = filtered.map(a => `
+      <div class="an-kb-card">
+        <h4>${escapeHtml(a.titulo || '(sin título)')}</h4>
+        <div class="meta">${escapeHtml(a.servicio || '—')} · ${escapeHtml(a.estado || 'Borrador')} · usado ${a.usos || 0} ${a.usos === 1 ? 'vez' : 'veces'}</div>
+        <div>${escapeHtml((a.problema || '').slice(0,110))}${(a.problema||'').length > 110 ? '…' : ''}</div>
+        <div class="actions">
+          <button class="an-kb-view" data-id="${a.id}">Ver</button>
+          <button class="an-kb-edit" data-id="${a.id}">Editar</button>
+          <button class="an-kb-del" data-id="${a.id}">Eliminar</button>
+        </div>
+      </div>`).join('');
+    $('anKbEmpty').classList.toggle('hidden', !!filtered.length);
+
+    $('anKbList').querySelectorAll('.an-kb-view').forEach(btn => btn.addEventListener('click', () => anViewKb(Number(btn.dataset.id))));
+    $('anKbList').querySelectorAll('.an-kb-edit').forEach(btn => btn.addEventListener('click', () => anOpenKbModal(anKbArticulos.find(a => a.id === Number(btn.dataset.id)))));
+    $('anKbList').querySelectorAll('.an-kb-del').forEach(btn => btn.addEventListener('click', () => anDeleteKb(Number(btn.dataset.id))));
+  }
+  function anViewKb(id){
+    const a = anKbArticulos.find(x => x.id === id);
+    if (!a) return;
+    anOpenModal(a.titulo || '(sin título)', `${a.servicio || '—'} · ${a.estado || 'Borrador'}`, `
+      <p><b>Problema:</b> ${escapeHtml(a.problema || '—')}</p>
+      <p><b>Síntomas:</b> ${escapeHtml(a.sintomas || '—')}</p>
+      <p><b>Causa:</b> ${escapeHtml(a.causa || '—')}</p>
+      <p><b>Solución:</b> ${escapeHtml(a.solucion || '—')}</p>
+      <p><b>Pasos de resolución:</b> ${escapeHtml(a.pasos || '—')}</p>
+      <p><b>Tickets relacionados:</b> ${escapeHtml(a.ticketsRelacionados || '—')}</p>
+    `);
+    fetch('/api/kb', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, incrementarUso: true }) })
+      .then(() => anLoadKb()).catch(() => {});
+  }
+  function anOpenKbModal(prefill){
+    const a = prefill || {};
+    anOpenModal(a.id ? 'Editar artículo' : 'Nuevo artículo de conocimiento', '', `
+      <div class="an-form-grid">
+        <div><label>Título</label><input id="kbTitulo" value="${escapeHtml(a.titulo||'')}"></div>
+        <div><label>Servicio</label><input id="kbServicio" value="${escapeHtml(a.servicio||'')}"></div>
+        <div><label>Categoría</label><input id="kbCategoria" value="${escapeHtml(a.categoria||'')}"></div>
+        <div><label>Estado</label><select id="kbEstado">${['Borrador','En revisión','Publicado','Obsoleto'].map(s=>`<option ${s===(a.estado||'Borrador')?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="full"><label>Problema</label><textarea id="kbProblema">${escapeHtml(a.problema||'')}</textarea></div>
+        <div class="full"><label>Síntomas</label><textarea id="kbSintomas">${escapeHtml(a.sintomas||'')}</textarea></div>
+        <div class="full"><label>Causa</label><textarea id="kbCausa">${escapeHtml(a.causa||'')}</textarea></div>
+        <div class="full"><label>Solución (no inventar: solo lo registrado en tickets o lo que confirmes aquí)</label><textarea id="kbSolucion">${escapeHtml(a.solucion||'')}</textarea></div>
+        <div class="full"><label>Pasos de resolución</label><textarea id="kbPasos">${escapeHtml(a.pasos||'')}</textarea></div>
+        <div><label>Palabras clave</label><input id="kbPalabras" value="${escapeHtml(a.palabrasClave||'')}"></div>
+        <div><label>Público objetivo</label><input id="kbPublico" value="${escapeHtml(a.publicoObjetivo||'')}"></div>
+        <div><label>Nivel de dificultad</label><input id="kbDificultad" value="${escapeHtml(a.dificultad||'')}"></div>
+        <div><label>Autor</label><input id="kbAutor" value="${escapeHtml(a.autor||'')}"></div>
+        <div class="full"><label>Tickets relacionados</label><input id="kbTickets" value="${escapeHtml(a.ticketsRelacionados||'')}"></div>
+      </div>
+      <div class="an-form-actions">
+        <button id="kbCancel">Cancelar</button>
+        <button class="btn-primary" id="kbSave">Guardar</button>
+      </div>
+    `);
+    $('kbCancel').addEventListener('click', anCloseModal);
+    $('kbSave').addEventListener('click', async () => {
+      const payload = {
+        id: a.id || undefined, titulo: $('kbTitulo').value, servicio: $('kbServicio').value, categoria: $('kbCategoria').value,
+        estado: $('kbEstado').value, problema: $('kbProblema').value, sintomas: $('kbSintomas').value, causa: $('kbCausa').value,
+        solucion: $('kbSolucion').value, pasos: $('kbPasos').value, palabrasClave: $('kbPalabras').value,
+        publicoObjetivo: $('kbPublico').value, dificultad: $('kbDificultad').value, autor: $('kbAutor').value,
+        ticketsRelacionados: $('kbTickets').value
+      };
+      try{
+        await fetch('/api/kb', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      }catch(err){ console.warn('No se pudo guardar el artículo:', err.message); }
+      anCloseModal();
+      anLoadKb();
+    });
+  }
+  async function anDeleteKb(id){
+    if (!confirm('¿Eliminar este artículo de la base de conocimientos?')) return;
+    try{ await fetch(`/api/kb?id=${id}`, { method:'DELETE' }); }catch(err){ console.warn(err.message); }
+    anLoadKb();
+  }
+
+  // ---------------- Acciones de mejora ----------------
+  async function anLoadAcciones(){
+    try{
+      const res = await fetch('/api/acciones').then(r => r.ok ? r.json() : null);
+      if (res && res.ok) anAcciones = res.acciones;
+    }catch(err){ console.warn('No se pudieron cargar las acciones:', err.message); }
+    anRenderAcciones();
+  }
+  function anRenderAcciones(){
+    $('anAccionesBody').innerHTML = anAcciones.map(a => `
+      <tr>
+        <td>${escapeHtml(a.accion || '—')}</td>
+        <td>${escapeHtml(a.problema || '—')}</td>
+        <td>${escapeHtml(a.responsable || '—')}</td>
+        <td class="mono">${a.fechaCompromiso ? String(a.fechaCompromiso).slice(0,10) : '—'}</td>
+        <td>${escapeHtml(a.estado || 'Pendiente')}</td>
+        <td>${escapeHtml(a.prioridad || '—')}</td>
+        <td class="mono">${a.metricaAntes || '—'} → ${a.metricaDespues || '—'}</td>
+        <td>
+          <button class="an-accion-edit" data-id="${a.id}" style="font-size:11px; padding:3px 7px;">Editar</button>
+          <button class="an-accion-del" data-id="${a.id}" style="font-size:11px; padding:3px 7px;">Eliminar</button>
+        </td>
+      </tr>`).join('');
+    $('anAccionesTable').classList.toggle('hidden', !anAcciones.length);
+    $('anAccionesEmpty').classList.toggle('hidden', !!anAcciones.length);
+    $('anAccionesBody').querySelectorAll('.an-accion-edit').forEach(btn => btn.addEventListener('click', () => anOpenAccionModal(anAcciones.find(a => a.id === Number(btn.dataset.id)))));
+    $('anAccionesBody').querySelectorAll('.an-accion-del').forEach(btn => btn.addEventListener('click', () => anDeleteAccion(Number(btn.dataset.id))));
+  }
+  function anOpenAccionModal(prefill){
+    const a = prefill || {};
+    anOpenModal(a.id ? 'Editar acción de mejora' : 'Registrar acción de mejora', '', `
+      <div class="an-form-grid">
+        <div class="full"><label>Acción</label><textarea id="acAccion">${escapeHtml(a.accion||'')}</textarea></div>
+        <div><label>Problema relacionado</label><input id="acProblema" value="${escapeHtml(a.problema||'')}"></div>
+        <div><label>Causa</label><input id="acCausa" value="${escapeHtml(a.causa||'')}"></div>
+        <div><label>Responsable</label><input id="acResponsable" value="${escapeHtml(a.responsable||'')}"></div>
+        <div><label>Fecha de compromiso</label><input type="date" id="acFechaCompromiso" value="${a.fechaCompromiso ? String(a.fechaCompromiso).slice(0,10) : ''}"></div>
+        <div><label>Estado</label><select id="acEstado">${['Pendiente','En proceso','Completada','Cancelada'].map(s=>`<option ${s===(a.estado||'Pendiente')?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div><label>Prioridad</label><input id="acPrioridad" value="${escapeHtml(a.prioridad||'')}"></div>
+        <div><label>Fecha de cierre</label><input type="date" id="acFechaCierre" value="${a.fechaCierre ? String(a.fechaCierre).slice(0,10) : ''}"></div>
+        <div class="full"><label>Resultado esperado</label><textarea id="acResultado">${escapeHtml(a.resultadoEsperado||'')}</textarea></div>
+        <div><label>Métrica antes</label><input id="acMetricaAntes" value="${escapeHtml(a.metricaAntes||'')}" placeholder="ej. 35 tickets/semana"></div>
+        <div><label>Métrica después</label><input id="acMetricaDespues" value="${escapeHtml(a.metricaDespues||'')}" placeholder="ej. 12 tickets/semana"></div>
+        <div class="full"><label>Observaciones</label><textarea id="acObs">${escapeHtml(a.observaciones||'')}</textarea></div>
+      </div>
+      <div class="an-form-actions">
+        <button id="acCancel">Cancelar</button>
+        <button class="btn-primary" id="acSave">Guardar</button>
+      </div>
+    `);
+    $('acCancel').addEventListener('click', anCloseModal);
+    $('acSave').addEventListener('click', async () => {
+      const payload = {
+        id: a.id || undefined, accion: $('acAccion').value, problema: $('acProblema').value, causa: $('acCausa').value,
+        responsable: $('acResponsable').value, fechaCompromiso: $('acFechaCompromiso').value || null,
+        estado: $('acEstado').value, prioridad: $('acPrioridad').value, resultadoEsperado: $('acResultado').value,
+        fechaCierre: $('acFechaCierre').value || null, observaciones: $('acObs').value,
+        metricaAntes: $('acMetricaAntes').value, metricaDespues: $('acMetricaDespues').value
+      };
+      try{
+        await fetch('/api/acciones', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      }catch(err){ console.warn('No se pudo guardar la acción:', err.message); }
+      anCloseModal();
+      anLoadAcciones();
+    });
+  }
+  async function anDeleteAccion(id){
+    if (!confirm('¿Eliminar esta acción de mejora?')) return;
+    try{ await fetch(`/api/acciones?id=${id}`, { method:'DELETE' }); }catch(err){ console.warn(err.message); }
+    anLoadAcciones();
+  }
+
+  // ---------------- Umbrales de exceso SLA ----------------
+  async function anLoadThresholds(){
+    try{
+      const res = await fetch('/api/settings').then(r => r.ok ? r.json() : null);
+      if (res && res.ok && res.slaThresholds){
+        try{ anThresholds = JSON.parse(res.slaThresholds); }catch(e){}
+      }
+    }catch(err){ console.warn('No se pudieron cargar los umbrales:', err.message); }
+    $('anThLeve').value = anThresholds.leve;
+    $('anThModerado').value = anThresholds.moderado;
+    $('anThAlto').value = anThresholds.alto;
+  }
+  async function anSaveThresholds(){
+    anThresholds = {
+      leve: Number($('anThLeve').value) || 10,
+      moderado: Number($('anThModerado').value) || 25,
+      alto: Number($('anThAlto').value) || 50
+    };
+    try{
+      await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ slaThresholds: JSON.stringify(anThresholds) }) });
+    }catch(err){ console.warn('No se pudieron guardar los umbrales:', err.message); }
+    anRenderAll();
+  }
+
+  // ---------------- Informe semanal (texto descargable) ----------------
+  function anGenerateReport(){
+    const buckets = anBucketWeeks();
+    const focused = anResolveFocusedInfo(buckets);
+    const rows = anGetWeekRows(buckets, focused.key);
+    const m = anWeekMetrics(rows);
+    const vencidos = rows.filter(r => !r.cumple && r.estado === 'Cerrado');
+    const byServicio = anGroupExcesoBy(rows, r => r.servicio);
+    const servicioTop = Array.from(byServicio.entries()).sort((a,b) => b[1].length - a[1].length)[0];
+    const causaCount = new Map();
+    vencidos.forEach(r => { const info = anCausasMap.get(r.ticket); const c = (info && info.causa) ? info.causa : AN_PENDIENTE; causaCount.set(c, (causaCount.get(c)||0)+1); });
+    const causaTop = Array.from(causaCount.entries()).sort((a,b)=>b[1]-a[1]);
+    const recurrentes = anDetectRecurring().filter(g => g.enFoco);
+    const pendientes = anAcciones.filter(a => a.estado === 'Pendiente' || a.estado === 'En proceso');
+    const completadas = anAcciones.filter(a => a.estado === 'Completada');
+
+    const lines = [];
+    lines.push(`ANÁLISIS SEMANAL DE SERVICE DESK — ${focused.label} (${anFmtRange(focused)})`);
+    lines.push('='.repeat(60));
+    lines.push('');
+    lines.push('RESUMEN');
+    lines.push(`- Periodo: ${anFmtRange(focused)}`);
+    lines.push(`- Tickets evaluados: ${m.total}`);
+    lines.push(`- Cumplimiento SLA: ${m.pct == null ? '—' : m.pct.toFixed(1) + '%'} (meta ${META}%)`);
+    lines.push(`- Vencidos: ${m.vencidos}`);
+    lines.push(`- Tickets abiertos: ${m.abiertos} (vencidos pendientes: ${m.vencidosAbiertos})`);
+    lines.push('');
+    lines.push('PRINCIPALES DEMORAS');
+    lines.push(`- Servicio más afectado: ${servicioTop ? `${servicioTop[0]} (${servicioTop[1].length} vencidos)` : '—'}`);
+    lines.push(`- Principal causa: ${causaTop.length ? `${causaTop[0][0]} (${causaTop[0][1]} tickets)` : '—'}`);
+    lines.push('');
+    lines.push('PROBLEMAS RECURRENTES ESTA SEMANA');
+    if (recurrentes.length) recurrentes.slice(0,8).forEach(g => lines.push(`- "${g.desc.slice(0,70)}" — ${g.enFocoCount} esta semana (${g.count} histórico), ${g.servicio}`));
+    else lines.push('- Ninguno detectado esta semana.');
+    lines.push('');
+    lines.push('CAUSAS DE INCUMPLIMIENTO');
+    if (causaTop.length) causaTop.forEach(([c,n]) => lines.push(`- ${c}: ${n} tickets`));
+    else lines.push('- No hubo tickets vencidos.');
+    lines.push('');
+    lines.push('ACCIONES PENDIENTES / EN PROCESO');
+    if (pendientes.length) pendientes.forEach(a => lines.push(`- ${a.accion} (responsable: ${a.responsable || '—'}, compromiso: ${a.fechaCompromiso ? String(a.fechaCompromiso).slice(0,10) : '—'})`));
+    else lines.push('- Ninguna registrada.');
+    lines.push('');
+    lines.push('ACCIONES COMPLETADAS');
+    if (completadas.length) completadas.forEach(a => lines.push(`- ${a.accion}${a.metricaAntes || a.metricaDespues ? ` (${a.metricaAntes||'—'} → ${a.metricaDespues||'—'})` : ''}`));
+    else lines.push('- Ninguna registrada.');
+    lines.push('');
+    lines.push('OPORTUNIDADES DE MEJORA');
+    const oportunidades = anDetectRecurring().filter(g => g.potencial === 'alta');
+    if (oportunidades.length) oportunidades.slice(0,5).forEach(g => lines.push(`- Documentar en base de conocimientos: "${g.desc.slice(0,70)}" (${g.count} tickets históricos)`));
+    else lines.push('- No se detectaron nuevas oportunidades esta semana.');
+
+    const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `analisis_semanal_${focused.key}.txt`;
+    a.click();
+  }
+
+  // ---------------- Wiring ----------------
+  $('anWeekMode').addEventListener('change', (e) => { anWeekMode = e.target.value; anRecurCache = null; anRenderAll(); });
+  $('anWeekSelect').addEventListener('change', (e) => { anSelectedWeekKey = e.target.value; anRecurCache = null; anRenderAll(); });
+  $('anCompare').addEventListener('change', (e) => { anCompare = e.target.checked; anRenderAll(); });
+  $('anTrendWindow').addEventListener('change', (e) => { anTrendWindow = Number(e.target.value); anRenderAll(); });
+  $('anBtnSaveThresholds').addEventListener('click', anSaveThresholds);
+  $('anBtnReport').addEventListener('click', anGenerateReport);
+  $('anKbSearch').addEventListener('input', anRenderKbList);
+  $('anKbServicio').addEventListener('change', anRenderKbList);
+  $('anKbEstado').addEventListener('change', anRenderKbList);
+  $('anBtnNewKb').addEventListener('click', () => anOpenKbModal(null));
+  $('anBtnNewAccion').addEventListener('click', () => anOpenAccionModal(null));
+
+  async function anInit(){
+    await Promise.all([anLoadCausas(), anLoadKb(), anLoadAcciones(), anLoadThresholds()]);
+    anRenderAll();
+  }
+  anInit();
 
   loadFromServer();
 

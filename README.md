@@ -8,13 +8,57 @@ actualiza esos registros en vez de duplicarlos).
 ## Qué hay en este proyecto
 
 - `public/app.html` — el dashboard en sí (tablas, gráficas, filtros, modal de
-  tareas por caso). Es el mismo aplicativo que ya conocías, con tres cambios:
-  título "Resolución de incidencias", tema de color y banner de ValorA, y la
-  conexión a la base de datos.
+  tareas por caso, y ahora también la pestaña **"Análisis y Mejora"**). Es el
+  mismo aplicativo y la misma lógica de siempre — carga de Excel, cálculo de
+  SLA, recurrencia, tareas — sobre la que se construyó la nueva pestaña.
 - `app/api/tickets/route.js`, `app/api/tasks/route.js` — reciben lo que se sube
   desde el navegador y lo guardan (o lo actualizan si el ticket/tarea ya existía).
-- `lib/db.js` — crea las tablas la primera vez que hace falta.
+- `app/api/settings/route.js` — guarda el rango de fechas Desde/Hasta y los
+  umbrales de exceso SLA (Leve/Moderado/Alto/Crítico) de "Análisis y Mejora".
+- `app/api/causas/route.js` — guarda la causa de demora que registres para
+  cada ticket vencido (independiente de la tabla de tickets, para no perderse
+  al volver a subir el mismo periodo).
+- `app/api/kb/route.js` — CRUD de los artículos de la base de conocimientos.
+- `app/api/acciones/route.js` — CRUD del plan de acciones de mejora.
+- `lib/db.js` — crea todas las tablas la primera vez que hace falta.
 - `app/page.js` — la raíz del sitio (`/`) simplemente te manda a `/app.html`.
+
+## Pestaña "Análisis y Mejora"
+
+Es una tercera pestaña (junto a "Resumen" y "Dashboard") pensada para pasar de
+"tuvimos X vencidos" a entender dónde, por qué, y qué se está haciendo al
+respecto. Trabaja sobre el mismo histórico de tickets y tareas ya cargado — no
+crea una segunda fuente de verdad — y agrega tres tablas propias para lo que
+antes no existía:
+
+- **Selector de semana** (actual, anterior, o cualquiera del histórico) con
+  comparación automática contra la semana previa y una ventana de tendencia
+  configurable (8/12/26 semanas).
+- **Resumen ejecutivo**, **evolución semanal del cumplimiento SLA**,
+  **incumplimientos por servicio/especialista/categoría**, y **exceso de SLA**
+  clasificado en Leve/Moderado/Alto/Crítico con umbrales que tú defines.
+- **Causas de demora**: las registras tú mismo (menú desplegable por ticket
+  vencido); mientras no se registre, la app la marca honestamente como
+  "Pendiente de análisis" — nunca inventa una causa.
+- **Problemas recurrentes**: reutiliza la misma lógica de agrupar por
+  descripción que ya usa el detector de ráfagas, pero con un umbral pensado
+  para detectar patrones (3+ tickets) en vez de ruido.
+- **Tareas y cuellos de botella**, acotado a los casos de la semana enfocada.
+- **"¿Por qué nos estamos demorando?"**: un resumen automático, pero solo con
+  conclusiones que se pueden calcular de los datos reales — cuando no alcanza
+  la información, dice explícitamente que no hay información suficiente.
+- **Base de conocimientos**: crear/editar/buscar artículos, y un botón directo
+  desde cada problema recurrente para precargar un artículo nuevo (la
+  solución nunca se inventa: sale de lo que ya registraste en el ticket, o la
+  escribes tú al guardar).
+- **Acciones de mejora**: registro con responsable, fecha de compromiso,
+  estado, y una medición simple de "antes → después" para ver si la acción
+  realmente redujo el problema.
+- Botón **"Generar análisis semanal"**, que descarga un .txt con todo lo
+  anterior listo para llevar a una reunión de seguimiento.
+
+Los umbrales de exceso SLA (Leve/Moderado/Alto) se guardan también en la base
+de datos compartida, así que quedan igual para cualquiera que abra la app.
 
 ## Cómo se guarda la información
 

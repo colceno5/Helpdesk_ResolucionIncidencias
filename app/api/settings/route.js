@@ -5,15 +5,16 @@ import { ensureSchema } from '../../../lib/db';
 export const dynamic = 'force-dynamic';
 
 // Devuelve el rango de fechas (Desde/Hasta) guardado por el último que lo
-// haya cambiado, para que se mantenga igual sin importar quién o desde
-// dónde (navegador/dispositivo) abra la app.
+// haya cambiado, y también los umbrales de exceso SLA de "Análisis y Mejora"
+// (slaThresholds), para que ambos se mantengan igual sin importar quién o
+// desde dónde (navegador/dispositivo) abra la app.
 export async function GET() {
   try {
     await ensureSchema();
     const { rows } = await sql`
-      SELECT key, value FROM app_settings WHERE key IN ('dateFrom', 'dateTo');
+      SELECT key, value FROM app_settings WHERE key IN ('dateFrom', 'dateTo', 'slaThresholds');
     `;
-    const out = { dateFrom: null, dateTo: null };
+    const out = { dateFrom: null, dateTo: null, slaThresholds: null };
     rows.forEach((r) => { out[r.key] = r.value; });
     return Response.json({ ok: true, ...out });
   } catch (err) {
@@ -22,22 +23,33 @@ export async function GET() {
   }
 }
 
-// Guarda el rango de fechas elegido (Desde/Hasta) para que persista para
-// cualquiera que abra la app después, desde cualquier navegador.
+// Guarda cualquiera de los ajustes recibidos (dateFrom/dateTo y/o
+// slaThresholds) para que persistan para cualquiera que abra la app después,
+// desde cualquier navegador. Los que no vengan en el body no se tocan.
 export async function POST(req) {
   try {
     await ensureSchema();
     const body = await req.json();
-    const { dateFrom, dateTo } = body || {};
+    const { dateFrom, dateTo, slaThresholds } = body || {};
 
-    await sql`
-      INSERT INTO app_settings (key, value, updated_at) VALUES ('dateFrom', ${dateFrom ?? null}, now())
-      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
-    `;
-    await sql`
-      INSERT INTO app_settings (key, value, updated_at) VALUES ('dateTo', ${dateTo ?? null}, now())
-      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
-    `;
+    if (dateFrom !== undefined) {
+      await sql`
+        INSERT INTO app_settings (key, value, updated_at) VALUES ('dateFrom', ${dateFrom ?? null}, now())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+      `;
+    }
+    if (dateTo !== undefined) {
+      await sql`
+        INSERT INTO app_settings (key, value, updated_at) VALUES ('dateTo', ${dateTo ?? null}, now())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+      `;
+    }
+    if (slaThresholds !== undefined) {
+      await sql`
+        INSERT INTO app_settings (key, value, updated_at) VALUES ('slaThresholds', ${slaThresholds ?? null}, now())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+      `;
+    }
 
     return Response.json({ ok: true });
   } catch (err) {
