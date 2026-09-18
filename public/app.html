@@ -350,9 +350,9 @@
   .task-mini-row:last-child{ margin-bottom:0; }
   .task-mini-head{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin-bottom:8px; }
   .task-mini-head .tid{ font-family:'IBM Plex Mono', monospace; font-weight:600; color:var(--accent); }
-  .task-mini-head .estado-badge{ font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:100px; background:var(--surface-sunken); color:var(--ink-soft); white-space:nowrap; }
-  .task-mini-head .estado-badge.abierta{ background:var(--warning-bg); color:var(--warning); }
-  .task-mini-head .estado-badge.cerrada{ background:var(--success-bg); color:var(--success); }
+  .estado-badge{ font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:100px; background:var(--surface-sunken); color:var(--ink-soft); white-space:nowrap; }
+  .estado-badge.abierta{ background:var(--warning-bg); color:var(--warning); }
+  .estado-badge.cerrada{ background:var(--success-bg); color:var(--success); }
   .task-mini-grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px 16px; font-size:12.5px; color:var(--ink-soft); }
   .task-mini-grid b{ color:var(--ink); font-weight:600; }
   .task-count-badge{
@@ -1473,6 +1473,7 @@
     $('btnClearTasks').classList.add('hidden');
     refreshDateBoundsUI();
     applyGlobalFilters();
+    if (typeof anRenderAll === 'function') anRenderAll(); // la sección de tareas de "Análisis y Mejora" también debe vaciarse
   });
   fileInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length) handleFiles(e.target.files);
@@ -1959,6 +1960,8 @@
     populateColumnFilters();
     refreshDateBoundsUI();
     applyGlobalFilters();
+
+    if (typeof anRenderAll === 'function') anRenderAll(); // por si el usuario ya está en "Análisis y Mejora" al cargar más archivos
 
     if (shouldPersist) persistTicketsToServer(syncRows);
   }
@@ -2669,6 +2672,8 @@
     $('taskSection').classList.remove('hidden');
     refreshDateBoundsUI();
     applyGlobalFilters();
+
+    if (typeof anRenderAll === 'function') anRenderAll(); // refleja de inmediato las tareas nuevas si ya se está en "Análisis y Mejora"
 
     if (shouldPersist) persistTasksToServer(Array.from(taskMap.values()));
   }
@@ -3635,6 +3640,7 @@
   let anKbArticulos = [];
   let anAcciones = [];
   let anRecurCache = null;         // se recalcula cuando cambian los tickets
+  let anCurWeekRows = [], anCurPrevRows = [], anCurFocused = null, anCurIncumpl = null; // último render, para refrescos parciales
 
   function anIsoWeek(d){
     const p = peruParts(d);
@@ -3680,7 +3686,13 @@
     const keys = Array.from(buckets.keys()).sort();
     if (!keys.length) return null;
     const lastInfo = buckets.get(keys[keys.length - 1]).info;
-    if (anWeekMode === 'actual') return anIsoWeek(new Date()); // semana calendario real, aunque no tenga tickets
+    if (anWeekMode === 'actual'){
+      // Si la semana calendario real todavía no tiene tickets (ej. el último reporte de
+      // Aranda subido es de hace unos días), mostrar puros ceros confunde más que ayuda —
+      // se cae a la última semana que sí tenga datos, en vez de una semana vacía por defecto.
+      const todayInfo = anIsoWeek(new Date());
+      return buckets.has(todayInfo.key) ? todayInfo : lastInfo;
+    }
     if (anWeekMode === 'anterior') return anStepWeek(anIsoWeek(new Date()), -1);
     if (anWeekMode === 'select' && anSelectedWeekKey && buckets.has(anSelectedWeekKey)) return buckets.get(anSelectedWeekKey).info;
     return lastInfo;
@@ -3714,6 +3726,7 @@
   // ------------------------------------------------------------------
   function anRenderAll(){
     if (!$('analysisSection')) return;
+    anRecurCache = null; // los problemas recurrentes se recalculan en cada render, para no quedar desactualizados si se cargó más información
     const buckets = anBucketWeeks();
     if (!buckets.size){
       $('anNoData').classList.remove('hidden');
@@ -3741,6 +3754,20 @@
     anRenderTasksBottleneck(focused, weekRows);
     anRenderWhy(focused, weekRows, incumpl);
     anRenderSolutionQuality(weekRows);
+
+    // Se guardan para poder refrescar solo lo que depende de la causa (ver anRefreshCausaViews),
+    // sin recalcular todo el tablero cada vez que se registra una causa de demora.
+    anCurWeekRows = weekRows; anCurPrevRows = prevRows; anCurFocused = focused; anCurIncumpl = incumpl;
+  }
+
+  // Refresco liviano tras registrar/editar una causa: solo la tabla de exceso+causas y el
+  // resumen "¿Por qué nos estamos demorando?" dependen de anCausasMap; el resto del tablero
+  // (tendencia, incumplimientos, recurrencia, tareas) no cambia, así que no hace falta
+  // recalcularlo ni perder la posición de scroll del usuario.
+  function anRefreshCausaViews(){
+    if (!anCurFocused) return;
+    anRenderExcesoYCausas(anCurWeekRows, anCurPrevRows);
+    anRenderWhy(anCurFocused, anCurWeekRows, anCurIncumpl);
   }
 
   function anPopulateWeekSelect(buckets, focusedKey){
@@ -4005,7 +4032,7 @@
     try{
       await fetch('/api/causas', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ticket, causa }) });
     }catch(err){ console.warn('No se pudo guardar la causa:', err.message); }
-    anRenderAll();
+    anRefreshCausaViews();
   }
 
   async function anLoadCausas(){
@@ -4088,9 +4115,10 @@
     $('anRecurBody').querySelectorAll('.an-recur-view').forEach(btn => {
       btn.addEventListener('click', () => {
         const g = groups[Number(btn.dataset.idx)];
+        const anTicketMap = anTicketFechaMap(); // se arma solo al abrir el modal, no en cada render
         anOpenModal('Tickets del problema recurrente', `${g.count} tickets · ${escapeHtml(g.servicio)}`,
           `<div class="table-scroll"><table><thead><tr><th>Ticket</th><th>Registro</th><th>Estado</th></tr></thead><tbody>` +
-          g.tickets.map(t => { const row = allRowsRaw.find(r => r.ticket === t); return `<tr><td class="mono">${escapeHtml(t)}</td><td class="mono">${row ? fmtDateShort(row.fechaRegistro) : '—'}</td><td>${row ? escapeHtml(row.estado) : '—'}</td></tr>`; }).join('') +
+          g.tickets.map(t => { const row = anTicketMap.get(t); return `<tr><td class="mono">${escapeHtml(t)}</td><td class="mono">${row ? fmtDateShort(row.fechaRegistro) : '—'}</td><td>${row ? escapeHtml(row.estado) : '—'}</td></tr>`; }).join('') +
           `</tbody></table></div>`);
       });
     });
