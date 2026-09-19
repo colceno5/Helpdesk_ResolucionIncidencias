@@ -3551,6 +3551,49 @@
     return [header, ...rows];
   }
 
+  // Con sábanas grandes (varios miles de tickets/tareas), mandar todo en un solo
+  // POST puede superar el límite de tamaño de request de Vercel -> 413 (Content
+  // Too Large). Antes, ese 413 hacía que el guardado fallara en silencio (solo un
+  // console.warn) y por eso los registros recién subidos "desaparecían": en
+  // realidad nunca habían quedado guardados en la base de datos, así que la
+  // próxima sincronización con el servidor no los traía de vuelta. Por eso ahora
+  // se manda en lotes; si un lote igual da 413, se parte a la mitad y se
+  // reintenta con lotes más chicos, hasta que entra.
+  const TICKET_CHUNK_SIZE = 150;
+  const TASK_CHUNK_SIZE = 150;
+
+  async function postInChunks(url, key, items, chunkSize){
+    let i = 0;
+    let anyFailed = false;
+    while (i < items.length){
+      let size = Math.min(chunkSize, items.length - i);
+      for (;;){
+        const chunk = items.slice(i, i + size);
+        let res;
+        try{
+          res = await fetch(url, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [key]: chunk })
+          });
+        }catch(err){
+          console.warn(`Guardado en servidor no disponible (${key}):`, err.message);
+          anyFailed = true;
+          break;
+        }
+        if (res.ok) break;
+        if (res.status === 413 && size > 1){
+          size = Math.ceil(size / 2); // lote demasiado grande: partirlo a la mitad y reintentar
+          continue;
+        }
+        console.warn(`No se pudo guardar en el servidor (${key}):`, res.status);
+        anyFailed = true;
+        break;
+      }
+      i += size;
+    }
+    return !anyFailed;
+  }
+
   async function persistTicketsToServer(evaluatedRows){
     if (!evaluatedRows.length) return;
     try{
@@ -3569,11 +3612,7 @@
           prioridad: r.prioridad, impacto: r.impacto, urgencia: r.urgencia
         };
       });
-      const res = await fetch('/api/tickets', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tickets })
-      });
-      if (!res.ok){ console.warn('No se pudo guardar en el servidor (tickets):', res.status); return; }
+      await postInChunks('/api/tickets', 'tickets', tickets, TICKET_CHUNK_SIZE);
       loadFromServer(); // refleja de inmediato el histórico ya combinado, sin esperar a recargar la página
     }catch(err){
       console.warn('Guardado en servidor no disponible (tickets):', err.message);
@@ -3590,11 +3629,7 @@
         grupoResponsable: t.grupoResponsable, receptor: t.receptor,
         fechaCierre: t.fechaCierre ? t.fechaCierre.toISOString() : null
       }));
-      const res = await fetch('/api/tasks', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tasks })
-      });
-      if (!res.ok){ console.warn('No se pudo guardar en el servidor (tareas):', res.status); return; }
+      await postInChunks('/api/tasks', 'tasks', tasks, TASK_CHUNK_SIZE);
       loadFromServer();
     }catch(err){
       console.warn('Guardado en servidor no disponible (tareas):', err.message);
