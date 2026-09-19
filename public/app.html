@@ -1564,12 +1564,7 @@
         const wsName = wb.SheetNames[0];
         const ws = wb.Sheets[wsName];
         const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', raw:true });
-        // Texto tal como lo muestra Excel (según el formato de celda), sin pasar
-        // por el objeto Date de SheetJS. Se usa solo para las columnas de fecha
-        // de tickets, para eliminar la ambigüedad de zona horaria que introduce
-        // reconstruir un Date a partir de sus getters (ver parseArandaDate).
-        const textRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', raw:false });
-        routeRows(rows, file.name, textRows);
+        routeRows(rows, file.name);
       }catch(err){
         console.error(err);
         errorMsg.textContent = 'No se pudo leer "' + file.name + '". Verifica que sea un .xlsx exportado de Aranda.';
@@ -1600,14 +1595,14 @@
     return { idx: 0, type: null };
   }
 
-  function routeRows(rows, fileName, textRows){
+  function routeRows(rows, fileName){
     if (!rows || rows.length < 2){
       errorMsg.textContent = 'El archivo "' + fileName + '" no contiene filas de datos.';
       return;
     }
     const found = detectFileType(rows);
     if (found.type === 'ticket'){
-      processTicketRows(rows, found.idx, fileName, null, textRows);
+      processTicketRows(rows, found.idx, fileName);
     } else if (found.type === 'task'){
       processTaskRows(rows, found.idx, fileName);
     } else {
@@ -1820,6 +1815,12 @@
     };
   }
 
+  // El AQM (la herramienta con la que se descargan los reportes de Tickets desde
+  // Aranda) baja esos reportes con un desfase fijo de +5 horas respecto a la hora
+  // real — es un problema conocido del propio AQM, no de este archivo. Los exports
+  // de Tareas no pasan por el AQM y no traen este problema.
+  const AQM_SKEW_MIN = 5 * 60;
+
   // Convierte fechas de texto "dd/mm/yyyy h:mm:ss" (formato de los exports de Tareas)
   // o valores Date ya parseados por SheetJS (formato de la sábana de tickets) a un Date real.
   function parseArandaDate(v){
@@ -1835,7 +1836,13 @@
       // mismo offset, y fromPeruWallClock le suma el offset de Perú una segunda
       // vez -> desfase de +5h. Usando los getters locales, el dígito literal es
       // siempre el mismo sin importar la zona horaria del navegador.
-      return fromPeruWallClock(v.getFullYear(), v.getMonth(), v.getDate(), v.getHours(), v.getMinutes(), v.getSeconds());
+      const real = fromPeruWallClock(v.getFullYear(), v.getMonth(), v.getDate(), v.getHours(), v.getMinutes(), v.getSeconds());
+      // Esta rama (v instanceof Date) solo se toca con celdas de fecha reales,
+      // que solo aparecen en la sábana de Tickets recién subida (nunca al volver a
+      // cargar tickets ya guardados desde el servidor, que llegan como texto ISO y
+      // entran por la rama de abajo) — así que es el lugar correcto y seguro para
+      // restar el desfase del AQM sin arriesgarse a restarlo dos veces.
+      return new Date(real.getTime() - AQM_SKEW_MIN * 60000);
     }
     const s = String(v).trim();
     const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
@@ -1848,12 +1855,10 @@
   }
 
 
-  function processTicketRows(rows, headerRowIdx, fileName, opts, textRows){
+  function processTicketRows(rows, headerRowIdx, fileName, opts){
     const shouldPersist = !opts || opts.persist !== false;
     const header = rows[headerRowIdx].map(cleanHeader);
     rows = rows.slice(headerRowIdx); // drop any title/meta rows above the header
-    // Mismo recorte para mantener alineados índice a índice con `rows`.
-    if (textRows) textRows = textRows.slice(headerRowIdx);
 
     // find repeated Progreso/Tiempo blocks -> take the SECOND "Progreso" occurrence (column AP in the template)
     const progresoIdxs = [];
@@ -1906,22 +1911,11 @@
     for (let r = 1; r < rows.length; r++){
       const row = rows[r];
       if (!row || row.every(c => c === '' || c == null)) continue;
-      const textRow = textRows ? textRows[r] : null;
-      // Para columnas de fecha: prioriza el texto tal como lo formatea Excel
-      // (lo que ve el analista) en vez del objeto Date de SheetJS, que obliga
-      // a adivinar cómo esa librería construyó internamente el timestamp.
-      // Si no hay texto disponible para esa celda (p.ej. al recargar el
-      // histórico ya guardado en el servidor, que llega como ISO string),
-      // cae de vuelta al valor original de `row`.
-      const cellDate = (colIdx) => {
-        const t = textRow ? textRow[colIdx] : null;
-        return parseArandaDate((t !== undefined && t !== null && t !== '') ? t : row[colIdx]);
-      };
 
       const estado = cleanHeader(row[idx.estado]);
       if (!estado) continue;
 
-      allDescRaw.push({ desc: cleanHeader(row[idx.descripcion]), fecha: cellDate(idx.fechaRegistro) });
+      allDescRaw.push({ desc: cleanHeader(row[idx.descripcion]), fecha: parseArandaDate(row[idx.fechaRegistro]) });
 
       const progresoRaw = row[idx.progreso] == null ? '' : String(row[idx.progreso]);
       const pctMatch = progresoRaw.match(/(-?\d+(?:[.,]\d+)?)\s*%/);
@@ -1940,9 +1934,9 @@
         especialista: cleanHeader(row[idx.especialista]) || '—',
         asunto: cleanHeader(row[idx.asunto]) || '(sin asunto)',
         descripcion: cleanHeader(row[idx.descripcion]) || '(sin descripción)',
-        fechaCierre: cellDate(idx.fechaCierre),
-        fechaRegistro: cellDate(idx.fechaRegistro),
-        fechaModificacion: fechaModIdx === -1 ? null : cellDate(fechaModIdx),
+        fechaCierre: parseArandaDate(row[idx.fechaCierre]),
+        fechaRegistro: parseArandaDate(row[idx.fechaRegistro]),
+        fechaModificacion: fechaModIdx === -1 ? null : parseArandaDate(row[fechaModIdx]),
         clienteFinal: clienteFinalIdx === -1 ? null : (cleanHeader(row[clienteFinalIdx]) || '—'),
         autorTicket: autorTicketIdx === -1 ? null : (cleanHeader(row[autorTicketIdx]) || '—'),
         prioridad: prioridadIdx === -1 ? null : (cleanHeader(row[prioridadIdx]) || '—'),
@@ -3607,6 +3601,16 @@
     }
   }
 
+  // Solo se restaura el rango Desde/Hasta guardado en el servidor la primera vez
+  // que se carga la página en esta sesión del navegador. loadFromServer() también
+  // se dispara después de cada carga de archivo (para reflejar el histórico ya
+  // combinado), y si esa restauración se repitiera cada vez, un rango guardado de
+  // una sesión anterior volvería a angostar el filtro justo después de subir un
+  // archivo nuevo -> los tickets/tareas recién subidos, si caen fuera de ese rango
+  // viejo, "desaparecerían" de la tabla aunque sigan bien guardados en la base de
+  // datos. Con este flag, esa restauración ocurre una sola vez al abrir la página.
+  let settingsRestoredOnce = false;
+
   async function loadFromServer(){
     try{
       const [tRes, kRes, sRes] = await Promise.all([
@@ -3622,13 +3626,15 @@
       }
       // Restaura el rango Desde/Hasta que haya quedado guardado en el servidor
       // (por cualquier persona, desde cualquier navegador), para que la
-      // selección se mantenga igual en vez de volver siempre al rango completo.
-      if (sRes && sRes.ok && (sRes.dateFrom || sRes.dateTo)){
+      // selección se mantenga igual en vez de volver siempre al rango completo —
+      // pero solo la primera vez en esta sesión (ver comentario arriba).
+      if (!settingsRestoredOnce && sRes && sRes.ok && (sRes.dateFrom || sRes.dateTo)){
         if (sRes.dateFrom) $('dateFrom').value = sRes.dateFrom;
         if (sRes.dateTo) $('dateTo').value = sRes.dateTo;
         dateRangeTouchedByUser = true;
         applyGlobalFilters();
       }
+      settingsRestoredOnce = true;
     }catch(err){
       console.warn('No se pudo recuperar el histórico guardado:', err.message);
     }
