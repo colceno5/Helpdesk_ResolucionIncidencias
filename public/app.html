@@ -564,7 +564,8 @@
   body.tv-mode #taskSection > section.breakdown,
   body.tv-mode footer.credit,
   body.tv-mode [data-page="dashboardExtra"],
-  body.tv-mode [data-page="analysis"]{
+  body.tv-mode [data-page="analysis"],
+  body.tv-mode [data-page="tendencias"]{
     display:none !important;
   }
   body.tv-mode .table-section{ display:none !important; }
@@ -730,6 +731,17 @@
   body.page-view-analysis [data-page="general"],
   body.page-view-analysis [data-page="dashboardExtra"]{ display:none !important; }
 
+  /* ---------- Pestaña "Tendencias" ---------- */
+  body.page-view-general [data-page="tendencias"],
+  body.page-view-dashboardExtra [data-page="tendencias"],
+  body.page-view-analysis [data-page="tendencias"]{ display:none !important; }
+  body.page-view-tendencias [data-page="general"],
+  body.page-view-tendencias [data-page="dashboardExtra"],
+  body.page-view-tendencias [data-page="analysis"]{ display:none !important; }
+
+  .td-chart-box{ position:relative; height:340px; }
+  .td-empty-row{ color:var(--ink-faint); font-size:13px; padding:14px 0; }
+
   .an-toolbar{
     display:flex; flex-wrap:wrap; gap:10px; align-items:center;
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m);
@@ -876,6 +888,7 @@
        <button class="page-tab-btn active" id="pageTabGeneral" data-target-page="general">Resumen</button>
        <button class="page-tab-btn" id="pageTabDashboard" data-target-page="dashboardExtra">Dashboard</button>
        <button class="page-tab-btn" id="pageTabAnalysis" data-target-page="analysis">Análisis y Mejora</button>
+       <button class="page-tab-btn" id="pageTabTendencias" data-target-page="tendencias">Tendencias</button>
      </div>
      <button class="btn-tv" id="btnTvMode" title="Alterna automáticamente, cada 10 segundos, entre la tabla de tickets y la de tareas">🖥️ Modo pantalla</button>
    </div>
@@ -1396,6 +1409,64 @@
     </div>
    </div>
 
+   <div id="tendenciasSection" class="hidden" data-page="tendencias">
+
+    <section class="an-section">
+      <h2>¿En cuántas horas se llega al 100% de progreso?</h2>
+      <p class="an-sub">
+        Para cada ticket cerrado con Fecha registro y Fecha cierre se extrapola, a partir del
+        ritmo real observado (horas transcurridas ÷ % de progreso alcanzado × 100), cuántas
+        horas tomaría llegar al 100%. Los tickets de un mismo servicio se separan en distintos
+        "grupos" cuando esa duración estimada difiere claramente entre sí (por ejemplo, por
+        prioridad o categoría distinta) — en vez de promediarse en un solo número que no
+        representaría bien a ninguno de los dos casos.
+      </p>
+      <div class="an-grid" id="tdSummaryGrid"></div>
+    </section>
+
+    <p class="an-empty hidden" id="tdEmpty">Aún no hay tickets cerrados con fechas completas para estimar este tiempo.</p>
+
+    <div id="tdContent" class="hidden">
+
+      <section class="an-section">
+        <h2>Horas hasta el 100% por servicio</h2>
+        <p class="an-sub">Servicios con más tickets evaluados primero (máximo 15 en el gráfico). Cuando un servicio tiene más de un grupo de tiempo, cada uno se dibuja por separado.</p>
+        <div class="an-card">
+          <div class="td-chart-box" id="tdChartBox"><canvas id="chartTendencias"></canvas></div>
+          <div id="tdChartFallback" class="hidden"></div>
+        </div>
+      </section>
+
+      <section class="an-section">
+        <h2>Detalle por servicio</h2>
+        <div class="an-card">
+          <div class="table-scroll">
+            <table id="tdTable">
+              <thead>
+                <tr>
+                  <th data-key="servicio">Servicio</th>
+                  <th data-key="total">Tickets</th>
+                  <th data-key="avgGeneral">Horas prom. a 100%</th>
+                  <th data-key="medianGeneral">Mediana</th>
+                  <th data-key="clusterCount">Consistencia</th>
+                </tr>
+              </thead>
+              <tbody id="tdTableBody"></tbody>
+            </table>
+          </div>
+          <p class="an-empty hidden" id="tdTableEmpty">No hay tickets con fechas completas en el rango seleccionado.</p>
+        </div>
+      </section>
+
+      <section class="an-section">
+        <h2>Servicios con tiempos distintos</h2>
+        <p class="an-sub">Mismo servicio, pero con más de un ritmo de resolución claramente diferenciado — útil para revisar si la causa es la prioridad, la categoría, o el tipo de caso.</p>
+        <div id="tdDetalle"></div>
+      </section>
+
+    </div>
+   </div>
+
    <div class="modal-overlay hidden" id="anModalOverlay">
      <div class="modal-box" style="max-width:640px;">
        <div class="modal-head">
@@ -1544,9 +1615,11 @@
     $('pageTabGeneral').classList.add('active');
     $('pageTabDashboard').classList.remove('active');
     $('pageTabAnalysis').classList.remove('active');
+    $('pageTabTendencias').classList.remove('active');
     document.body.classList.add('page-view-general');
     document.body.classList.remove('page-view-dashboardExtra');
     document.body.classList.remove('page-view-analysis');
+    document.body.classList.remove('page-view-tendencias');
     document.body.classList.add('tv-mode');
     $('btnExitTv').classList.remove('hidden');
     tvCurrent = screens[0];
@@ -1778,6 +1851,7 @@
     renderRanking();
     renderExtraRankings();
     renderBottlenecks();
+    renderTendencias();
 
     const parts = [];
     if (allRowsRaw.length) parts.push(`${allRows.length} de ${allRowsRaw.length} tickets`);
@@ -2065,6 +2139,7 @@
     $('ticketSection').classList.remove('hidden');
     $('trendsSection').classList.remove('hidden');
     $('analysisSection').classList.remove('hidden');
+    $('tendenciasSection').classList.remove('hidden');
 
     resetColumnFilters();
     populateColumnFilters();
@@ -3140,6 +3215,292 @@
 
   wireSortableHeaders('#bottleneckTable thead th', bottleneckSortState, renderBottlenecks, key => (key === 'caso' || key === 'slowestGroup') ? 'asc' : 'desc');
 
+  // ---------------- Pestaña "Tendencias": horas hasta el 100% de progreso ----------------
+
+  let tendenciasChart = null;
+  let tdSortState = { key: 'total', dir: 'desc' };
+
+  // Para cada ticket cerrado con fechas completas, extrapola cuántas horas tomaría
+  // llegar al 100% de progreso a partir del ritmo real observado: horas transcurridas
+  // (Fecha registro -> Fecha cierre) dividido entre el % de progreso alcanzado, por 100.
+  // Ej.: un ticket que en 8h reales llegó a 50% de progreso implicaría 16h para el 100%.
+  function computeHorasA100(rows){
+    const out = [];
+    rows.forEach(r => {
+      const fr = toDateSafe(r.fechaRegistro), fc = toDateSafe(r.fechaCierre);
+      if (!fr || !fc || fc <= fr) return;
+      if (r.pct == null || r.pct <= 0) return;
+      const horasReales = (fc - fr) / 3600000;
+      const horasA100 = horasReales * (100 / r.pct);
+      if (!isFinite(horasA100) || horasA100 <= 0) return;
+      out.push({
+        ticket: r.ticket, servicio: r.servicio || '—', categoria: r.categoria,
+        prioridad: r.prioridad, especialista: r.especialista, horas: horasA100
+      });
+    });
+    return out;
+  }
+
+  // Agrupa las horas-a-100% de un mismo servicio en "grupos" por proximidad relativa:
+  // un ticket entra al grupo actual si su valor no se aleja más de un 45% del promedio
+  // acumulado del grupo; si se aleja más, abre un grupo nuevo. Así, un servicio que en
+  // realidad mezcla SLAs distintos (p.ej. 8h para lo simple y 48h para lo complejo) no
+  // se promedia en un solo número que no representaría bien a ninguno de los dos casos.
+  function clusterHoras(items){
+    if (!items.length) return [];
+    const sorted = items.slice().sort((a, b) => a.horas - b.horas);
+    const RATIO = 1.45;
+    const clusters = [];
+    let current = null;
+    sorted.forEach(it => {
+      if (current && it.horas <= current.avg * RATIO){
+        current.items.push(it);
+        current.sum += it.horas;
+        current.avg = current.sum / current.items.length;
+      } else {
+        current = { items: [it], sum: it.horas, avg: it.horas };
+        clusters.push(current);
+      }
+    });
+
+    // Los grupos muy chicos (ruido o casos aislados) se fusionan con el grupo vecino
+    // de promedio más cercano, en vez de mostrarse como un "tiempo distinto" aparte.
+    const MIN_SIZE = Math.max(2, Math.ceil(items.length * 0.08));
+    let changed = true;
+    while (changed && clusters.length > 1){
+      changed = false;
+      for (let i = 0; i < clusters.length; i++){
+        if (clusters[i].items.length >= MIN_SIZE) continue;
+        const left = clusters[i - 1], right = clusters[i + 1];
+        let target = null;
+        if (left && right) target = Math.abs(clusters[i].avg - left.avg) <= Math.abs(clusters[i].avg - right.avg) ? left : right;
+        else target = left || right;
+        if (!target) continue;
+        target.items.push(...clusters[i].items);
+        target.sum += clusters[i].sum;
+        target.avg = target.sum / target.items.length;
+        clusters.splice(i, 1);
+        changed = true;
+        break;
+      }
+    }
+
+    return clusters.map(c => {
+      const horasArr = c.items.map(x => x.horas);
+      return {
+        count: c.items.length,
+        avg: c.avg,
+        median: median(horasArr),
+        min: Math.min(...horasArr),
+        max: Math.max(...horasArr),
+        items: c.items
+      };
+    }).sort((a, b) => a.avg - b.avg);
+  }
+
+  function buildTendenciasData(){
+    const items = computeHorasA100(allRows);
+    const byServicio = {};
+    items.forEach(it => {
+      if (!byServicio[it.servicio]) byServicio[it.servicio] = [];
+      byServicio[it.servicio].push(it);
+    });
+    return Object.entries(byServicio).map(([servicio, list]) => {
+      const clusters = clusterHoras(list);
+      const allHoras = list.map(x => x.horas);
+      return {
+        servicio,
+        total: list.length,
+        avgGeneral: allHoras.reduce((s, v) => s + v, 0) / allHoras.length,
+        medianGeneral: median(allHoras),
+        clusterCount: clusters.length,
+        clusters
+      };
+    }).sort((a, b) => b.total - a.total);
+  }
+
+  // Encuentra el valor más frecuente de un campo dentro de un grupo (p.ej. Prioridad),
+  // para sugerir por qué ese grupo tiene un tiempo distinto al resto del servicio.
+  function dominantField(items, field){
+    const counts = {};
+    items.forEach(it => {
+      const v = it[field];
+      if (!v || v === '—') return;
+      counts[v] = (counts[v] || 0) + 1;
+    });
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (!entries.length) return null;
+    const [name, count] = entries[0];
+    return { name, count, total: items.length };
+  }
+
+  function renderTendenciasChart(data){
+    const box = document.getElementById('tdChartBox');
+    const fallback = document.getElementById('tdChartFallback');
+    const canvas = $('chartTendencias');
+    if (tendenciasChart){ tendenciasChart.destroy(); tendenciasChart = null; }
+
+    const sorted = data.slice(0, 15).sort((a, b) => a.avgGeneral - b.avgGeneral);
+    const maxGroups = Math.max(1, ...sorted.map(d => d.clusters.length));
+
+    function showFallback(){
+      box.classList.add('hidden');
+      fallback.classList.remove('hidden');
+      fallback.innerHTML = sorted.map(d => `
+        <div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
+          <span>${escapeHtml(d.servicio)}</span>
+          <span class="mono" style="color:var(--ink-soft);">${formatDuration(Math.round(d.avgGeneral * 60))}${d.clusters.length > 1 ? ` (${d.clusters.length} grupos)` : ''}</span>
+        </div>`).join('');
+    }
+
+    if (typeof Chart === 'undefined'){ showFallback(); return; }
+    if (!sorted.length){ box.classList.remove('hidden'); fallback.classList.add('hidden'); return; }
+
+    try {
+      box.classList.remove('hidden');
+      fallback.classList.add('hidden');
+
+      const styles = getComputedStyle(document.documentElement);
+      const inkSoft = styles.getPropertyValue('--ink-soft').trim();
+      const inkColor = styles.getPropertyValue('--ink').trim();
+      const border = styles.getPropertyValue('--border').trim();
+      const groupColors = [
+        styles.getPropertyValue('--accent').trim(),
+        styles.getPropertyValue('--warning').trim(),
+        styles.getPropertyValue('--danger').trim(),
+        styles.getPropertyValue('--success').trim()
+      ];
+
+      const labels = sorted.map(d => d.servicio);
+      const datasets = [];
+      for (let g = 0; g < maxGroups; g++){
+        datasets.push({
+          label: maxGroups > 1 ? `Grupo ${g + 1}` : 'Horas a 100%',
+          data: sorted.map(d => d.clusters[g] ? Number(d.clusters[g].avg.toFixed(1)) : null),
+          backgroundColor: groupColors[g % groupColors.length],
+          borderRadius: 4,
+          maxBarThickness: maxGroups > 1 ? 14 : 22,
+          counts: sorted.map(d => d.clusters[g] ? d.clusters[g].count : null)
+        });
+      }
+
+      tendenciasChart = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 40 } },
+          scales: {
+            x: {
+              beginAtZero: true,
+              grid: { color: border },
+              ticks: { color: inkSoft, font: { family: "'IBM Plex Mono', monospace", size: 11 }, callback: v => v + 'h' },
+              title: { display: true, text: 'Horas hasta el 100% de progreso', color: inkSoft, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 12 } }
+            }
+          },
+          plugins: {
+            legend: { display: maxGroups > 1, labels: { color: inkSoft, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 } } },
+            tooltip: {
+              backgroundColor: '#16202B',
+              padding: 10,
+              titleFont: { family: "'IBM Plex Sans', sans-serif", size: 12.5, weight: '600' },
+              bodyFont: { family: "'IBM Plex Sans', sans-serif", size: 12 },
+              callbacks: {
+                label: (ctx) => {
+                  if (ctx.raw == null) return null;
+                  const c = ctx.dataset.counts[ctx.dataIndex];
+                  return `${ctx.dataset.label}: ${formatDuration(Math.round(ctx.raw * 60))}${c ? ` (${c} ticket${c === 1 ? '' : 's'})` : ''}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    } catch (err){
+      console.warn('No se pudo dibujar el gráfico de tendencias:', err.message);
+      showFallback();
+    }
+  }
+
+  function renderTendenciasTable(data){
+    const rows = data.slice().sort((a, b) => {
+      let av = a[tdSortState.key], bv = b[tdSortState.key];
+      if (typeof av === 'string'){ av = av.toLowerCase(); bv = String(bv).toLowerCase(); }
+      if (av < bv) return tdSortState.dir === 'asc' ? -1 : 1;
+      if (av > bv) return tdSortState.dir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    $('tdTable').classList.toggle('hidden', rows.length === 0);
+    $('tdTableEmpty').classList.toggle('hidden', rows.length !== 0);
+    updateSortArrow('#tdTable', tdSortState.key, tdSortState.dir);
+    $('tdTableBody').innerHTML = rows.map(d => `
+      <tr>
+        <td>${escapeHtml(d.servicio)}</td>
+        <td class="mono">${d.total}</td>
+        <td class="mono">${formatDuration(Math.round(d.avgGeneral * 60))}</td>
+        <td class="mono">${formatDuration(Math.round(d.medianGeneral * 60))}</td>
+        <td>${d.clusters.length > 1 ? `<span class="an-badge moderado">${d.clusters.length} tiempos distintos</span>` : `<span class="an-badge leve">Tiempo consistente</span>`}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderTendenciasDetalle(heterog){
+    const box = $('tdDetalle');
+    if (!heterog.length){
+      box.innerHTML = '<p class="an-empty">Todos los servicios con datos suficientes muestran un tiempo consistente hasta el 100% de progreso.</p>';
+      return;
+    }
+    box.innerHTML = heterog.map(d => {
+      const gruposHtml = d.clusters.map((c, i) => {
+        const prio = dominantField(c.items, 'prioridad');
+        const cat = dominantField(c.items, 'categoria');
+        const bits = [];
+        if (prio && prio.count / prio.total >= 0.5) bits.push(`principalmente Prioridad ${escapeHtml(prio.name)} (${prio.count}/${prio.total})`);
+        if (cat && cat.count / cat.total >= 0.5) bits.push(`Categoría ${escapeHtml(cat.name)} (${cat.count}/${cat.total})`);
+        return `<li><b>Grupo ${i + 1}:</b> ${formatDuration(Math.round(c.avg * 60))} prom. (rango ${formatDuration(Math.round(c.min * 60))}–${formatDuration(Math.round(c.max * 60))}) · ${c.count} ticket${c.count === 1 ? '' : 's'}${bits.length ? ' — ' + bits.join(', ') : ''}</li>`;
+      }).join('');
+      return `
+        <div class="an-card" style="margin-bottom:10px;">
+          <h3 style="margin:0 0 6px; font-size:13.5px;">${escapeHtml(d.servicio)}</h3>
+          <ul style="margin:0 0 0 18px; padding:0; font-size:13px; line-height:1.65;">${gruposHtml}</ul>
+        </div>`;
+    }).join('');
+  }
+
+  function renderTendencias(){
+    const data = buildTendenciasData();
+    const totalTickets = data.reduce((s, d) => s + d.total, 0);
+    const heterog = data.filter(d => d.clusters.length > 1);
+
+    $('tdEmpty').classList.toggle('hidden', data.length > 0);
+    $('tdContent').classList.toggle('hidden', data.length === 0);
+    if (!data.length){
+      if (tendenciasChart){ tendenciasChart.destroy(); tendenciasChart = null; }
+      $('tdSummaryGrid').innerHTML = '';
+      return;
+    }
+
+    const globalAvg = totalTickets ? data.reduce((s, d) => s + d.avgGeneral * d.total, 0) / totalTickets : null;
+    $('tdSummaryGrid').innerHTML = [
+      anExecStat('Servicios analizados', data.length),
+      anExecStat('Tickets con fechas completas', totalTickets),
+      anExecStat('Horas prom. a 100% (global)', globalAvg == null ? '—' : formatDuration(Math.round(globalAvg * 60))),
+      anExecStat('Servicios con tiempos distintos', heterog.length, heterog.length ? 'bad' : 'ok')
+    ].join('');
+
+    renderTendenciasChart(data);
+    renderTendenciasTable(data);
+    renderTendenciasDetalle(heterog);
+  }
+
+  wireSortableHeaders('#tdTable thead th', tdSortState, renderTendencias, key => key === 'servicio' ? 'asc' : 'desc');
+
   function fmtDate(v){
     if (!v) return '—';
     let d = v instanceof Date ? v : new Date(v);
@@ -3401,15 +3762,17 @@
     cumplen: 'tickets_cumplen.csv'
   };
 
-  [$('pageTabGeneral'), $('pageTabDashboard'), $('pageTabAnalysis')].forEach(btn => {
+  [$('pageTabGeneral'), $('pageTabDashboard'), $('pageTabAnalysis'), $('pageTabTendencias')].forEach(btn => {
     btn.addEventListener('click', () => {
       const page = btn.dataset.targetPage;
       $('pageTabGeneral').classList.toggle('active', page === 'general');
       $('pageTabDashboard').classList.toggle('active', page === 'dashboardExtra');
       $('pageTabAnalysis').classList.toggle('active', page === 'analysis');
+      $('pageTabTendencias').classList.toggle('active', page === 'tendencias');
       document.body.classList.toggle('page-view-general', page === 'general');
       document.body.classList.toggle('page-view-dashboardExtra', page === 'dashboardExtra');
       document.body.classList.toggle('page-view-analysis', page === 'analysis');
+      document.body.classList.toggle('page-view-tendencias', page === 'tendencias');
       // Los gráficos (Chart.js) de esta pestaña se dibujan cuando llegan datos, que puede
       // pasar mientras el usuario todavía está en "Resumen" (contenedor en display:none).
       // Un canvas creado con tamaño 0 puede quedar en blanco, así que al entrar a
@@ -3424,6 +3787,8 @@
       // Igual que arriba: el gráfico de evolución semanal de "Análisis y Mejora" necesita
       // tamaño real, así que se vuelve a dibujar cada vez que se entra a esa pestaña.
       if (page === 'analysis' && typeof anRenderAll === 'function') anRenderAll();
+      // Mismo motivo: el gráfico de "Tendencias" necesita el tamaño real del contenedor.
+      if (page === 'tendencias' && allRowsRaw.length && typeof renderTendencias === 'function') renderTendencias();
     });
   });
 
