@@ -388,6 +388,29 @@
   .date-range-bar .drb-note{ color:var(--ink-soft); font-size:12px; margin-left:auto; }
   @media (max-width: 720px){ .date-range-bar .drb-note{ margin-left:0; width:100%; } }
 
+  /* ---------- switch de desfase manual de tickets ---------- */
+  .ticket-offset-bar{
+    display:flex; align-items:center; gap:8px; margin:0 0 12px; font-size:13px; color:var(--ink-soft);
+  }
+  .switch-wrap{ display:inline-flex; align-items:center; gap:9px; cursor:pointer; user-select:none; }
+  .switch-wrap input{ position:absolute; opacity:0; width:0; height:0; }
+  .switch-track{
+    position:relative; width:36px; height:20px; border-radius:100px; background:var(--border);
+    transition:background .15s ease; flex-shrink:0;
+  }
+  .switch-thumb{
+    position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:transform .15s ease;
+  }
+  .switch-wrap input:checked + .switch-track{ background:var(--accent); }
+  .switch-wrap input:checked + .switch-track .switch-thumb{ transform:translateX(16px); }
+  .switch-label{ font-weight:600; color:var(--ink); }
+  .switch-help{
+    display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px;
+    border-radius:50%; border:1px solid var(--border); color:var(--ink-faint); font-size:11px;
+    cursor:help; flex-shrink:0;
+  }
+
   /* ---------- noise warning (E) ---------- */
   .noise-warning{
     display:flex; align-items:center; gap:14px; flex-wrap:wrap;
@@ -817,6 +840,15 @@
       <button id="btnClearTasks" class="hidden">Quitar tareas</button>
     </div>
   </header>
+
+  <div class="ticket-offset-bar" id="ticketOffsetBar">
+    <label class="switch-wrap" for="ticketOffsetToggle">
+      <input type="checkbox" id="ticketOffsetToggle">
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+      <span class="switch-label">Corregir -5h en fechas de tickets</span>
+    </label>
+    <span class="switch-help" title="Cuando está activo, resta 5 horas adicionales a Fecha Registro, Fecha Cierre y Fecha de modificación de los TICKETS que se lean de un Excel recién subido (no afecta a las Tareas). Útil si notas que las fechas de un periodo llegan 5 horas adelantadas. Para corregir tickets que ya están guardados, vuelve a subir ese mismo archivo con el switch en la posición correcta.">?</span>
+  </div>
 
   <div id="dateRangeBar" class="date-range-bar hidden">
     <label for="dateFrom">Analizar del</label>
@@ -1821,9 +1853,21 @@
   // de Tareas no pasan por el AQM y no traen este problema.
   const AQM_SKEW_MIN = 5 * 60;
 
+  // Desfase MANUAL adicional de -5h, activable/desactivable con el switch
+  // "Corregir -5h en fechas de tickets" del encabezado. Es independiente del
+  // AQM_SKEW_MIN de arriba (ese siempre está aplicado) — este es opcional, para
+  // los periodos en los que el archivo de Aranda llega con las fechas de
+  // tickets 5 horas adelantadas por algún otro motivo. Solo afecta a Tickets,
+  // nunca a Tareas: parseArandaDate solo lo aplica cuando se lo llama con
+  // isTicket=true, y processTaskRows nunca pasa ese parámetro.
+  const MANUAL_TICKET_OFFSET_MIN = 5 * 60;
+  let manualTicketOffsetOn = false;
+
   // Convierte fechas de texto "dd/mm/yyyy h:mm:ss" (formato de los exports de Tareas)
   // o valores Date ya parseados por SheetJS (formato de la sábana de tickets) a un Date real.
-  function parseArandaDate(v){
+  // isTicket=true habilita el desfase manual opcional de arriba (nunca se pasa true
+  // desde processTaskRows, así que Tareas nunca se ve afectada por el switch).
+  function parseArandaDate(v, isTicket){
     if (v == null || v === '') return null;
     if (v instanceof Date){
       if (isNaN(v.getTime())) return null;
@@ -1841,8 +1885,10 @@
       // que solo aparecen en la sábana de Tickets recién subida (nunca al volver a
       // cargar tickets ya guardados desde el servidor, que llegan como texto ISO y
       // entran por la rama de abajo) — así que es el lugar correcto y seguro para
-      // restar el desfase del AQM sin arriesgarse a restarlo dos veces.
-      return new Date(real.getTime() - AQM_SKEW_MIN * 60000);
+      // restar el desfase del AQM (y, si está activo, el desfase manual) sin
+      // arriesgarse a restarlos dos veces.
+      const extra = (isTicket && manualTicketOffsetOn) ? MANUAL_TICKET_OFFSET_MIN : 0;
+      return new Date(real.getTime() - (AQM_SKEW_MIN + extra) * 60000);
     }
     const s = String(v).trim();
     const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
@@ -1853,6 +1899,58 @@
     const d2 = new Date(s);
     return isNaN(d2.getTime()) ? null : d2;
   }
+
+  // ---- Switch "Corregir -5h en fechas de tickets" --------------------------
+  // Desplaza las fechas de TICKETS ya cargados en memoria (allRowsRaw,
+  // cancelledRaw, allDescRaw) cuando el usuario prende/apaga el switch, para
+  // que el efecto se vea de inmediato sin tener que volver a subir el archivo.
+  // Las Tareas nunca pasan por aquí.
+  function shiftLoadedTicketDates(deltaMinutes){
+    const shift = d => (d instanceof Date && !isNaN(d.getTime())) ? new Date(d.getTime() + deltaMinutes * 60000) : d;
+    allRowsRaw.forEach(r => {
+      r.fechaCierre = shift(r.fechaCierre);
+      r.fechaRegistro = shift(r.fechaRegistro);
+      r.fechaModificacion = shift(r.fechaModificacion);
+    });
+    cancelledRaw = cancelledRaw.map(shift);
+    allDescRaw.forEach(r => { r.fecha = shift(r.fecha); });
+  }
+
+  async function saveTicketOffsetToServer(on){
+    try{
+      await fetch('/api/settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketOffset: on ? '1' : '0' })
+      });
+    }catch(err){
+      console.warn('No se pudo guardar el ajuste de desfase de tickets en el servidor:', err.message);
+    }
+  }
+
+  function updateTicketOffsetNote(){
+    $('ticketOffsetToggle').checked = manualTicketOffsetOn;
+  }
+
+  $('ticketOffsetToggle').addEventListener('change', (e) => {
+    const on = e.target.checked;
+    const delta = on ? -MANUAL_TICKET_OFFSET_MIN : MANUAL_TICKET_OFFSET_MIN;
+    manualTicketOffsetOn = on;
+    localStorage.setItem('manualTicketOffsetOn', on ? '1' : '0');
+    saveTicketOffsetToServer(on);
+    if (allRowsRaw.length){
+      shiftLoadedTicketDates(delta);
+      refreshDateBoundsUI();
+      applyGlobalFilters();
+      renderNoiseWarning();
+      if (typeof anRenderAll === 'function') anRenderAll();
+      persistTicketsToServer(allRowsRaw);
+    }
+  });
+
+  // Estado inicial: por dispositivo (localStorage) hasta que loadFromServer()
+  // traiga el valor compartido guardado por cualquiera (ver más abajo).
+  manualTicketOffsetOn = localStorage.getItem('manualTicketOffsetOn') === '1';
+  updateTicketOffsetNote();
 
 
   function processTicketRows(rows, headerRowIdx, fileName, opts){
@@ -1915,7 +2013,7 @@
       const estado = cleanHeader(row[idx.estado]);
       if (!estado) continue;
 
-      allDescRaw.push({ desc: cleanHeader(row[idx.descripcion]), fecha: parseArandaDate(row[idx.fechaRegistro]) });
+      allDescRaw.push({ desc: cleanHeader(row[idx.descripcion]), fecha: parseArandaDate(row[idx.fechaRegistro], true) });
 
       const progresoRaw = row[idx.progreso] == null ? '' : String(row[idx.progreso]);
       const pctMatch = progresoRaw.match(/(-?\d+(?:[.,]\d+)?)\s*%/);
@@ -1934,9 +2032,9 @@
         especialista: cleanHeader(row[idx.especialista]) || '—',
         asunto: cleanHeader(row[idx.asunto]) || '(sin asunto)',
         descripcion: cleanHeader(row[idx.descripcion]) || '(sin descripción)',
-        fechaCierre: parseArandaDate(row[idx.fechaCierre]),
-        fechaRegistro: parseArandaDate(row[idx.fechaRegistro]),
-        fechaModificacion: fechaModIdx === -1 ? null : parseArandaDate(row[fechaModIdx]),
+        fechaCierre: parseArandaDate(row[idx.fechaCierre], true),
+        fechaRegistro: parseArandaDate(row[idx.fechaRegistro], true),
+        fechaModificacion: fechaModIdx === -1 ? null : parseArandaDate(row[fechaModIdx], true),
         clienteFinal: clienteFinalIdx === -1 ? null : (cleanHeader(row[clienteFinalIdx]) || '—'),
         autorTicket: autorTicketIdx === -1 ? null : (cleanHeader(row[autorTicketIdx]) || '—'),
         prioridad: prioridadIdx === -1 ? null : (cleanHeader(row[prioridadIdx]) || '—'),
@@ -3668,6 +3766,14 @@
         if (sRes.dateTo) $('dateTo').value = sRes.dateTo;
         dateRangeTouchedByUser = true;
         applyGlobalFilters();
+      }
+      // El switch de desfase manual de tickets es un ajuste compartido (igual que
+      // el rango Desde/Hasta): si el servidor ya tiene un valor guardado por
+      // cualquiera, ese manda sobre lo que hubiera en este navegador. Solo se
+      // restaura una vez por la misma razón que el bloque de arriba.
+      if (!settingsRestoredOnce && sRes && sRes.ok && sRes.ticketOffset != null){
+        manualTicketOffsetOn = sRes.ticketOffset === '1';
+        updateTicketOffsetNote();
       }
       settingsRestoredOnce = true;
     }catch(err){
