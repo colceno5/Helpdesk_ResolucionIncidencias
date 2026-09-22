@@ -5,16 +5,17 @@ import { ensureSchema } from '../../../lib/db';
 export const dynamic = 'force-dynamic';
 
 // Devuelve el rango de fechas (Desde/Hasta) guardado por el último que lo
-// haya cambiado, y también los umbrales de exceso SLA de "Análisis y Mejora"
-// (slaThresholds), para que ambos se mantengan igual sin importar quién o
-// desde dónde (navegador/dispositivo) abra la app.
+// haya cambiado, los umbrales de exceso SLA de "Análisis y Mejora"
+// (slaThresholds), y si el switch "Corregir -5h en fechas de tickets" está
+// activo (ticketOffset: '1' o '0'), para que los tres se mantengan igual sin
+// importar quién o desde dónde (navegador/dispositivo) abra la app.
 export async function GET() {
   try {
     await ensureSchema();
     const { rows } = await sql`
-      SELECT key, value FROM app_settings WHERE key IN ('dateFrom', 'dateTo', 'slaThresholds');
+      SELECT key, value FROM app_settings WHERE key IN ('dateFrom', 'dateTo', 'slaThresholds', 'ticketOffset');
     `;
-    const out = { dateFrom: null, dateTo: null, slaThresholds: null };
+    const out = { dateFrom: null, dateTo: null, slaThresholds: null, ticketOffset: null };
     rows.forEach((r) => { out[r.key] = r.value; });
     return Response.json({ ok: true, ...out });
   } catch (err) {
@@ -23,14 +24,14 @@ export async function GET() {
   }
 }
 
-// Guarda cualquiera de los ajustes recibidos (dateFrom/dateTo y/o
-// slaThresholds) para que persistan para cualquiera que abra la app después,
-// desde cualquier navegador. Los que no vengan en el body no se tocan.
+// Guarda cualquiera de los ajustes recibidos (dateFrom/dateTo, slaThresholds
+// y/o ticketOffset) para que persistan para cualquiera que abra la app
+// después, desde cualquier navegador. Los que no vengan en el body no se tocan.
 export async function POST(req) {
   try {
     await ensureSchema();
     const body = await req.json();
-    const { dateFrom, dateTo, slaThresholds } = body || {};
+    const { dateFrom, dateTo, slaThresholds, ticketOffset } = body || {};
 
     if (dateFrom !== undefined) {
       await sql`
@@ -47,6 +48,12 @@ export async function POST(req) {
     if (slaThresholds !== undefined) {
       await sql`
         INSERT INTO app_settings (key, value, updated_at) VALUES ('slaThresholds', ${slaThresholds ?? null}, now())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+      `;
+    }
+    if (ticketOffset !== undefined) {
+      await sql`
+        INSERT INTO app_settings (key, value, updated_at) VALUES ('ticketOffset', ${ticketOffset ?? null}, now())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
       `;
     }
