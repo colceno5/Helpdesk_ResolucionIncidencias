@@ -755,6 +755,9 @@
   .rg-badge.pendiente{ background:var(--surface-sunken); color:var(--ink-soft); }
   .rg-badge.incompleto{ background:var(--warning-bg); color:var(--warning); }
   .rg-badge.sustentado{ background:var(--success-bg); color:var(--success); }
+  #registroTable tr.rg-row-tarea td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
+  .rg-sub{ font-family:'IBM Plex Sans', sans-serif; font-weight:400; font-size:11px; color:var(--ink-soft); margin-top:3px; line-height:1.3; }
+  .rg-tag{ display:inline-block; font-weight:600; font-size:10.5px; padding:1px 6px; border-radius:100px; background:var(--surface-sunken); color:var(--ink-soft); margin-right:2px; }
   .rg-note{
     font-size:12px; color:var(--ink-soft); background:var(--surface-sunken);
     border-radius:var(--radius-s); padding:7px 10px; margin-bottom:10px;
@@ -1205,7 +1208,7 @@
     <section class="table-section" id="registroBlock">
       <div class="table-head">
         <div>
-          <h3>Registro de tickets vencidos</h3>
+          <h3>Registro de tickets y tareas vencidos</h3>
           <div class="sub" id="registroSub">0 tickets vencidos</div>
         </div>
         <div class="table-actions">
@@ -1215,7 +1218,12 @@
             <option value="incompleto">Incompletos</option>
             <option value="sustentado">Sustentados</option>
           </select>
-          <input type="text" class="search-box" id="registroSearch" placeholder="Buscar ticket, especialista, sustento…">
+          <select class="an-select-inline" id="registroTipoFilter" style="max-width:170px; padding:7px 8px; font-size:13px;">
+            <option value="">Tickets y tareas</option>
+            <option value="ticket">Solo tickets</option>
+            <option value="tarea">Solo tareas</option>
+          </select>
+          <input type="text" class="search-box" id="registroSearch" placeholder="Buscar ticket, tarea, responsable, sustento…">
           <button id="btnExportRegistro">Descargar CSV</button>
         </div>
       </div>
@@ -1224,12 +1232,12 @@
         <table id="registroTable">
           <thead>
             <tr>
-              <th data-key="ticket">Ticket</th>
+              <th data-key="ticket">Ticket / Tarea</th>
               <th data-key="servicio">Servicio</th>
-              <th data-key="especialista">Especialista</th>
+              <th data-key="especialista">Especialista / Responsable</th>
               <th data-key="fechaRegistro">Fecha registro</th>
               <th data-key="fechaCierre">Fecha cierre</th>
-              <th data-key="pct">Progreso</th>
+              <th data-key="pct" title="Progreso del ticket (en las tareas, el del ticket al que pertenecen)">Progreso</th>
               <th data-key="fechaReal">Fecha real sustentada <span class="rg-req">*</span></th>
               <th class="no-sort">Sustento de atención <span class="rg-req">*</span></th>
               <th class="no-sort">Acción inmediata <span style="font-weight:400;">(opcional)</span></th>
@@ -1239,7 +1247,7 @@
           <tbody id="registroBody"></tbody>
         </table>
       </div>
-      <div class="empty-detail hidden" id="registroEmpty">No hay tickets vencidos en este periodo.</div>
+      <div class="empty-detail hidden" id="registroEmpty">No hay tickets ni tareas vencidos en este periodo.</div>
     </section>
    </div>
 
@@ -4947,7 +4955,8 @@
 
   // ---------------- Registro de tickets vencidos ----------------
   // Lista los tickets de la pestaña "Vencidos" del Resumen (cerrados con >100% de progreso,
-  // dentro del rango de fechas activo) y permite registrar, por ticket:
+  // dentro del rango de fechas activo) y TAMBIÉN las tareas cuyo ticket (Caso) está en esa
+  // lista, y permite registrar, por ticket o por tarea:
   //   - Fecha real sustentada  (obligatoria; entre la fecha de registro y hoy)
   //   - Sustento de atención   (obligatorio)
   //   - Acción inmediata       (opcional)
@@ -5003,7 +5012,29 @@
   }
   // Valor para <input type="datetime-local">: los registros antiguos (solo fecha) se muestran a las 00:00.
   function rgToInput(s){ return !s ? '' : (s.includes('T') ? s.slice(0, 16) : s + 'T00:00'); }
-  function rgRecOf(r){ return rgRecords.get(String(r.ticket)); }
+  // Cada fila del registro es un "ítem": un ticket vencido o una tarea de un ticket vencido.
+  // La clave del registro es el ID del ticket (igual que antes, así se conservan los ya
+  // guardados) o 'T:' + ID de la tarea. Las tareas se toman de taskMap (no de las filtradas
+  // por su propia fecha): las gobierna el rango del ticket, que es el que las hace vencidas.
+  function rgItems(){
+    const items = vencidos.map(r => ({
+      kind: 'ticket', key: String(r.ticket), id: String(r.ticket), ticket: String(r.ticket),
+      servicio: r.servicio, especialista: r.especialista, grupo: '', asunto: r.asunto, estadoTarea: '',
+      fechaRegistro: r.fechaRegistro, fechaCierre: r.fechaCierre, pct: r.pct
+    }));
+    const porTicket = new Map(vencidos.map(r => [String(r.ticket), r]));
+    taskMap.forEach(t => {
+      const p = porTicket.get(String(t.caso));
+      if (!p) return;
+      items.push({
+        kind: 'tarea', key: 'T:' + t.tarea, id: String(t.tarea), ticket: String(t.caso),
+        servicio: p.servicio, especialista: t.responsable, grupo: t.grupoResponsable, asunto: t.asunto, estadoTarea: t.estado,
+        fechaRegistro: t.fechaRegistro, fechaCierre: t.fechaCierre, pct: p.pct
+      });
+    });
+    return items;
+  }
+  function rgRecOf(it){ return rgRecords.get(it.key); }
 
   function rgUpdateStorageNote(){
     const note = $('registroStorageNote');
@@ -5016,20 +5047,24 @@
 
   function rgUpdateSummary(){
     const counts = { pendiente: 0, incompleto: 0, sustentado: 0 };
-    vencidos.forEach(r => { counts[rgEstado(rgRecOf(r))]++; });
-    $('registroSub').textContent = vencidos.length
-      ? `${vencidos.length} ticket${vencidos.length === 1 ? '' : 's'} vencido${vencidos.length === 1 ? '' : 's'} · ${counts.sustentado} sustentado${counts.sustentado === 1 ? '' : 's'} · ${counts.incompleto} incompleto${counts.incompleto === 1 ? '' : 's'} · ${counts.pendiente} pendiente${counts.pendiente === 1 ? '' : 's'}`
+    const items = rgItems();
+    items.forEach(it => { counts[rgEstado(rgRecOf(it))]++; });
+    const nT = vencidos.length, nA = items.length - nT;
+    $('registroSub').textContent = nT
+      ? `${nT} ticket${nT === 1 ? '' : 's'} vencido${nT === 1 ? '' : 's'} · ${nA} tarea${nA === 1 ? '' : 's'} · ${counts.sustentado} sustentado${counts.sustentado === 1 ? '' : 's'} · ${counts.incompleto} incompleto${counts.incompleto === 1 ? '' : 's'} · ${counts.pendiente} pendiente${counts.pendiente === 1 ? '' : 's'}`
       : '0 tickets vencidos';
   }
 
   function rgList(){
     const term = $('registroSearch').value.trim().toLowerCase();
     const filtroEstado = $('registroEstadoFilter').value;
-    const list = vencidos.filter(r => {
+    const filtroTipo = $('registroTipoFilter').value;
+    const list = rgItems().filter(r => {
       const rec = rgRecOf(r);
+      if (filtroTipo && r.kind !== filtroTipo) return false;
       if (filtroEstado && rgEstado(rec) !== filtroEstado) return false;
       if (!term) return true;
-      return [r.ticket, r.especialista, r.servicio, r.asunto, rec && rec.sustento, rec && rec.accion]
+      return [r.id, r.ticket, r.especialista, r.grupo, r.servicio, r.asunto, rec && rec.sustento, rec && rec.accion]
         .some(v => String(v ?? '').toLowerCase().includes(term));
     });
     const { key, dir } = rgSort;
@@ -5037,6 +5072,7 @@
       if (key === 'estado') return RG_ORDEN[rgEstado(rgRecOf(r))];
       if (key === 'pct') return r.pct;
       if (key === 'fechaReal') return (rgRecOf(r) || {}).fechaReal || '';
+      if (key === 'ticket') return r.ticket.toLowerCase() + (r.kind === 'ticket' ? '' : '~' + r.id.toLowerCase());
       if (key === 'fechaRegistro' || key === 'fechaCierre') return r[key] ? new Date(r[key]).getTime() : 0;
       return String(r[key] ?? '').toLowerCase();
     };
@@ -5044,7 +5080,11 @@
       const av = val(a), bv = val(b);
       if (av < bv) return dir === 'asc' ? -1 : 1;
       if (av > bv) return dir === 'asc' ? 1 : -1;
-      return b.pct - a.pct; // desempate: mayor exceso primero
+      // desempate: mayor exceso primero; las tareas quedan agrupadas justo debajo de su ticket
+      if (b.pct !== a.pct) return b.pct - a.pct;
+      if (a.ticket !== b.ticket) return a.ticket < b.ticket ? -1 : 1;
+      if (a.kind !== b.kind) return a.kind === 'ticket' ? -1 : 1;
+      return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
     });
   }
 
@@ -5060,18 +5100,18 @@
     $('registroTable').classList.toggle('hidden', list.length === 0);
     $('registroEmpty').classList.toggle('hidden', list.length !== 0);
     $('registroEmpty').textContent = vencidos.length
-      ? 'Ningún ticket coincide con los filtros.'
-      : 'No hay tickets vencidos en este periodo.';
+      ? 'Ningún ticket ni tarea coincide con los filtros.'
+      : 'No hay tickets ni tareas vencidos en este periodo.';
 
     body.innerHTML = list.map(r => {
-      const id = String(r.ticket);
+      const esTarea = r.kind === 'tarea';
       const rec = rgRecOf(r) || {};
       const min = r.fechaRegistro ? toInputDateTime(new Date(r.fechaRegistro)) : '';
       return `
-      <tr data-ticket="${escapeHtml(id)}">
-        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(id)}" title="Ver tareas de este caso">${escapeHtml(id)}</td>
-        <td class="cell-servicio" title="${escapeHtml(r.servicio)}">${escapeHtml(r.servicio)}</td>
-        <td>${escapeHtml(r.especialista)}</td>
+      <tr data-key="${escapeHtml(r.key)}" class="${esTarea ? 'rg-row-tarea' : ''}">
+        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.ticket)}" title="Ver tareas de este caso">${escapeHtml(r.id)}${esTarea ? `<div class="rg-sub"><span class="rg-tag">Tarea</span> ${escapeHtml(r.ticket)}</div>` : ''}</td>
+        <td class="cell-servicio" title="${escapeHtml(r.servicio)}">${escapeHtml(r.servicio)}${esTarea ? `<div class="rg-sub">${escapeHtml(r.asunto)} · ${escapeHtml(r.estadoTarea)}</div>` : ''}</td>
+        <td>${escapeHtml(r.especialista)}${esTarea && r.grupo && r.grupo !== '—' ? `<div class="rg-sub">${escapeHtml(r.grupo)}</div>` : ''}</td>
         <td class="mono rg-fecha">${r.fechaRegistro ? fmtDate(r.fechaRegistro) : '—'}</td>
         <td class="mono rg-fecha">${r.fechaCierre ? fmtDate(r.fechaCierre) : '—'}</td>
         <td><span class="pct-badge">${r.pct}%</span></td>
@@ -5100,7 +5140,7 @@
     const field = el.dataset && el.dataset.field;
     if (!field) return;
     const tr = el.closest('tr');
-    const ticket = tr.dataset.ticket;
+    const ticket = tr.dataset.key; // ID del ticket, o 'T:' + ID de la tarea
     let value = el.value.trim();
 
     if (field === 'fechaReal'){
@@ -5184,15 +5224,16 @@
     key => ['ticket','servicio','especialista','estado'].includes(key) ? 'asc' : 'desc');
   $('registroSearch').addEventListener('input', renderRegistro);
   $('registroEstadoFilter').addEventListener('change', renderRegistro);
+  $('registroTipoFilter').addEventListener('change', renderRegistro);
 
   $('btnExportRegistro').addEventListener('click', () => {
     const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-    const header = ['Ticket','Servicio','Especialista','Fecha Registro','Fecha Cierre','Progreso','Fecha real sustentada','Sustento de atención','Acción inmediata','Estado'];
+    const header = ['Tipo','Ticket','Tarea','Servicio','Especialista / Responsable','Fecha Registro','Fecha Cierre','Progreso del ticket','Fecha real sustentada','Sustento de atención','Acción inmediata','Estado'];
     const lines = [header.map(q).join(';')];
     rgList().forEach(r => {
       const rec = rgRecOf(r) || {};
       lines.push([
-        r.ticket, r.servicio, r.especialista,
+        r.kind === 'tarea' ? 'Tarea' : 'Ticket', r.ticket, r.kind === 'tarea' ? r.id : '', r.servicio, r.especialista,
         r.fechaRegistro ? fmtDate(r.fechaRegistro) : '', r.fechaCierre ? fmtDate(r.fechaCierre) : '',
         r.pct + '%', rgFmtIso(rec.fechaReal || ''), rec.sustento || '', rec.accion || '',
         RG_LABEL[rgEstado(rec)]
@@ -5202,7 +5243,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'registro_tickets_vencidos.csv';
+    a.download = 'registro_vencidos.csv';
     a.click();
     URL.revokeObjectURL(url);
   });
