@@ -26,6 +26,9 @@
     --warning-bg:#FBF1E1;
     --danger:#D9433D;
     --danger-bg:#FBEAE8;
+    --adj:#C4570A;        /* registros ajustados por un sustento (candado activo) */
+    --adj-bg:#FFE8D1;
+    --adj-border:#F3B37C;
     --radius-s:6px;
     --radius-m:10px;
   }
@@ -736,8 +739,24 @@
   body.page-view-registro [data-page="analysis"],
   body.page-view-registro [data-page="tendencias"]{ display:none !important; }
 
-  #registroTable{ min-width:1340px; }
-  #registroTable td.rg-fecha{ white-space:nowrap; }
+  /* Registro más amplio: ocupa todo el ancho de la ventana, la caja llega casi hasta el borde
+     inferior y ninguna celda recorta su contenido (las fechas se parten en 2 líneas y los
+     cuadros de texto crecen hasta mostrar todo lo escrito). */
+  body.page-view-registro .wrap{ max-width:none; padding-left:22px; padding-right:22px; }
+  #registroBlock{ padding:18px 16px 12px; }
+  #registroBlock .table-scroll{ max-height:calc(100vh - 190px); min-height:460px; }
+  #registroTable{ min-width:1280px; font-size:13.5px; }
+  #registroTable tbody td{ padding:10px 10px; }
+  #registroTable td.rg-fecha{ white-space:normal; }
+  #registroTable .cell-servicio{ max-width:none; white-space:normal; overflow:visible; text-overflow:clip; }
+  #registroTable thead th:nth-child(1){ min-width:105px; }
+  #registroTable thead th:nth-child(2), #registroTable thead th:nth-child(3){ min-width:120px; }
+  #registroTable thead th:nth-child(4), #registroTable thead th:nth-child(5){ min-width:88px; }
+  #registroTable thead th:nth-child(6){ min-width:100px; }
+  #registroTable thead th:nth-child(7){ min-width:165px; }
+  #registroTable thead th:nth-child(8){ min-width:210px; }
+  #registroTable thead th:nth-child(9){ min-width:150px; }
+  #registroTable thead th:nth-child(10){ min-width:142px; }
   #registroTable thead th.no-sort{ cursor:default; }
   #registroTable thead th.no-sort:hover{ color:var(--ink-soft); }
   .rg-req{ color:var(--danger); }
@@ -748,8 +767,8 @@
   }
   .rg-input:focus{ outline:none; border-color:var(--accent); }
   .rg-input.invalid{ border-color:var(--danger); background:var(--danger-bg); }
-  textarea.rg-input{ resize:vertical; min-height:54px; line-height:1.4; display:block; }
-  .rg-date{ min-width:185px; }
+  textarea.rg-input{ resize:vertical; min-height:76px; font-size:13px; line-height:1.45; display:block; overflow:hidden; }
+  .rg-date{ min-width:150px; font-size:12px; }
   .rg-hint{ color:var(--danger); font-size:11px; margin-top:3px; max-width:185px; line-height:1.3; }
   .rg-badge{ display:inline-block; font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:100px; white-space:nowrap; }
   .rg-badge.pendiente{ background:var(--surface-sunken); color:var(--ink-soft); }
@@ -768,6 +787,24 @@
   .rg-hours{ display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:100px; background:var(--surface); border:1px solid var(--border); color:var(--ink-soft); white-space:nowrap; }
   .rg-sub{ font-family:'IBM Plex Sans', sans-serif; font-weight:400; font-size:11px; color:var(--ink-soft); margin-top:3px; line-height:1.3; }
   .rg-tag{ display:inline-block; font-weight:600; font-size:10.5px; padding:1px 6px; border-radius:100px; background:var(--surface-sunken); color:var(--ink-soft); margin-right:2px; }
+  /* --- registros ajustados por sustento: naranja en todas las tablas --- */
+  tr.rg-ajustado td{ background:var(--adj-bg); }
+  tr.rg-ajustado td:first-child{ box-shadow:inset 3px 0 0 var(--adj); }
+  tr.rg-ajustado:hover td{ background:#FFDDBA; }
+  #registroTable tr.rg-ajustado td{ background:var(--adj-bg); }
+  #registroTable tr.rg-ajustado td:first-child{ box-shadow:inset 3px 0 0 var(--adj); }
+  .task-mini-row.rg-ajustado{ background:var(--adj-bg); border-color:var(--adj-border); }
+  .adj-badge{ display:inline-block; margin-left:6px; font-family:'IBM Plex Sans', sans-serif; font-size:10.5px; font-weight:600; padding:1px 7px; border-radius:100px; background:var(--adj); color:#fff; vertical-align:middle; cursor:help; }
+  .rg-adj-line{ color:var(--adj); font-size:11.5px; }
+  .rg-adj-line b{ font-weight:700; }
+  .rg-estado-wrap{ display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
+  .rg-lock{ display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; padding:0; cursor:pointer;
+    border:1px solid var(--border); border-radius:100px; background:var(--surface); color:var(--ink-soft); }
+  .rg-lock:hover{ border-color:var(--adj); color:var(--adj); }
+  .rg-lock.on{ background:var(--adj); border-color:var(--adj); color:#fff; }
+  .rg-input:disabled{ background:transparent; color:var(--ink); opacity:.9; cursor:not-allowed; resize:none; }
+  .rg-legend{ display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--ink-soft); margin:0 0 10px; line-height:1.4; }
+  .rg-dot{ flex:0 0 auto; width:11px; height:11px; margin-top:2px; border-radius:3px; background:var(--adj-bg); border:1px solid var(--adj); }
   .rg-note{
     font-size:12px; color:var(--ink-soft); background:var(--surface-sunken);
     border-radius:var(--radius-s); padding:7px 10px; margin-bottom:10px;
@@ -1233,6 +1270,7 @@
         </div>
       </div>
       <div class="rg-note hidden" id="registroStorageNote"></div>
+      <div class="rg-legend"><span class="rg-dot"></span><span><b>Candado:</b> disponible en los registros sustentados. Al activarlo, el cierre y el progreso se recalculan con la fecha real sustentada en todo el aplicativo, y el registro queda en <b>naranja</b> (aquí y en las demás tablas). Mientras esté activo no se puede editar; al desactivarlo vuelven los datos originales.</span></div>
       <div class="table-scroll">
         <table id="registroTable">
           <thead>
@@ -1562,6 +1600,11 @@
 
   let allRows = [];        // evaluated (non-cancelled) rows, YA filtradas por el rango de fechas activo
   let allRowsRaw = [];     // evaluated (non-cancelled) rows, sin filtrar por fecha (fuente de verdad)
+  // allRowsRaw NUNCA se modifica con los sustentos (es lo que se guarda en el servidor y lo que
+  // desplaza el switch de -5h). allRowsEff es esa misma lista con los sustentos aplicados (candado
+  // del Registro de vencidos): es lo que leen las tablas, las gráficas y todo el Análisis.
+  let allRowsEff = [];
+  let rgReady = false;     // el Registro ya cargó sus sustentos; hasta entonces no se aplica ninguno
   let vencidos = [];        // subset >100%
   let cumplen = [];         // subset <=100%
   let abiertos = [];        // tickets sin fecha de cierre (independiente de si cumplen o no el SLA)
@@ -1850,7 +1893,8 @@
   function applyGlobalFilters(){
     const range = getDateRange();
 
-    allRows = allRowsRaw.filter(r => dateInRange(toDateSafe(r.fechaRegistro), range));
+    allRowsEff = allRowsRaw.map(r => rgAjusteTicket(r));
+    allRows = allRowsEff.filter(r => dateInRange(toDateSafe(r.fechaRegistro), range));
     // "Vencidos" solo debe listar tickets que ya están Cerrado: los vencidos que
     // aún están Resuelto/En Proceso (sin Fecha Cierre) ya se muestran en la
     // pestaña Abiertos, así que no deben aparecer duplicados aquí también.
@@ -1867,7 +1911,7 @@
       r.minutosAbierto = r.fechaRegistro ? Math.round((now - r.fechaRegistro) / 60000) : null;
     });
 
-    const allTasks = Array.from(taskMap.values());
+    const allTasks = Array.from(taskMap.values()).map(t => rgAjusteTarea(t));
     const inRangeTasks = allTasks.filter(t => dateInRange(t.fechaRegistro, range));
     taskAbiertas = inRangeTasks.filter(t => t.abierta);
     taskCerradas = inRangeTasks.filter(t => !t.abierta);
@@ -2896,9 +2940,9 @@
       $('modalTaskList').innerHTML = `<div class="empty-detail">${escapeHtml($('modalTicketSub').textContent)}</div>`;
     } else {
       $('modalTaskList').innerHTML = list.map(t => `
-        <div class="task-mini-row">
+        <div class="task-mini-row${t.ajustado ? ' rg-ajustado' : ''}">
           <div class="task-mini-head">
-            <span class="tid">${escapeHtml(t.tarea)}</span>
+            <span class="tid">${escapeHtml(t.tarea)}${adjBadge(t)}</span>
             <span class="estado-badge ${t.abierta ? 'abierta' : 'cerrada'}">${escapeHtml(t.estado)}</span>
           </div>
           <div class="task-mini-grid">
@@ -3065,8 +3109,8 @@
     $('emptyTaskDetail').classList.toggle('hidden', list.length !== 0);
 
     taskTbody.innerHTML = list.map(t => `
-      <tr>
-        <td class="mono ticket-id">${escapeHtml(t.tarea)}</td>
+      <tr${t.ajustado ? ' class="rg-ajustado"' : ''}>
+        <td class="mono ticket-id">${escapeHtml(t.tarea)}${adjBadge(t)}</td>
         <td class="mono ticket-id clickable" data-ticket="${escapeHtml(t.caso)}" title="Ver todas las tareas de este caso">${escapeHtml(t.caso)}</td>
         <td>${escapeHtml(t.estado)}</td>
         <td class="cell-servicio" title="${escapeHtml(t.asunto)}">${escapeHtml(t.asunto)}</td>
@@ -3799,8 +3843,8 @@
     tbody.innerHTML = list.map(r => {
       const tCount = taskCountForTicket(r.ticket);
       return `
-      <tr data-descripcion="${escapeHtml(r.descripcion)}">
-        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.ticket)}" title="Ver tareas de este caso">${escapeHtml(r.ticket)}${tCount ? `<span class="task-count-badge">${tCount} tarea${tCount === 1 ? '' : 's'}</span>` : ''}</td>
+      <tr data-descripcion="${escapeHtml(r.descripcion)}"${r.ajustado ? ' class="rg-ajustado"' : ''}>
+        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.ticket)}" title="Ver tareas de este caso">${escapeHtml(r.ticket)}${adjBadge(r)}${tCount ? `<span class="task-count-badge">${tCount} tarea${tCount === 1 ? '' : 's'}</span>` : ''}</td>
         <td><span class="pct-badge ${r.cumple ? 'ok' : ''}">${r.pct}%</span></td>
         <td>${escapeHtml(r.estado)}${(r.estado === 'Resuelto' && r.fechaModificacion) ? `<span class="fecha-mod-badge">${fmtDate(r.fechaModificacion)}</span>` : ''}</td>
         <td class="cell-servicio" title="${escapeHtml(r.servicio)}">${escapeHtml(r.servicio)}</td>
@@ -4097,7 +4141,7 @@
 
   function anBucketWeeks(){
     const map = new Map();
-    allRowsRaw.forEach(r => {
+    allRowsEff.forEach(r => {
       const fr = toDateSafe(r.fechaRegistro);
       if (!fr) return;
       const info = anIsoWeek(fr);
@@ -4131,7 +4175,7 @@
 
   function anTicketFechaMap(){
     const m = new Map();
-    allRowsRaw.forEach(r => { if (r.ticket) m.set(r.ticket, r); });
+    allRowsEff.forEach(r => { if (r.ticket) m.set(r.ticket, r); });
     return m;
   }
 
@@ -4358,7 +4402,7 @@
     const espRows = Array.from(byEspAll.entries()).map(([especialista, arr]) => {
       const venc = arr.filter(r => !r.cumple && r.estado === 'Cerrado');
       const excesos = venc.map(r => r.pct - 100);
-      const abiertosActuales = allRowsRaw.filter(r => r.especialista === especialista && !r.fechaCierre).length;
+      const abiertosActuales = allRowsEff.filter(r => r.especialista === especialista && !r.fechaCierre).length;
       return {
         especialista, atendidos: arr.length, vencidos: venc.length,
         pctCumple: arr.length ? ((arr.length - venc.length) / arr.length * 100) : 0,
@@ -4400,8 +4444,8 @@
       const causaInfo = anCausasMap.get(r.ticket);
       const causaVal = causaInfo && causaInfo.causa ? causaInfo.causa : '';
       return `
-      <tr>
-        <td class="mono">${escapeHtml(r.ticket)}</td>
+      <tr${r.ajustado ? ' class="rg-ajustado"' : ''}>
+        <td class="mono">${escapeHtml(r.ticket)}${adjBadge(r)}</td>
         <td>${escapeHtml(r.servicio)}</td>
         <td>${escapeHtml(r.especialista)}</td>
         <td class="mono">${fmtDateShort(r.fechaRegistro)}</td>
@@ -4484,7 +4528,7 @@
     const buckets = anBucketWeeks();
     const focused = anResolveFocusedInfo(buckets);
     const groups = new Map();
-    allRowsRaw.forEach(r => {
+    allRowsEff.forEach(r => {
       const desc = (r.descripcion || '').trim().toLowerCase();
       if (desc.length < 15) return;
       if (!groups.has(desc)) groups.set(desc, []);
@@ -4962,7 +5006,8 @@
   // Lista los tickets de la pestaña "Vencidos" del Resumen (cerrados con >100% de progreso,
   // dentro del rango de fechas activo) y, desplegables bajo cada ticket, las tareas de ese
   // ticket (Caso). Los tickets muestran el progreso en % y las tareas en horas. Permite
-  // registrar, por ticket o por tarea:
+  // registrar, por ticket o por tarea (el candado de los sustentados aplica el sustento a
+  // todo el aplicativo, ver rgAjusteTicket / rgAjusteTarea):
   //   - Fecha real sustentada  (obligatoria; entre la fecha de registro y hoy)
   //   - Sustento de atención   (obligatorio)
   //   - Acción inmediata       (opcional)
@@ -5018,17 +5063,94 @@
   }
   // Valor para <input type="datetime-local">: los registros antiguos (solo fecha) se muestran a las 00:00.
   function rgToInput(s){ return !s ? '' : (s.includes('T') ? s.slice(0, 16) : s + 'T00:00'); }
+  // Fecha real sustentada ('YYYY-MM-DDTHH:mm', hora de Perú; los registros antiguos traen solo
+  // 'YYYY-MM-DD' y cuentan como 00:00) -> Date real.
+  function rgRealDate(str){
+    const m = String(str || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+    return m ? fromPeruWallClock(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, 0) : null;
+  }
+  function rgAplicado(rec){ return !!(rec && rec.aplicado && rgEstado(rec) === 'sustentado'); }
+
+  // ---- Sustento aplicado (candado activo) ----
+  // Devuelven una COPIA ajustada de la fila (la original nunca se toca: es la que se guarda en el
+  // servidor). La fecha de cierre pasa a ser la fecha real sustentada.
+  //  - Ticket: el progreso se recalcula en proporción al tiempo transcurrido. Aranda no entrega
+  //    el SLA, pero progreso = tiempo / SLA, así que nuevo % = % original x (registro->real) /
+  //    (registro->cierre original).
+  //  - Tarea: cierra en la fecha real, con la duración recalculada.
+  // Si los datos no alcanzan para recalcular, la fila se devuelve sin cambios.
+  function rgAjusteTicket(r){
+    if (!rgReady) return r;
+    const rec = rgRecords.get(String(r.ticket));
+    if (!rgAplicado(rec)) return r;
+    const real = rgRealDate(rec.fechaReal), reg = toDateSafe(r.fechaRegistro), cie = toDateSafe(r.fechaCierre);
+    if (!real || !reg || !cie || r.pct == null) return r;
+    const base = cie - reg, transc = real - reg;
+    if (!(base > 0) || transc < 0) return r;
+    const pct = Math.round(r.pct * transc / base * 10) / 10;
+    return Object.assign({}, r, {
+      fechaCierre: real, pct, cumple: pct <= 100, progresoRaw: pct + '%',
+      tiempo: formatDuration(Math.round(transc / 60000)),
+      ajustado: true,
+      orig: { fechaCierre: r.fechaCierre, pct: r.pct, cumple: r.cumple, tiempo: r.tiempo }
+    });
+  }
+  function rgAjusteTarea(t){
+    if (!rgReady) return t;
+    const rec = rgRecords.get('T:' + t.tarea);
+    if (!rgAplicado(rec)) return t;
+    const real = rgRealDate(rec.fechaReal), reg = t.fechaRegistro;
+    if (!real || !reg || real < reg) return t;
+    return Object.assign({}, t, {
+      fechaCierre: real, abierta: false,
+      dias: (real - reg) / 86400000, minutos: Math.round((real - reg) / 60000),
+      ajustado: true,
+      orig: { fechaCierre: t.fechaCierre, abierta: t.abierta, dias: t.dias, minutos: t.minutos }
+    });
+  }
+  // Etiqueta "ajustado" (con el dato original en el tooltip) para las demás tablas.
+  function adjBadge(x){
+    if (!x || !x.ajustado || !x.orig) return '';
+    const o = x.orig;
+    const det = 'Ajustado por sustento · antes: ' + (o.pct != null ? o.pct + '% · ' : '') + 'cierre ' + (o.fechaCierre ? fmtDate(o.fechaCierre) : 'sin fecha');
+    return `<span class="adj-badge" title="${escapeHtml(det)}">ajustado</span>`;
+  }
+  // Por qué no se puede activar el candado en un ítem (cadena vacía = sí se puede).
+  function rgMotivoNoAplicable(it, rec){
+    const real = rgRealDate(rec.fechaReal), reg = toDateSafe(it.fechaRegistro);
+    if (!real || !reg) return 'Falta una fecha válida para recalcular.';
+    if (real < reg) return 'La fecha real no puede ser anterior al registro.';
+    if (it.kind === 'ticket'){
+      const cie = toDateSafe(it.fechaCierre);
+      if (!cie || !(cie - reg > 0)) return 'El ticket no tiene una fecha de cierre válida para recalcular el progreso.';
+    }
+    return '';
+  }
+
+  // Los tickets del registro salen de los datos ORIGINALES (allRowsRaw), no de los ajustados:
+  // si no, al aplicar un sustento el ticket dejaría de estar vencido, desaparecería de esta
+  // lista y no se podría volver a desbloquear.
+  function rgBase(){
+    const range = getDateRange();
+    return allRowsRaw.filter(r => r.estado === 'Cerrado' && !r.cumple && dateInRange(toDateSafe(r.fechaRegistro), range));
+  }
+
   // Cada fila del registro es un "ítem": un ticket vencido o una tarea de un ticket vencido.
   // La clave del registro es el ID del ticket (igual que antes, así se conservan los ya
   // guardados) o 'T:' + ID de la tarea. Las tareas se toman de taskMap (no de las filtradas
   // por su propia fecha): las gobierna el rango del ticket, que es el que las hace vencidas.
   function rgItems(){
-    const items = vencidos.map(r => ({
-      kind: 'ticket', key: String(r.ticket), id: String(r.ticket), ticket: String(r.ticket),
-      servicio: r.servicio, especialista: r.especialista, grupo: '', asunto: r.asunto, estadoTarea: '',
-      fechaRegistro: r.fechaRegistro, fechaCierre: r.fechaCierre, pct: r.pct, horas: null, abierta: false
-    }));
-    const porTicket = new Map(vencidos.map(r => [String(r.ticket), r]));
+    const base = rgBase();
+    const items = base.map(r => {
+      const aj = rgAjusteTicket(r);
+      return {
+        kind: 'ticket', key: String(r.ticket), id: String(r.ticket), ticket: String(r.ticket),
+        servicio: r.servicio, especialista: r.especialista, grupo: '', asunto: r.asunto, estadoTarea: '',
+        fechaRegistro: r.fechaRegistro, fechaCierre: r.fechaCierre, pct: r.pct, horas: null, abierta: false,
+        ajustado: !!aj.ajustado, pctAj: aj.ajustado ? aj.pct : null, horasAj: null
+      };
+    });
+    const porTicket = new Map(base.map(r => [String(r.ticket), r]));
     const ahora = new Date();
     taskMap.forEach(t => {
       const p = porTicket.get(String(t.caso));
@@ -5036,15 +5158,27 @@
       // Duración de la tarea en horas: registro -> cierre; si sigue abierta, hasta ahora.
       const fin = t.fechaCierre || (t.abierta ? ahora : null);
       const horas = (t.fechaRegistro && fin) ? (fin - t.fechaRegistro) / 3600000 : null;
+      const aj = rgAjusteTarea(t);
       items.push({
         kind: 'tarea', key: 'T:' + t.tarea, id: String(t.tarea), ticket: String(t.caso),
         servicio: p.servicio, especialista: t.responsable, grupo: t.grupoResponsable, asunto: t.asunto, estadoTarea: t.estado,
-        fechaRegistro: t.fechaRegistro, fechaCierre: t.fechaCierre, pct: p.pct, horas, abierta: !!t.abierta
+        fechaRegistro: t.fechaRegistro, fechaCierre: t.fechaCierre, pct: p.pct, horas, abierta: !!t.abierta,
+        ajustado: !!aj.ajustado, pctAj: null, horasAj: aj.ajustado ? aj.minutos / 60 : null
       });
     });
     return items;
   }
   function rgRecOf(it){ return rgRecords.get(it.key); }
+  function rgFmtPct(v){ return v == null ? '—' : v.toLocaleString('es-PE', { maximumFractionDigits: 1 }) + '%'; }
+  const RG_ICON_LOCK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+  const RG_ICON_UNLOCK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
+  // Celda "Estado": insignia + candado (solo en los registros sustentados).
+  function rgLockBtn(rec){
+    if (!rec || rgEstado(rec) !== 'sustentado') return '';
+    const on = !!rec.aplicado;
+    return `<button type="button" class="rg-lock${on ? ' on' : ''}" aria-pressed="${on}" title="${on ? 'Sustento aplicado a todo el aplicativo. Clic para quitarlo y volver a los datos originales' : 'Aplicar este sustento: actualiza el cierre y el progreso en todos los análisis'}">${on ? RG_ICON_LOCK : RG_ICON_UNLOCK}</button>`;
+  }
+  function rgEstadoCell(rec){ return `<div class="rg-estado-wrap">${rgBadge(rgEstado(rec))}${rgLockBtn(rec)}</div>`; }
   function rgFmtHoras(h){ return h == null ? '—' : h.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' h'; }
   let rgExpanded = new Set();   // tickets con sus tareas desplegadas
 
@@ -5061,9 +5195,10 @@
     const counts = { pendiente: 0, incompleto: 0, sustentado: 0 };
     const items = rgItems();
     items.forEach(it => { counts[rgEstado(rgRecOf(it))]++; });
-    const nT = vencidos.length, nA = items.length - nT;
+    const nT = items.filter(i => i.kind === 'ticket').length, nA = items.length - nT;
+    const aplic = items.filter(i => i.ajustado).length;
     $('registroSub').textContent = nT
-      ? `${nT} ticket${nT === 1 ? '' : 's'} vencido${nT === 1 ? '' : 's'} · ${nA} tarea${nA === 1 ? '' : 's'} · ${counts.sustentado} sustentado${counts.sustentado === 1 ? '' : 's'} · ${counts.incompleto} incompleto${counts.incompleto === 1 ? '' : 's'} · ${counts.pendiente} pendiente${counts.pendiente === 1 ? '' : 's'}`
+      ? `${nT} ticket${nT === 1 ? '' : 's'} vencido${nT === 1 ? '' : 's'} · ${nA} tarea${nA === 1 ? '' : 's'} · ${counts.sustentado} sustentado${counts.sustentado === 1 ? '' : 's'} · ${counts.incompleto} incompleto${counts.incompleto === 1 ? '' : 's'} · ${counts.pendiente} pendiente${counts.pendiente === 1 ? '' : 's'}${aplic ? ` · ${aplic} con candado` : ''}`
       : '0 tickets vencidos';
   }
 
@@ -5131,13 +5266,14 @@
     updateSortArrow('#registroTable', rgSort.key, rgSort.dir);
     $('registroTable').classList.toggle('hidden', groups.length === 0);
     $('registroEmpty').classList.toggle('hidden', groups.length !== 0);
-    $('registroEmpty').textContent = vencidos.length
+    $('registroEmpty').textContent = rgBase().length
       ? 'Ningún ticket ni tarea coincide con los filtros.'
       : 'No hay tickets ni tareas vencidos en este periodo.';
 
     const fila = (it, g, abierto) => {
       const esTarea = it.kind === 'tarea';
       const rec = rgRecOf(it) || {};
+      const bloq = rgAplicado(rec) ? ' disabled' : '';   // con el candado activo no se edita
       const min = it.fechaRegistro ? toInputDateTime(new Date(it.fechaRegistro)) : '';
       let idCell = escapeHtml(it.id);
       if (esTarea){
@@ -5147,23 +5283,24 @@
         idCell += `<div><button type="button" class="rg-toggle" aria-expanded="${abierto}" title="Mostrar u ocultar las tareas de este ticket"><span class="rg-caret">▸</span> ${n} tarea${g.total === 1 ? '' : 's'}</button></div>`;
       }
       const progreso = esTarea
-        ? `<span class="rg-hours" title="${it.abierta ? 'Tiempo transcurrido (la tarea sigue abierta)' : 'Duración de la tarea'}">${rgFmtHoras(it.horas)}</span>`
-        : `<span class="pct-badge">${it.pct}%</span>`;
+        ? `<span class="rg-hours" title="${it.abierta ? 'Tiempo transcurrido (la tarea sigue abierta)' : 'Duración de la tarea'}">${rgFmtHoras(it.horas)}</span>${it.ajustado ? `<div class="rg-sub rg-adj-line">Ajustado: <b>${rgFmtHoras(it.horasAj)}</b></div>` : ''}`
+        : `<span class="pct-badge">${it.pct}%</span>${it.ajustado ? `<div class="rg-sub rg-adj-line">Ajustado: <b>${rgFmtPct(it.pctAj)}</b></div>` : ''}`;
+      const clases = [esTarea ? 'rg-row-tarea' : '', esTarea && !abierto ? 'hidden' : '', it.ajustado ? 'rg-ajustado' : ''].filter(Boolean).join(' ');
       return `
-      <tr data-key="${escapeHtml(it.key)}" class="${esTarea ? 'rg-row-tarea' + (abierto ? '' : ' hidden') : ''}">
+      <tr data-key="${escapeHtml(it.key)}" class="${clases}">
         <td class="mono ticket-id clickable" data-ticket="${escapeHtml(it.ticket)}" title="Ver tareas de este caso">${idCell}</td>
         <td class="cell-servicio" title="${escapeHtml(it.servicio)}">${escapeHtml(it.servicio)}${esTarea ? `<div class="rg-sub">${escapeHtml(it.asunto)} · ${escapeHtml(it.estadoTarea)}</div>` : ''}</td>
         <td>${escapeHtml(it.especialista)}${esTarea && it.grupo && it.grupo !== '—' ? `<div class="rg-sub">${escapeHtml(it.grupo)}</div>` : ''}</td>
         <td class="mono rg-fecha">${it.fechaRegistro ? fmtDate(it.fechaRegistro) : '—'}</td>
-        <td class="mono rg-fecha">${it.fechaCierre ? fmtDate(it.fechaCierre) : '—'}</td>
+        <td class="mono rg-fecha">${it.fechaCierre ? fmtDate(it.fechaCierre) : '—'}${it.ajustado ? `<div class="rg-sub rg-adj-line">Real: <b>${rgFmtIso(rec.fechaReal)}</b></div>` : ''}</td>
         <td>${progreso}</td>
         <td>
-          <input type="datetime-local" class="rg-input rg-date" data-field="fechaReal" value="${escapeHtml(rgToInput(rec.fechaReal))}" min="${min}" max="${hoy}">
+          <input type="datetime-local" class="rg-input rg-date" data-field="fechaReal" value="${escapeHtml(rgToInput(rec.fechaReal))}" min="${min}" max="${hoy}"${bloq}>
           <div class="rg-hint"></div>
         </td>
-        <td><textarea class="rg-input" rows="2" maxlength="1000" data-field="sustento" placeholder="Qué se hizo y en qué evidencia se sustenta…">${escapeHtml(rec.sustento || '')}</textarea></td>
-        <td><textarea class="rg-input" rows="2" maxlength="500" data-field="accion" placeholder="Opcional">${escapeHtml(rec.accion || '')}</textarea></td>
-        <td class="rg-estado-cell">${rgBadge(rgEstado(rec))}</td>
+        <td><textarea class="rg-input" rows="3" maxlength="1000" data-field="sustento" placeholder="Qué se hizo y en qué evidencia se sustenta…"${bloq}>${escapeHtml(rec.sustento || '')}</textarea></td>
+        <td><textarea class="rg-input" rows="3" maxlength="500" data-field="accion" placeholder="Opcional"${bloq}>${escapeHtml(rec.accion || '')}</textarea></td>
+        <td class="rg-estado-cell">${rgEstadoCell(rec.fechaReal || rec.sustento || rec.accion ? rec : null)}</td>
       </tr>`;
     };
 
@@ -5185,11 +5322,33 @@
         if (abrir) rgExpanded.add(tr.dataset.key); else rgExpanded.delete(tr.dataset.key);
         for (let n = tr.nextElementSibling; n && n.classList.contains('rg-row-tarea'); n = n.nextElementSibling){
           n.classList.toggle('hidden', !abrir);
+          if (abrir) rgAutosize(n);   // las filas ocultas no se pudieron medir al dibujar la tabla
         }
       });
     });
+    rgAutosize(body);
     rgUpdateSummary();
     rgUpdateStorageNote();
+  }
+
+  // Los cuadros de texto crecen hasta mostrar todo lo escrito (sin barra interna).
+  function rgAutosize(root){
+    root.querySelectorAll('textarea.rg-input').forEach(t => {
+      t.style.height = 'auto';
+      if (t.scrollHeight > 0) t.style.height = (t.scrollHeight + 2) + 'px';
+    });
+  }
+  window.addEventListener('resize', () => { if (!$('registroSection').classList.contains('hidden')) rgAutosize($('registroBody')); });
+
+  // Cambió un sustento aplicado (o se activó/desactivó un candado): se recalcula todo lo que
+  // depende de los tickets y tareas (tablas, gráficas, tendencias y Análisis y Mejora).
+  function rgRefrescarTodo(){
+    if (allRowsRaw.length || taskMap.size){
+      applyGlobalFilters();
+      if (typeof anRenderAll === 'function') anRenderAll();
+    } else {
+      renderRegistro();
+    }
   }
 
   // Guardado por campo, al confirmar el cambio (al salir del campo / elegir la fecha).
@@ -5219,6 +5378,7 @@
       fechaReal: prev.fechaReal || '',
       sustento: prev.sustento || '',
       accion: prev.accion || '',
+      aplicado: !!prev.aplicado,
       updatedAt: new Date().toISOString()
     };
     rec[field] = value;
@@ -5227,10 +5387,32 @@
     if (vacio) rgRecords.delete(ticket); else rgRecords.set(ticket, rec);
     rgSaveLocal();
 
-    tr.querySelector('.rg-estado-cell').innerHTML = rgBadge(rgEstado(vacio ? null : rec));
+    tr.querySelector('.rg-estado-cell').innerHTML = rgEstadoCell(vacio ? null : rec);   // aparece el candado al quedar sustentado
     rgUpdateSummary();
     rgUpdateStorageNote();
     rgPush(ticket, rec);
+  });
+
+  // Candado: aplica (o quita) el sustento en todo el aplicativo.
+  $('registroBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('.rg-lock');
+    if (!btn) return;
+    const tr = btn.closest('tr');
+    const key = tr.dataset.key;
+    const rec = rgRecords.get(key);
+    if (!rec || rgEstado(rec) !== 'sustentado') return;
+    const activar = !rec.aplicado;
+    if (activar){
+      const it = rgItems().find(i => i.key === key);
+      const motivo = it ? rgMotivoNoAplicable(it, rec) : 'No se encontró el registro en el periodo actual.';
+      if (motivo){ tr.querySelector('.rg-hint').textContent = motivo; return; }
+    }
+    rec.aplicado = activar;
+    rec.updatedAt = new Date().toISOString();
+    rgRecords.set(key, rec);
+    rgSaveLocal();
+    rgPush(key, rec);
+    rgRefrescarTodo();
   });
 
   $('registroBody').addEventListener('focusin', (e) => {
@@ -5246,7 +5428,7 @@
     try{
       const res = await fetch('/api/sustentos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticket, fechaReal: rec.fechaReal, sustento: rec.sustento, accion: rec.accion })
+        body: JSON.stringify({ ticket, fechaReal: rec.fechaReal, sustento: rec.sustento, accion: rec.accion, aplicado: !!rec.aplicado })
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
     }catch(err){
@@ -5256,12 +5438,13 @@
 
   async function rgInit(){
     rgLoadLocal();
+    rgReady = true;   // ya se conocen los sustentos guardados en este navegador: desde aquí se aplican los candados
     try{
       const res = await fetch('/api/sustentos').then(r => r.ok ? r.json() : null);
       if (res && res.ok && Array.isArray(res.sustentos)){
         rgServerOk = true;
         const server = new Map(res.sustentos.map(x => [String(x.ticket), {
-          fechaReal: x.fechaReal || '', sustento: x.sustento || '', accion: x.accion || '', updatedAt: x.updatedAt || ''
+          fechaReal: x.fechaReal || '', sustento: x.sustento || '', accion: x.accion || '', aplicado: !!x.aplicado, updatedAt: x.updatedAt || ''
         }]));
         server.forEach((srv, t) => {
           const loc = rgRecords.get(t);
@@ -5277,7 +5460,7 @@
         rgServerOk = false;
       }
     }catch(err){ rgServerOk = false; }
-    renderRegistro();
+    rgRefrescarTodo();   // por si los tickets/tareas ya cargaron antes que los sustentos
   }
 
   wireSortableHeaders('#registroTable thead th[data-key]', rgSort, renderRegistro,
@@ -5287,7 +5470,7 @@
 
   $('btnExportRegistro').addEventListener('click', () => {
     const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-    const header = ['Tipo','Ticket','Tarea','Servicio','Especialista / Responsable','Fecha Registro','Fecha Cierre','Progreso (ticket en % · tarea en horas)','Fecha real sustentada','Sustento de atención','Acción inmediata','Estado'];
+    const header = ['Tipo','Ticket','Tarea','Servicio','Especialista / Responsable','Fecha Registro','Fecha Cierre','Progreso (ticket en % · tarea en horas)','Progreso ajustado (candado)','Fecha real sustentada','Sustento de atención','Acción inmediata','Estado'];
     const lines = [header.map(q).join(';')];
     const linea = (r) => {
       const rec = rgRecOf(r) || {};
@@ -5295,7 +5478,7 @@
       lines.push([
         esTarea ? 'Tarea' : 'Ticket', r.ticket, esTarea ? r.id : '', r.servicio, r.especialista,
         r.fechaRegistro ? fmtDate(r.fechaRegistro) : '', r.fechaCierre ? fmtDate(r.fechaCierre) : '',
-        esTarea ? rgFmtHoras(r.horas) : r.pct + '%', rgFmtIso(rec.fechaReal || ''), rec.sustento || '', rec.accion || '',
+        esTarea ? rgFmtHoras(r.horas) : r.pct + '%', r.ajustado ? (esTarea ? rgFmtHoras(r.horasAj) : rgFmtPct(r.pctAj)) : '', rgFmtIso(rec.fechaReal || ''), rec.sustento || '', rec.accion || '',
         RG_LABEL[rgEstado(rec)]
       ].map(q).join(';'));
     };
