@@ -446,21 +446,6 @@
   .trend-chip.active{ border-color:var(--chip-color); color:var(--ink); background:var(--surface); }
   .trend-chip.active::before{ opacity:1; }
 
-  /* ---------- doc-quality (D) ---------- */
-  .docq-grid{
-    display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;
-  }
-  @media (max-width: 820px){ .docq-grid{ grid-template-columns:1fr; } }
-  .docq-bar{
-    height:10px; border-radius:100px; background:var(--surface-sunken); overflow:hidden;
-    display:flex; margin:8px 0 4px;
-  }
-  .docq-bar span{ height:100%; }
-  .docq-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); }
-  .docq-legend .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
-  .docq-worst{ margin-top:12px; }
-  .docq-worst .bd-row{ grid-template-columns:1fr 40px 90px; }
-
   /* ---------- table section ---------- */
   .table-section{
     background:var(--surface);
@@ -565,7 +550,8 @@
   body.tv-mode footer.credit,
   body.tv-mode [data-page="dashboardExtra"],
   body.tv-mode [data-page="analysis"],
-  body.tv-mode [data-page="tendencias"]{
+  body.tv-mode [data-page="tendencias"],
+  body.tv-mode [data-page="registro"]{
     display:none !important;
   }
   body.tv-mode .table-section{ display:none !important; }
@@ -739,6 +725,36 @@
   body.page-view-tendencias [data-page="dashboardExtra"],
   body.page-view-tendencias [data-page="analysis"]{ display:none !important; }
 
+  /* ---------- Pestaña "Registro de vencidos" ---------- */
+  body:not(.page-view-registro) [data-page="registro"]{ display:none !important; }
+  body.page-view-registro [data-page="general"],
+  body.page-view-registro [data-page="dashboardExtra"],
+  body.page-view-registro [data-page="analysis"],
+  body.page-view-registro [data-page="tendencias"]{ display:none !important; }
+
+  #registroTable{ min-width:1180px; }
+  #registroTable thead th.no-sort{ cursor:default; }
+  #registroTable thead th.no-sort:hover{ color:var(--ink-soft); }
+  .rg-req{ color:var(--danger); }
+  .rg-input{
+    font-family:'IBM Plex Sans', sans-serif; font-size:12.5px; width:100%;
+    border:1px solid var(--border); border-radius:var(--radius-s);
+    padding:5px 7px; background:var(--surface); color:var(--ink);
+  }
+  .rg-input:focus{ outline:none; border-color:var(--accent); }
+  .rg-input.invalid{ border-color:var(--danger); background:var(--danger-bg); }
+  textarea.rg-input{ resize:vertical; min-height:54px; line-height:1.4; display:block; }
+  .rg-date{ min-width:128px; }
+  .rg-hint{ color:var(--danger); font-size:11px; margin-top:3px; max-width:150px; line-height:1.3; }
+  .rg-badge{ display:inline-block; font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:100px; white-space:nowrap; }
+  .rg-badge.pendiente{ background:var(--surface-sunken); color:var(--ink-soft); }
+  .rg-badge.incompleto{ background:var(--warning-bg); color:var(--warning); }
+  .rg-badge.sustentado{ background:var(--success-bg); color:var(--success); }
+  .rg-note{
+    font-size:12px; color:var(--ink-soft); background:var(--surface-sunken);
+    border-radius:var(--radius-s); padding:7px 10px; margin-bottom:10px;
+  }
+
   .td-chart-box{ position:relative; height:340px; }
   .td-empty-row{ color:var(--ink-faint); font-size:13px; padding:14px 0; }
 
@@ -889,6 +905,7 @@
        <button class="page-tab-btn" id="pageTabDashboard" data-target-page="dashboardExtra">Dashboard</button>
        <button class="page-tab-btn" id="pageTabAnalysis" data-target-page="analysis">Análisis y Mejora</button>
        <button class="page-tab-btn" id="pageTabTendencias" data-target-page="tendencias">Tendencias</button>
+       <button class="page-tab-btn" id="pageTabRegistro" data-target-page="registro">Registro de vencidos</button>
      </div>
      <button class="btn-tv" id="btnTvMode" title="Alterna automáticamente, cada 10 segundos, entre la tabla de tickets y la de tareas">🖥️ Modo pantalla</button>
    </div>
@@ -1016,32 +1033,6 @@
     </section>
    </div>
 
-   <div id="docQualitySection" class="hidden" data-page="dashboardExtra">
-    <h2 class="section-title">Calidad de documentación</h2>
-    <div class="docq-grid">
-      <div class="card" id="docqTicketsCard">
-        <h3 style="font-family:'Space Grotesk', sans-serif; font-size:15px; margin:0 0 4px;">Solución de tickets</h3>
-        <div class="l" style="font-size:12.5px; color:var(--ink-soft);">¿La columna "Solución" explica realmente qué se hizo, o es un cierre genérico ("Atendido", "OK") o queda vacía?</div>
-        <div class="docq-bar" id="docqTicketsBar"></div>
-        <div class="docq-legend" id="docqTicketsLegend"></div>
-        <div class="docq-worst">
-          <h3 style="font-size:13px; margin:14px 0 8px;">Servicios con peor documentación</h3>
-          <div id="docqTicketsWorst"></div>
-        </div>
-      </div>
-      <div class="card" id="docqTasksCard">
-        <h3 style="font-family:'Space Grotesk', sans-serif; font-size:15px; margin:0 0 4px;">Razón de cierre de tareas</h3>
-        <div class="l" style="font-size:12.5px; color:var(--ink-soft);">Mismo criterio, aplicado a la columna "Razón" de las tareas cerradas.</div>
-        <div class="docq-bar" id="docqTasksBar"></div>
-        <div class="docq-legend" id="docqTasksLegend"></div>
-        <div class="docq-worst">
-          <h3 style="font-size:13px; margin:14px 0 8px;">Grupos con peor documentación</h3>
-          <div id="docqTasksWorst"></div>
-        </div>
-      </div>
-    </div>
-   </div>
-
    <div id="rankingSection" class="hidden" data-page="dashboardExtra">
     <h2 class="section-title">Ranking de especialistas</h2>
     <section class="table-section">
@@ -1152,10 +1143,6 @@
           </div>
         </div>
       </div>
-      <div class="card">
-        <h3 style="font-family:'Space Grotesk', sans-serif; font-size:15px; margin:0 0 10px;">Tareas abiertas por grupo responsable</h3>
-        <div id="byGrupoResponsableTask"></div>
-      </div>
     </section>
 
     <section class="breakdown">
@@ -1205,30 +1192,47 @@
       </div>
       <div class="empty-detail hidden" id="emptyTaskDetail">No hay tareas en esta vista.</div>
     </section>
+   </div>
 
-    <section class="table-section" style="margin-top:20px;">
+   <div id="registroSection" class="hidden" data-page="registro">
+    <section class="table-section" id="registroBlock">
       <div class="table-head">
         <div>
-          <h3>Cuellos de botella entre tareas</h3>
-          <div class="sub" id="bottleneckSub">0 casos</div>
+          <h3>Registro de tickets vencidos</h3>
+          <div class="sub" id="registroSub">0 tickets vencidos</div>
+        </div>
+        <div class="table-actions">
+          <select class="an-select-inline" id="registroEstadoFilter" style="max-width:170px; padding:7px 8px; font-size:13px;">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendientes</option>
+            <option value="incompleto">Incompletos</option>
+            <option value="sustentado">Sustentados</option>
+          </select>
+          <input type="text" class="search-box" id="registroSearch" placeholder="Buscar ticket, especialista, sustento…">
+          <button id="btnExportRegistro">Descargar CSV</button>
         </div>
       </div>
+      <div class="rg-note hidden" id="registroStorageNote"></div>
       <div class="table-scroll">
-        <table id="bottleneckTable">
+        <table id="registroTable">
           <thead>
             <tr>
-              <th data-key="caso">Caso</th>
-              <th data-key="count"># Tareas</th>
-              <th data-key="groups"># Grupos</th>
-              <th data-key="slowestGroup">Grupo más lento</th>
-              <th data-key="totalDias">Tiempo total</th>
-              <th data-key="stillOpen">Estado</th>
+              <th data-key="ticket">Ticket</th>
+              <th data-key="servicio">Servicio</th>
+              <th data-key="especialista">Especialista</th>
+              <th data-key="fechaRegistro">Fecha registro</th>
+              <th data-key="fechaCierre">Fecha cierre</th>
+              <th data-key="pct">Progreso</th>
+              <th data-key="fechaReal">Fecha real sustentada <span class="rg-req">*</span></th>
+              <th class="no-sort">Sustento de atención <span class="rg-req">*</span></th>
+              <th class="no-sort">Acción inmediata <span style="font-weight:400;">(opcional)</span></th>
+              <th data-key="estado">Estado</th>
             </tr>
           </thead>
-          <tbody id="bottleneckBody"></tbody>
+          <tbody id="registroBody"></tbody>
         </table>
       </div>
-      <div class="empty-detail hidden" id="emptyBottleneck">No hay casos con dos o más tareas en este rango.</div>
+      <div class="empty-detail hidden" id="registroEmpty">No hay tickets vencidos en este periodo.</div>
     </section>
    </div>
 
@@ -1616,10 +1620,12 @@
     $('pageTabDashboard').classList.remove('active');
     $('pageTabAnalysis').classList.remove('active');
     $('pageTabTendencias').classList.remove('active');
+    $('pageTabRegistro').classList.remove('active');
     document.body.classList.add('page-view-general');
     document.body.classList.remove('page-view-dashboardExtra');
     document.body.classList.remove('page-view-analysis');
     document.body.classList.remove('page-view-tendencias');
+    document.body.classList.remove('page-view-registro');
     document.body.classList.add('tv-mode');
     $('btnExitTv').classList.remove('hidden');
     tvCurrent = screens[0];
@@ -1847,10 +1853,9 @@
       renderTeamTrend(allRows);
     }
     if (taskMap.size){ renderTasks(); }
-    renderDocQuality();
     renderRanking();
     renderExtraRankings();
-    renderBottlenecks();
+    renderRegistro();
     renderTendencias();
 
     const parts = [];
@@ -2140,6 +2145,7 @@
     $('trendsSection').classList.remove('hidden');
     $('analysisSection').classList.remove('hidden');
     $('tendenciasSection').classList.remove('hidden');
+    $('registroSection').classList.remove('hidden');
 
     resetColumnFilters();
     populateColumnFilters();
@@ -2591,111 +2597,6 @@
     }
   }
 
-  // ---------------- Calidad de documentación (D) ----------------
-
-  const GENERIC_TEXT = new Set([
-    'atendido', 'ok', 'okay', 'solucionado', 'listo', 'resuelto', 'conforme', 'hecho',
-    'finalizado', 'tarea resuelta', 'solicitud atendida', 'se atendio', 'se atendió',
-    'se dio acceso', 'se dio el acceso', 'se dió el acceso', 'se brindo acceso',
-    'se brindó acceso', 'se brindo el acceso', 'se brindó el acceso', 'se brindó soporte',
-    'se configuro perfil', 'se configuró perfil'
-  ]);
-
-  // Un texto se considera "no documentado" si está vacío, es una de las frases
-  // genéricas de cierre más comunes, o es demasiado corto para explicar algo real.
-  function isGenericText(s){
-    if (!s || s === '—') return true;
-    const t = String(s).trim().toLowerCase().replace(/[.\n]+$/, '');
-    if (!t) return true;
-    if (GENERIC_TEXT.has(t)) return true;
-    if (t.length < 20) return true;
-    return false;
-  }
-
-  function renderDocqBar(barId, legendId, documentado, generico, vacio){
-    const total = documentado + generico + vacio;
-    const bar = $(barId);
-    const legend = $(legendId);
-    if (total === 0){
-      bar.innerHTML = '';
-      legend.innerHTML = '<span>Sin datos suficientes.</span>';
-      return;
-    }
-    const pd = (documentado / total * 100).toFixed(0);
-    const pg = (generico / total * 100).toFixed(0);
-    const pv = (vacio / total * 100).toFixed(0);
-    bar.innerHTML = `
-      <span style="width:${pd}%; background:var(--success);"></span>
-      <span style="width:${pg}%; background:var(--warning);"></span>
-      <span style="width:${pv}%; background:var(--danger);"></span>
-    `;
-    legend.innerHTML = `
-      <span><span class="dot" style="background:var(--success);"></span>Documentada — ${pd}%</span>
-      <span><span class="dot" style="background:var(--warning);"></span>Genérica — ${pg}%</span>
-      <span><span class="dot" style="background:var(--danger);"></span>Vacía — ${pv}%</span>
-    `;
-  }
-
-  function renderDocQuality(){
-    const hasTickets = allRows.length > 0;
-    const hasTasks = taskCerradas.length > 0;
-    $('docQualitySection').classList.toggle('hidden', !hasTickets && !hasTasks);
-    $('docqTicketsCard').classList.toggle('hidden', !hasTickets);
-    $('docqTasksCard').classList.toggle('hidden', !hasTasks);
-
-    if (hasTickets){
-      let documentado = 0, generico = 0, vacio = 0;
-      const porServicio = new Map(); // servicio -> {malo, total}
-      allRows.forEach(r => {
-        const sol = r.solucion;
-        const bad = isGenericText(sol);
-        if (!sol || sol === '—') vacio++;
-        else if (bad) generico++;
-        else documentado++;
-
-        if (!porServicio.has(r.servicio)) porServicio.set(r.servicio, { malo: 0, total: 0 });
-        const b = porServicio.get(r.servicio);
-        b.total++;
-        if (bad) b.malo++;
-      });
-      renderDocqBar('docqTicketsBar', 'docqTicketsLegend', documentado, generico, vacio);
-
-      const worst = Array.from(porServicio.entries())
-        .map(([name, b]) => ({ name, count: b.malo, pctBad: b.total ? b.malo / b.total * 100 : 0, total: b.total }))
-        .filter(d => d.total >= 5)
-        .sort((a, b) => b.pctBad - a.pctBad)
-        .slice(0, 6)
-        .map(d => ({ name: `${d.name} (${d.pctBad.toFixed(0)}%)`, count: d.count }));
-      renderCountBreakdown('docqTicketsWorst', worst);
-    }
-
-    if (hasTasks){
-      let documentado = 0, generico = 0, vacio = 0;
-      const porGrupo = new Map();
-      taskCerradas.forEach(t => {
-        const razon = t.razon;
-        const bad = isGenericText(razon);
-        if (!razon || razon === '—') vacio++;
-        else if (bad) generico++;
-        else documentado++;
-
-        if (!porGrupo.has(t.grupoResponsable)) porGrupo.set(t.grupoResponsable, { malo: 0, total: 0 });
-        const b = porGrupo.get(t.grupoResponsable);
-        b.total++;
-        if (bad) b.malo++;
-      });
-      renderDocqBar('docqTasksBar', 'docqTasksLegend', documentado, generico, vacio);
-
-      const worst = Array.from(porGrupo.entries())
-        .map(([name, b]) => ({ name, count: b.malo, pctBad: b.total ? b.malo / b.total * 100 : 0, total: b.total }))
-        .filter(d => d.total >= 3)
-        .sort((a, b) => b.pctBad - a.pctBad)
-        .slice(0, 6)
-        .map(d => ({ name: `${d.name} (${d.pctBad.toFixed(0)}%)`, count: d.count }));
-      renderCountBreakdown('docqTasksWorst', worst);
-    }
-  }
-
   // ---------------- Ranking de especialistas (B) ----------------
 
   let rankingSortState = { key: 'ticketsTotal', dir: 'desc' };
@@ -3070,7 +2971,6 @@
     $('statTaskEstancadas').textContent = estancadas.length;
     $('statTaskMediana').textContent = medianMin == null ? '—' : formatDuration(medianMin);
 
-    try { renderCountBreakdown('byGrupoResponsableTask', groupCount(taskAbiertas, t => t.grupoResponsable)); } catch(err){ console.error('Error en tareas abiertas por grupo:', err); }
     try { renderCountBreakdown('byCasoPendiente', groupCount(taskAbiertas, t => t.caso)); } catch(err){ console.error('Error en casos con más tareas pendientes:', err); }
     try { renderCountBreakdown('byResponsableTask', groupCount(taskAbiertas, t => t.responsable)); } catch(err){ console.error('Error en responsables con más tareas abiertas:', err); }
 
@@ -3186,91 +3086,6 @@
     a.click();
     URL.revokeObjectURL(url);
   });
-
-  // ---------------- Cuellos de botella entre tareas (F) ----------------
-
-  let bottleneckSortState = { key: 'totalDias', dir: 'desc' };
-  const BOTTLENECK_LIMIT = 20;
-
-  // Usa tasksByCaso (ya filtrado por el rango de fechas activo) para encontrar casos
-  // con 2+ tareas y medir cuánto tardó el caso completo de punta a punta: desde el
-  // registro de su primera tarea hasta el cierre de la última (o "ahora" si sigue abierto).
-  function buildBottlenecks(){
-    const rows = [];
-    tasksByCaso.forEach((tasks, caso) => {
-      if (tasks.length < 2) return;
-      const starts = tasks.map(t => t.fechaRegistro).filter(Boolean);
-      if (!starts.length) return;
-      const start = new Date(Math.min(...starts.map(d => d.getTime())));
-      const stillOpen = tasks.some(t => t.abierta);
-
-      let end;
-      if (stillOpen){
-        end = new Date();
-      } else {
-        const closes = tasks.map(t => t.fechaCierre).filter(Boolean);
-        end = closes.length ? new Date(Math.max(...closes.map(d => d.getTime()))) : null;
-      }
-      if (!end) return;
-
-      const totalMin = Math.round((end - start) / 60000);
-      let slowest = tasks[0];
-      tasks.forEach(t => { if ((t.dias || 0) > (slowest.dias || 0)) slowest = t; });
-
-      rows.push({
-        caso,
-        count: tasks.length,
-        groups: new Set(tasks.map(t => t.grupoResponsable)).size,
-        slowestGroup: slowest.grupoResponsable,
-        totalMin,
-        totalDias: totalMin / 1440,
-        stillOpen
-      });
-    });
-    return rows;
-  }
-
-  function renderBottlenecks(){
-    const allBottlenecks = buildBottlenecks();
-    const { key, dir } = bottleneckSortState;
-    allBottlenecks.sort((a, b) => {
-      let av = a[key], bv = b[key];
-      if (typeof av === 'string'){ av = av.toLowerCase(); bv = String(bv).toLowerCase(); }
-      else if (typeof av === 'boolean'){ av = av ? 1 : 0; bv = bv ? 1 : 0; }
-      if (av < bv) return dir === 'asc' ? -1 : 1;
-      if (av > bv) return dir === 'asc' ? 1 : -1;
-      return 0;
-    });
-    const rows = allBottlenecks.slice(0, BOTTLENECK_LIMIT);
-
-    $('bottleneckSub').textContent = allBottlenecks.length > BOTTLENECK_LIMIT
-      ? `Mostrando los ${BOTTLENECK_LIMIT} casos más lentos de ${allBottlenecks.length} con 2+ tareas`
-      : `${allBottlenecks.length} caso${allBottlenecks.length === 1 ? '' : 's'} con 2 o más tareas`;
-    $('bottleneckTable').classList.toggle('hidden', rows.length === 0);
-    $('emptyBottleneck').classList.toggle('hidden', rows.length !== 0);
-
-    updateSortArrow('#bottleneckTable', key, dir);
-
-    $('bottleneckBody').innerHTML = rows.map(r => `
-      <tr>
-        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.caso)}" title="Ver todas las tareas de este caso">${escapeHtml(r.caso)}</td>
-        <td class="mono">${r.count}</td>
-        <td class="mono">${r.groups}</td>
-        <td>${escapeHtml(r.slowestGroup)}</td>
-        <td class="mono" style="color:${daysColor(r.totalDias)}; font-weight:600;">${formatDuration(r.totalMin)}</td>
-        <td>${r.stillOpen ? '<span class="estado-badge abierta">En curso</span>' : '<span class="estado-badge cerrada">Completo</span>'}</td>
-      </tr>
-    `).join('');
-
-    $('bottleneckBody').querySelectorAll('.ticket-id.clickable').forEach(td => {
-      td.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openTaskModal(td.dataset.ticket);
-      });
-    });
-  }
-
-  wireSortableHeaders('#bottleneckTable thead th', bottleneckSortState, renderBottlenecks, key => (key === 'caso' || key === 'slowestGroup') ? 'asc' : 'desc');
 
   // ---------------- Pestaña "Tendencias": horas hasta el 100% de progreso ----------------
 
@@ -3819,17 +3634,19 @@
     cumplen: 'tickets_cumplen.csv'
   };
 
-  [$('pageTabGeneral'), $('pageTabDashboard'), $('pageTabAnalysis'), $('pageTabTendencias')].forEach(btn => {
+  [$('pageTabGeneral'), $('pageTabDashboard'), $('pageTabAnalysis'), $('pageTabTendencias'), $('pageTabRegistro')].forEach(btn => {
     btn.addEventListener('click', () => {
       const page = btn.dataset.targetPage;
       $('pageTabGeneral').classList.toggle('active', page === 'general');
       $('pageTabDashboard').classList.toggle('active', page === 'dashboardExtra');
       $('pageTabAnalysis').classList.toggle('active', page === 'analysis');
       $('pageTabTendencias').classList.toggle('active', page === 'tendencias');
+      $('pageTabRegistro').classList.toggle('active', page === 'registro');
       document.body.classList.toggle('page-view-general', page === 'general');
       document.body.classList.toggle('page-view-dashboardExtra', page === 'dashboardExtra');
       document.body.classList.toggle('page-view-analysis', page === 'analysis');
       document.body.classList.toggle('page-view-tendencias', page === 'tendencias');
+      document.body.classList.toggle('page-view-registro', page === 'registro');
       // Los gráficos (Chart.js) de esta pestaña se dibujan cuando llegan datos, que puede
       // pasar mientras el usuario todavía está en "Resumen" (contenedor en display:none).
       // Un canvas creado con tamaño 0 puede quedar en blanco, así que al entrar a
@@ -5114,11 +4931,261 @@
   $('anBtnNewKb').addEventListener('click', () => anOpenKbModal(null));
   $('anBtnNewAccion').addEventListener('click', () => anOpenAccionModal(null));
 
+  // ---------------- Registro de tickets vencidos ----------------
+  // Lista los tickets de la pestaña "Vencidos" del Resumen (cerrados con >100% de progreso,
+  // dentro del rango de fechas activo) y permite registrar, por ticket:
+  //   - Fecha real sustentada  (obligatoria; entre la fecha de registro y hoy)
+  //   - Sustento de atención   (obligatorio)
+  //   - Acción inmediata       (opcional)
+  // Estado: Pendiente (nada registrado) · Incompleto (falta fecha o sustento) · Sustentado.
+  // Los datos se guardan en el navegador (localStorage) y, si el servidor tiene el endpoint
+  // /api/sustentos, también allí (mismo esquema que /api/causas). Sin endpoint, sigue
+  // funcionando solo con el navegador y se avisa en pantalla.
+
+  const RG_LS_KEY = 'registroVencidosV1';
+  const RG_ORDEN = { pendiente: 0, incompleto: 1, sustentado: 2 };
+  const RG_LABEL = { pendiente: 'Pendiente', incompleto: 'Incompleto', sustentado: 'Sustentado' };
+  let rgRecords = new Map();   // ticket -> { fechaReal:'YYYY-MM-DD', sustento, accion, updatedAt }
+  let rgSort = { key: 'estado', dir: 'asc' };
+  let rgServerOk = null;       // null = aún no se probó · true = hay /api/sustentos · false = solo navegador
+  let rgLocalFailed = false;
+
+  function rgLoadLocal(){
+    try{
+      const raw = localStorage.getItem(RG_LS_KEY);
+      if (!raw) return;
+      const obj = JSON.parse(raw);
+      Object.keys(obj).forEach(k => rgRecords.set(k, obj[k]));
+    }catch(err){ console.warn('No se pudo leer el registro local:', err.message); }
+  }
+
+  function rgSaveLocal(){
+    try{
+      localStorage.setItem(RG_LS_KEY, JSON.stringify(Object.fromEntries(rgRecords)));
+      rgLocalFailed = false;
+    }catch(err){
+      rgLocalFailed = true;
+      console.warn('No se pudo guardar el registro en el navegador:', err.message);
+    }
+  }
+
+  function rgEstado(rec){
+    if (!rec) return 'pendiente';
+    const f = !!rec.fechaReal;
+    const s = !!(rec.sustento && rec.sustento.trim());
+    const a = !!(rec.accion && rec.accion.trim());
+    if (f && s) return 'sustentado';
+    if (f || s || a) return 'incompleto';
+    return 'pendiente';
+  }
+
+  function rgBadge(est){ return `<span class="rg-badge ${est}">${RG_LABEL[est]}</span>`; }
+  function rgFmtIso(s){ return s ? s.split('-').reverse().join('/') : ''; }
+  function rgRecOf(r){ return rgRecords.get(String(r.ticket)); }
+
+  function rgUpdateStorageNote(){
+    const note = $('registroStorageNote');
+    let msg = '';
+    if (rgLocalFailed) msg = 'No se pudo guardar en este navegador (almacenamiento bloqueado o lleno). Los cambios se perderán al recargar.';
+    else if (rgServerOk === false) msg = 'Los registros se guardan solo en este navegador: el servidor aún no tiene el endpoint /api/sustentos, así que no se comparten con otros equipos ni sobreviven a borrar los datos del navegador.';
+    note.textContent = msg;
+    note.classList.toggle('hidden', !msg);
+  }
+
+  function rgUpdateSummary(){
+    const counts = { pendiente: 0, incompleto: 0, sustentado: 0 };
+    vencidos.forEach(r => { counts[rgEstado(rgRecOf(r))]++; });
+    $('registroSub').textContent = vencidos.length
+      ? `${vencidos.length} ticket${vencidos.length === 1 ? '' : 's'} vencido${vencidos.length === 1 ? '' : 's'} · ${counts.sustentado} sustentado${counts.sustentado === 1 ? '' : 's'} · ${counts.incompleto} incompleto${counts.incompleto === 1 ? '' : 's'} · ${counts.pendiente} pendiente${counts.pendiente === 1 ? '' : 's'}`
+      : '0 tickets vencidos';
+  }
+
+  function rgList(){
+    const term = $('registroSearch').value.trim().toLowerCase();
+    const filtroEstado = $('registroEstadoFilter').value;
+    const list = vencidos.filter(r => {
+      const rec = rgRecOf(r);
+      if (filtroEstado && rgEstado(rec) !== filtroEstado) return false;
+      if (!term) return true;
+      return [r.ticket, r.especialista, r.servicio, r.asunto, rec && rec.sustento, rec && rec.accion]
+        .some(v => String(v ?? '').toLowerCase().includes(term));
+    });
+    const { key, dir } = rgSort;
+    const val = (r) => {
+      if (key === 'estado') return RG_ORDEN[rgEstado(rgRecOf(r))];
+      if (key === 'pct') return r.pct;
+      if (key === 'fechaReal') return (rgRecOf(r) || {}).fechaReal || '';
+      if (key === 'fechaRegistro' || key === 'fechaCierre') return r[key] ? new Date(r[key]).getTime() : 0;
+      return String(r[key] ?? '').toLowerCase();
+    };
+    return list.sort((a, b) => {
+      const av = val(a), bv = val(b);
+      if (av < bv) return dir === 'asc' ? -1 : 1;
+      if (av > bv) return dir === 'asc' ? 1 : -1;
+      return b.pct - a.pct; // desempate: mayor exceso primero
+    });
+  }
+
+  function renderRegistro(){
+    const body = $('registroBody');
+    // Si el usuario está escribiendo en una fila, se confirma (blur => change => guardado)
+    // antes de redibujar, para no perder lo que aún no se había guardado.
+    if (document.activeElement && body.contains(document.activeElement)) document.activeElement.blur();
+
+    const list = rgList();
+    const hoy = toInputDate(new Date());
+    updateSortArrow('#registroTable', rgSort.key, rgSort.dir);
+    $('registroTable').classList.toggle('hidden', list.length === 0);
+    $('registroEmpty').classList.toggle('hidden', list.length !== 0);
+    $('registroEmpty').textContent = vencidos.length
+      ? 'Ningún ticket coincide con los filtros.'
+      : 'No hay tickets vencidos en este periodo.';
+
+    body.innerHTML = list.map(r => {
+      const id = String(r.ticket);
+      const rec = rgRecOf(r) || {};
+      const min = r.fechaRegistro ? toInputDate(new Date(r.fechaRegistro)) : '';
+      return `
+      <tr data-ticket="${escapeHtml(id)}">
+        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(id)}" title="Ver tareas de este caso">${escapeHtml(id)}</td>
+        <td class="cell-servicio" title="${escapeHtml(r.servicio)}">${escapeHtml(r.servicio)}</td>
+        <td>${escapeHtml(r.especialista)}</td>
+        <td class="mono">${r.fechaRegistro ? fmtDateShort(r.fechaRegistro) : '—'}</td>
+        <td class="mono">${r.fechaCierre ? fmtDateShort(r.fechaCierre) : '—'}</td>
+        <td><span class="pct-badge">${r.pct}%</span></td>
+        <td>
+          <input type="date" class="rg-input rg-date" data-field="fechaReal" value="${escapeHtml(rec.fechaReal || '')}" min="${min}" max="${hoy}">
+          <div class="rg-hint"></div>
+        </td>
+        <td><textarea class="rg-input" rows="2" maxlength="1000" data-field="sustento" placeholder="Qué se hizo y en qué evidencia se sustenta…">${escapeHtml(rec.sustento || '')}</textarea></td>
+        <td><textarea class="rg-input" rows="2" maxlength="500" data-field="accion" placeholder="Opcional">${escapeHtml(rec.accion || '')}</textarea></td>
+        <td class="rg-estado-cell">${rgBadge(rgEstado(rec))}</td>
+      </tr>`;
+    }).join('');
+
+    body.querySelectorAll('.ticket-id.clickable').forEach(td => {
+      td.addEventListener('click', () => openTaskModal(td.dataset.ticket));
+    });
+    rgUpdateSummary();
+    rgUpdateStorageNote();
+  }
+
+  // Guardado por campo, al confirmar el cambio (al salir del campo / elegir la fecha).
+  // No se redibuja la tabla: solo se actualiza la insignia de estado y el resumen,
+  // para que las filas no salten de lugar mientras se escribe.
+  $('registroBody').addEventListener('change', (e) => {
+    const el = e.target;
+    const field = el.dataset && el.dataset.field;
+    if (!field) return;
+    const tr = el.closest('tr');
+    const ticket = tr.dataset.ticket;
+    let value = el.value.trim();
+
+    if (field === 'fechaReal'){
+      const hint = tr.querySelector('.rg-hint');
+      let error = '';
+      if (value && el.min && value < el.min) error = `No puede ser anterior al registro (${rgFmtIso(el.min)})`;
+      else if (value && el.max && value > el.max) error = 'No puede ser una fecha futura';
+      el.classList.toggle('invalid', !!error);
+      hint.textContent = error;
+      if (error) return; // fecha fuera de rango: no se guarda
+    }
+
+    const prev = rgRecords.get(ticket) || {};
+    const rec = {
+      fechaReal: prev.fechaReal || '',
+      sustento: prev.sustento || '',
+      accion: prev.accion || '',
+      updatedAt: new Date().toISOString()
+    };
+    rec[field] = value;
+
+    const vacio = !rec.fechaReal && !rec.sustento && !rec.accion;
+    if (vacio) rgRecords.delete(ticket); else rgRecords.set(ticket, rec);
+    rgSaveLocal();
+
+    tr.querySelector('.rg-estado-cell').innerHTML = rgBadge(rgEstado(vacio ? null : rec));
+    rgUpdateSummary();
+    rgUpdateStorageNote();
+    rgPush(ticket, rec);
+  });
+
+  $('registroBody').addEventListener('input', (e) => {
+    if (e.target.tagName === 'TEXTAREA'){ e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }
+  });
+
+  async function rgPush(ticket, rec){
+    if (rgServerOk === false) return;
+    try{
+      const res = await fetch('/api/sustentos', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket, fechaReal: rec.fechaReal, sustento: rec.sustento, accion: rec.accion })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+    }catch(err){
+      console.warn('No se pudo guardar el registro en el servidor:', err.message);
+    }
+  }
+
+  async function rgInit(){
+    rgLoadLocal();
+    try{
+      const res = await fetch('/api/sustentos').then(r => r.ok ? r.json() : null);
+      if (res && res.ok && Array.isArray(res.sustentos)){
+        rgServerOk = true;
+        const server = new Map(res.sustentos.map(x => [String(x.ticket), {
+          fechaReal: x.fechaReal || '', sustento: x.sustento || '', accion: x.accion || '', updatedAt: x.updatedAt || ''
+        }]));
+        server.forEach((srv, t) => {
+          const loc = rgRecords.get(t);
+          if (!loc || (srv.updatedAt || '') >= (loc.updatedAt || '')) rgRecords.set(t, srv);
+        });
+        // Lo que solo existe en el navegador (o es más reciente) se sube al servidor.
+        rgRecords.forEach((loc, t) => {
+          const srv = server.get(t);
+          if (!srv || (loc.updatedAt || '') > (srv.updatedAt || '')) rgPush(t, loc);
+        });
+        rgSaveLocal();
+      } else {
+        rgServerOk = false;
+      }
+    }catch(err){ rgServerOk = false; }
+    renderRegistro();
+  }
+
+  wireSortableHeaders('#registroTable thead th[data-key]', rgSort, renderRegistro,
+    key => ['ticket','servicio','especialista','estado'].includes(key) ? 'asc' : 'desc');
+  $('registroSearch').addEventListener('input', renderRegistro);
+  $('registroEstadoFilter').addEventListener('change', renderRegistro);
+
+  $('btnExportRegistro').addEventListener('click', () => {
+    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const header = ['Ticket','Servicio','Especialista','Fecha Registro','Fecha Cierre','Progreso','Fecha real sustentada','Sustento de atención','Acción inmediata','Estado'];
+    const lines = [header.map(q).join(';')];
+    rgList().forEach(r => {
+      const rec = rgRecOf(r) || {};
+      lines.push([
+        r.ticket, r.servicio, r.especialista,
+        r.fechaRegistro ? fmtDate(r.fechaRegistro) : '', r.fechaCierre ? fmtDate(r.fechaCierre) : '',
+        r.pct + '%', rgFmtIso(rec.fechaReal || ''), rec.sustento || '', rec.accion || '',
+        RG_LABEL[rgEstado(rec)]
+      ].map(q).join(';'));
+    });
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'registro_tickets_vencidos.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
   async function anInit(){
     await Promise.all([anLoadCausas(), anLoadKb(), anLoadAcciones(), anLoadThresholds()]);
     anRenderAll();
   }
   anInit();
+  rgInit();
 
   loadFromServer();
 
