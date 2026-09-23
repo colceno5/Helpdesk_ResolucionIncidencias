@@ -18,6 +18,11 @@ actualiza esos registros en vez de duplicarlos).
 - `app/api/causas/route.js` — guarda la causa de demora que registres para
   cada ticket vencido (independiente de la tabla de tickets, para no perderse
   al volver a subir el mismo periodo).
+- `app/api/sustentos/route.js` — guarda los sustentos de la pestaña **"Registro
+  de vencidos"** (fecha real, sustento, acción inmediata y estado del candado)
+  por ticket o tarea, en la tabla `sustentos`, compartidos entre equipos. Los
+  datos originales de Aranda siguen intactos en `tickets`/`tasks`, por eso el
+  historial "antes y después" siempre se puede reconstruir.
 - `app/api/kb/route.js` — CRUD de los artículos de la base de conocimientos.
 - `app/api/acciones/route.js` — CRUD del plan de acciones de mejora.
 - `lib/db.js` — crea todas las tablas la primera vez que hace falta.
