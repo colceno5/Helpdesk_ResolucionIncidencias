@@ -805,6 +805,25 @@
   .rg-input:disabled{ background:transparent; color:var(--ink); opacity:.9; cursor:not-allowed; resize:none; }
   .rg-legend{ display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--ink-soft); margin:0 0 10px; line-height:1.4; }
   .rg-dot{ flex:0 0 auto; width:11px; height:11px; margin-top:2px; border-radius:3px; background:var(--adj-bg); border:1px solid var(--adj); }
+  #historialBlock .table-scroll{ max-height:560px; }
+  #historialTable{ min-width:1320px; font-size:13px; }
+  #historialTable thead th{ cursor:default; }
+  #historialTable thead th:hover{ color:var(--ink-soft); }
+  #historialTable tbody td{ padding:10px 10px; }
+  #historialTable td.hs-fecha{ white-space:normal; }
+  #historialTable tr.rg-ajustado td{ background:var(--adj-bg); }
+  #historialTable tr.rg-ajustado td:first-child{ box-shadow:inset 3px 0 0 var(--adj); }
+  .hs-antes{ color:var(--ink-soft); }
+  .hs-desp{ font-weight:600; }
+  .hs-proy{ font-style:italic; color:var(--ink-faint); font-weight:400; }
+  .hs-txt{ white-space:normal; min-width:240px; max-width:380px; line-height:1.4; }
+  .hs-txt .rg-sub{ margin-top:5px; }
+  .hs-badge{ display:inline-block; font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:100px; white-space:nowrap; }
+  .hs-badge.on{ background:var(--adj); color:#fff; }
+  .hs-badge.off{ background:var(--surface-sunken); color:var(--ink-soft); }
+  .hs-res{ display:block; margin-top:3px; font-size:11.5px; font-weight:600; }
+  .hs-res.ok{ color:var(--success); }
+  .hs-res.bad{ color:var(--danger); }
   .rg-note{
     font-size:12px; color:var(--ink-soft); background:var(--surface-sunken);
     border-radius:var(--radius-s); padding:7px 10px; margin-bottom:10px;
@@ -1291,6 +1310,45 @@
         </table>
       </div>
       <div class="empty-detail hidden" id="registroEmpty">No hay tickets ni tareas vencidos en este periodo.</div>
+    </section>
+
+    <section class="table-section" id="historialBlock" style="margin-top:16px;">
+      <div class="table-head">
+        <div>
+          <h3>Historial de sustentos: antes y después</h3>
+          <div class="sub" id="historialSub">0 sustentados</div>
+        </div>
+        <div class="table-actions">
+          <select class="an-select-inline" id="historialFilter" style="max-width:170px; padding:7px 8px; font-size:13px;">
+            <option value="">Todos</option>
+            <option value="aplicado">Con candado (aplicados)</option>
+            <option value="pendiente">Sin aplicar</option>
+          </select>
+          <button id="btnExportHistorial">Descargar CSV</button>
+        </div>
+      </div>
+      <div class="rg-legend"><span class="rg-dot"></span><span>Compara cada registro sustentado con sus datos <b>originales</b> (los del archivo de Aranda) y con el resultado <b>después</b> del sustento. Los que tienen el candado activo están en <b>naranja</b>; en los demás, la columna "Después" es una <i>proyección</i> de lo que pasaría al activarlo. Incluye todos los sustentos guardados, sin importar el rango de fechas.</span></div>
+      <div class="table-scroll">
+        <table id="historialTable">
+          <thead>
+            <tr>
+              <th class="no-sort">Ticket / Tarea</th>
+              <th class="no-sort">Servicio</th>
+              <th class="no-sort">Especialista / Responsable</th>
+              <th class="no-sort">Cierre antes</th>
+              <th class="no-sort">Progreso antes</th>
+              <th class="no-sort">Cierre después (fecha real)</th>
+              <th class="no-sort">Progreso después</th>
+              <th class="no-sort">Variación</th>
+              <th class="no-sort">Sustento y acción</th>
+              <th class="no-sort">Candado</th>
+              <th class="no-sort">Último cambio</th>
+            </tr>
+          </thead>
+          <tbody id="historialBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-detail hidden" id="historialEmpty">Aún no hay registros sustentados.</div>
     </section>
    </div>
 
@@ -5079,14 +5137,13 @@
   //    (registro->cierre original).
   //  - Tarea: cierra en la fecha real, con la duración recalculada.
   // Si los datos no alcanzan para recalcular, la fila se devuelve sin cambios.
-  function rgAjusteTicket(r){
-    if (!rgReady) return r;
-    const rec = rgRecords.get(String(r.ticket));
-    if (!rgAplicado(rec)) return r;
+  // rgCalc*: resultado de aplicar el sustento (o null si no alcanzan los datos). No mira el
+  // candado, así el historial también puede mostrar lo proyectado de los que aún no se aplican.
+  function rgCalcTicket(r, rec){
     const real = rgRealDate(rec.fechaReal), reg = toDateSafe(r.fechaRegistro), cie = toDateSafe(r.fechaCierre);
-    if (!real || !reg || !cie || r.pct == null) return r;
+    if (!real || !reg || !cie || r.pct == null) return null;
     const base = cie - reg, transc = real - reg;
-    if (!(base > 0) || transc < 0) return r;
+    if (!(base > 0) || transc < 0) return null;
     const pct = Math.round(r.pct * transc / base * 10) / 10;
     return Object.assign({}, r, {
       fechaCierre: real, pct, cumple: pct <= 100, progresoRaw: pct + '%',
@@ -5095,18 +5152,25 @@
       orig: { fechaCierre: r.fechaCierre, pct: r.pct, cumple: r.cumple, tiempo: r.tiempo }
     });
   }
-  function rgAjusteTarea(t){
-    if (!rgReady) return t;
-    const rec = rgRecords.get('T:' + t.tarea);
-    if (!rgAplicado(rec)) return t;
+  function rgCalcTarea(t, rec){
     const real = rgRealDate(rec.fechaReal), reg = t.fechaRegistro;
-    if (!real || !reg || real < reg) return t;
+    if (!real || !reg || real < reg) return null;
     return Object.assign({}, t, {
       fechaCierre: real, abierta: false,
       dias: (real - reg) / 86400000, minutos: Math.round((real - reg) / 60000),
       ajustado: true,
       orig: { fechaCierre: t.fechaCierre, abierta: t.abierta, dias: t.dias, minutos: t.minutos }
     });
+  }
+  function rgAjusteTicket(r){
+    if (!rgReady) return r;
+    const rec = rgRecords.get(String(r.ticket));
+    return rgAplicado(rec) ? (rgCalcTicket(r, rec) || r) : r;
+  }
+  function rgAjusteTarea(t){
+    if (!rgReady) return t;
+    const rec = rgRecords.get('T:' + t.tarea);
+    return rgAplicado(rec) ? (rgCalcTarea(t, rec) || t) : t;
   }
   // Etiqueta "ajustado" (con el dato original en el tooltip) para las demás tablas.
   function adjBadge(x){
@@ -5329,7 +5393,110 @@
     rgAutosize(body);
     rgUpdateSummary();
     rgUpdateStorageNote();
+    renderHistorial();
   }
+
+  // ---------------- Historial de sustentos: antes y después ----------------
+  // Una fila por registro sustentado (con fecha real y sustento), tomando los datos ORIGINALES
+  // de allRowsRaw / taskMap para el "antes" y el cálculo del sustento para el "después". Si el
+  // candado no está activo, el "después" es una proyección. No depende del rango de fechas.
+  function rgHistorial(){
+    const tickets = new Map(allRowsRaw.map(r => [String(r.ticket), r]));
+    const ahora = new Date();
+    const filas = [];
+    rgRecords.forEach((rec, key) => {
+      if (rgEstado(rec) !== 'sustentado') return;
+      const esTarea = key.startsWith('T:');
+      const f = { key, kind: esTarea ? 'tarea' : 'ticket', id: esTarea ? key.slice(2) : key, ticket: key,
+        servicio: '—', asunto: '', responsable: '—', grupo: '',
+        antesCierre: null, antesVal: null, despCierre: rgRealDate(rec.fechaReal), despVal: null,
+        delta: null, resultado: '', aplicado: !!rec.aplicado, rec, cargado: false };
+      if (esTarea){
+        const t = taskMap.get(key.slice(2));
+        if (t){
+          f.cargado = true; f.ticket = String(t.caso); f.asunto = t.asunto;
+          f.responsable = t.responsable; f.grupo = t.grupoResponsable;
+          const p = tickets.get(String(t.caso)); if (p) f.servicio = p.servicio;
+          const fin = t.fechaCierre || (t.abierta ? ahora : null);
+          f.antesCierre = t.fechaCierre;
+          f.antesVal = (t.fechaRegistro && fin) ? (fin - t.fechaRegistro) / 3600000 : null;
+          const c = rgCalcTarea(t, rec);
+          if (c){ f.despVal = c.minutos / 60; if (f.antesVal != null) f.delta = f.despVal - f.antesVal; }
+        }
+      } else {
+        const r = tickets.get(key);
+        if (r){
+          f.cargado = true; f.servicio = r.servicio; f.asunto = r.asunto; f.responsable = r.especialista;
+          f.antesCierre = r.fechaCierre; f.antesVal = r.pct;
+          const c = rgCalcTicket(r, rec);
+          if (c){ f.despVal = c.pct; f.delta = c.pct - r.pct; f.resultado = c.pct <= 100 ? 'ok' : 'bad'; }
+        }
+      }
+      filas.push(f);
+    });
+    return filas.sort((x, y) => String(y.rec.updatedAt || '').localeCompare(String(x.rec.updatedAt || '')));
+  }
+  function rgFmtDelta(f){
+    if (f.delta == null) return '—';
+    const n = f.delta.toLocaleString('es-PE', { maximumFractionDigits: 1 });
+    return (f.delta > 0 ? '+' : '') + n + (f.kind === 'tarea' ? ' h' : ' pts');
+  }
+  function rgFmtVal(f, v){ return v == null ? '—' : (f.kind === 'tarea' ? rgFmtHoras(v) : rgFmtPct(v)); }
+  function renderHistorial(){
+    const filtro = $('historialFilter').value;
+    const todas = rgHistorial();
+    const aplic = todas.filter(f => f.aplicado).length;
+    $('historialSub').textContent = todas.length
+      ? `${todas.length} sustentado${todas.length === 1 ? '' : 's'} · ${aplic} con candado · ${todas.length - aplic} sin aplicar`
+      : '0 sustentados';
+    const list = todas.filter(f => !filtro || (filtro === 'aplicado' ? f.aplicado : !f.aplicado));
+    $('historialTable').classList.toggle('hidden', list.length === 0);
+    $('historialEmpty').classList.toggle('hidden', list.length !== 0);
+    $('historialEmpty').textContent = todas.length ? 'Ningún registro coincide con el filtro.' : 'Aún no hay registros sustentados.';
+    $('historialBody').innerHTML = list.map(f => {
+      const esTarea = f.kind === 'tarea';
+      const proy = f.aplicado ? '' : ' hs-proy';
+      const tituloProy = f.aplicado ? '' : ' title="Proyección: se aplicará al activar el candado"';
+      const sinDatos = !f.cargado ? '<div class="rg-sub">No está en los datos cargados</div>' : '';
+      const cierreAntes = esTarea && f.cargado && !f.antesCierre ? 'Abierta' : (f.antesCierre ? fmtDate(f.antesCierre) : '—');
+      return `
+      <tr class="${f.aplicado ? 'rg-ajustado' : ''}">
+        <td class="mono ticket-id">${escapeHtml(f.id)}${esTarea ? `<div class="rg-sub"><span class="rg-tag">Tarea</span> ${escapeHtml(f.ticket)}</div>` : ''}${sinDatos}</td>
+        <td>${escapeHtml(f.servicio)}${esTarea && f.asunto ? `<div class="rg-sub">${escapeHtml(f.asunto)}</div>` : ''}</td>
+        <td>${escapeHtml(f.responsable)}${esTarea && f.grupo && f.grupo !== '—' ? `<div class="rg-sub">${escapeHtml(f.grupo)}</div>` : ''}</td>
+        <td class="mono hs-fecha hs-antes">${cierreAntes}</td>
+        <td class="hs-antes">${esTarea ? `<span class="rg-hours">${rgFmtVal(f, f.antesVal)}</span>` : (f.antesVal == null ? '—' : `<span class="pct-badge">${f.antesVal}%</span>`)}</td>
+        <td class="mono hs-fecha hs-desp${proy}"${tituloProy}>${f.despCierre ? fmtDate(f.despCierre) : '—'}</td>
+        <td class="hs-desp${proy}"${tituloProy}>${f.despVal == null ? '—' : (esTarea ? `<span class="rg-hours">${rgFmtVal(f, f.despVal)}</span>` : `<span class="pct-badge ${f.despVal <= 100 ? 'ok' : ''}">${rgFmtPct(f.despVal)}</span>`)}</td>
+        <td class="${proy}"${tituloProy}>${rgFmtDelta(f)}${f.resultado ? `<span class="hs-res ${f.resultado}">${f.resultado === 'ok' ? 'Pasa a cumplir SLA' : 'Sigue vencido'}</span>` : ''}</td>
+        <td class="hs-txt">${escapeHtml(f.rec.sustento || '')}${f.rec.accion ? `<div class="rg-sub"><b>Acción:</b> ${escapeHtml(f.rec.accion)}</div>` : ''}</td>
+        <td><span class="hs-badge ${f.aplicado ? 'on' : 'off'}">${f.aplicado ? 'Aplicado' : 'Sin aplicar'}</span></td>
+        <td class="mono hs-fecha">${f.rec.updatedAt ? fmtDate(new Date(f.rec.updatedAt)) : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+  $('historialFilter').addEventListener('change', renderHistorial);
+  $('btnExportHistorial').addEventListener('click', () => {
+    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const header = ['Tipo','Ticket','Tarea','Servicio','Especialista / Responsable','Cierre antes','Progreso antes','Cierre después (fecha real)','Progreso después','Variación','Sustento','Acción inmediata','Candado','Último cambio'];
+    const lines = [header.map(q).join(';')];
+    const filtro = $('historialFilter').value;
+    rgHistorial().filter(f => !filtro || (filtro === 'aplicado' ? f.aplicado : !f.aplicado)).forEach(f => {
+      const esTarea = f.kind === 'tarea';
+      lines.push([
+        esTarea ? 'Tarea' : 'Ticket', f.ticket, esTarea ? f.id : '', f.servicio, f.responsable,
+        f.antesCierre ? fmtDate(f.antesCierre) : (esTarea && f.cargado ? 'Abierta' : ''),
+        rgFmtVal(f, f.antesVal), f.despCierre ? fmtDate(f.despCierre) : '',
+        rgFmtVal(f, f.despVal) + (f.aplicado ? '' : ' (proyectado)'), rgFmtDelta(f),
+        f.rec.sustento || '', f.rec.accion || '', f.aplicado ? 'Aplicado' : 'Sin aplicar',
+        f.rec.updatedAt ? fmtDate(new Date(f.rec.updatedAt)) : ''
+      ].map(q).join(';'));
+    });
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'historial_sustentos.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
 
   // Los cuadros de texto crecen hasta mostrar todo lo escrito (sin barra interna).
   function rgAutosize(root){
@@ -5390,6 +5557,7 @@
     tr.querySelector('.rg-estado-cell').innerHTML = rgEstadoCell(vacio ? null : rec);   // aparece el candado al quedar sustentado
     rgUpdateSummary();
     rgUpdateStorageNote();
+    renderHistorial();
     rgPush(ticket, rec);
   });
 
