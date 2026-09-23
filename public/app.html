@@ -755,7 +755,17 @@
   .rg-badge.pendiente{ background:var(--surface-sunken); color:var(--ink-soft); }
   .rg-badge.incompleto{ background:var(--warning-bg); color:var(--warning); }
   .rg-badge.sustentado{ background:var(--success-bg); color:var(--success); }
-  #registroTable tr.rg-row-tarea td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
+  #registroTable tr.rg-row-tarea td{ background:var(--surface-sunken); }
+  #registroTable tr.rg-row-tarea td:first-child{ box-shadow:inset 3px 0 0 var(--accent); padding-left:18px; }
+  .rg-toggle{
+    font-family:'IBM Plex Sans', sans-serif; font-size:11.5px; font-weight:500; line-height:1.2;
+    margin-top:4px; padding:2px 8px 2px 6px; cursor:pointer; white-space:nowrap;
+    border:1px solid var(--border); border-radius:100px; background:var(--surface); color:var(--ink-soft);
+  }
+  .rg-toggle:hover{ border-color:var(--accent); color:var(--ink); }
+  .rg-caret{ display:inline-block; transition:transform .15s; }
+  .rg-toggle[aria-expanded="true"] .rg-caret{ transform:rotate(90deg); }
+  .rg-hours{ display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:100px; background:var(--surface); border:1px solid var(--border); color:var(--ink-soft); white-space:nowrap; }
   .rg-sub{ font-family:'IBM Plex Sans', sans-serif; font-weight:400; font-size:11px; color:var(--ink-soft); margin-top:3px; line-height:1.3; }
   .rg-tag{ display:inline-block; font-weight:600; font-size:10.5px; padding:1px 6px; border-radius:100px; background:var(--surface-sunken); color:var(--ink-soft); margin-right:2px; }
   .rg-note{
@@ -1218,11 +1228,6 @@
             <option value="incompleto">Incompletos</option>
             <option value="sustentado">Sustentados</option>
           </select>
-          <select class="an-select-inline" id="registroTipoFilter" style="max-width:170px; padding:7px 8px; font-size:13px;">
-            <option value="">Tickets y tareas</option>
-            <option value="ticket">Solo tickets</option>
-            <option value="tarea">Solo tareas</option>
-          </select>
           <input type="text" class="search-box" id="registroSearch" placeholder="Buscar ticket, tarea, responsable, sustento…">
           <button id="btnExportRegistro">Descargar CSV</button>
         </div>
@@ -1237,7 +1242,7 @@
               <th data-key="especialista">Especialista / Responsable</th>
               <th data-key="fechaRegistro">Fecha registro</th>
               <th data-key="fechaCierre">Fecha cierre</th>
-              <th data-key="pct" title="Progreso del ticket (en las tareas, el del ticket al que pertenecen)">Progreso</th>
+              <th data-key="pct" title="Tickets: % de SLA consumido · Tareas: duración en horas">Progreso</th>
               <th data-key="fechaReal">Fecha real sustentada <span class="rg-req">*</span></th>
               <th class="no-sort">Sustento de atención <span class="rg-req">*</span></th>
               <th class="no-sort">Acción inmediata <span style="font-weight:400;">(opcional)</span></th>
@@ -4955,8 +4960,9 @@
 
   // ---------------- Registro de tickets vencidos ----------------
   // Lista los tickets de la pestaña "Vencidos" del Resumen (cerrados con >100% de progreso,
-  // dentro del rango de fechas activo) y TAMBIÉN las tareas cuyo ticket (Caso) está en esa
-  // lista, y permite registrar, por ticket o por tarea:
+  // dentro del rango de fechas activo) y, desplegables bajo cada ticket, las tareas de ese
+  // ticket (Caso). Los tickets muestran el progreso en % y las tareas en horas. Permite
+  // registrar, por ticket o por tarea:
   //   - Fecha real sustentada  (obligatoria; entre la fecha de registro y hoy)
   //   - Sustento de atención   (obligatorio)
   //   - Acción inmediata       (opcional)
@@ -5020,21 +5026,27 @@
     const items = vencidos.map(r => ({
       kind: 'ticket', key: String(r.ticket), id: String(r.ticket), ticket: String(r.ticket),
       servicio: r.servicio, especialista: r.especialista, grupo: '', asunto: r.asunto, estadoTarea: '',
-      fechaRegistro: r.fechaRegistro, fechaCierre: r.fechaCierre, pct: r.pct
+      fechaRegistro: r.fechaRegistro, fechaCierre: r.fechaCierre, pct: r.pct, horas: null, abierta: false
     }));
     const porTicket = new Map(vencidos.map(r => [String(r.ticket), r]));
+    const ahora = new Date();
     taskMap.forEach(t => {
       const p = porTicket.get(String(t.caso));
       if (!p) return;
+      // Duración de la tarea en horas: registro -> cierre; si sigue abierta, hasta ahora.
+      const fin = t.fechaCierre || (t.abierta ? ahora : null);
+      const horas = (t.fechaRegistro && fin) ? (fin - t.fechaRegistro) / 3600000 : null;
       items.push({
         kind: 'tarea', key: 'T:' + t.tarea, id: String(t.tarea), ticket: String(t.caso),
         servicio: p.servicio, especialista: t.responsable, grupo: t.grupoResponsable, asunto: t.asunto, estadoTarea: t.estado,
-        fechaRegistro: t.fechaRegistro, fechaCierre: t.fechaCierre, pct: p.pct
+        fechaRegistro: t.fechaRegistro, fechaCierre: t.fechaCierre, pct: p.pct, horas, abierta: !!t.abierta
       });
     });
     return items;
   }
   function rgRecOf(it){ return rgRecords.get(it.key); }
+  function rgFmtHoras(h){ return h == null ? '—' : h.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' h'; }
+  let rgExpanded = new Set();   // tickets con sus tareas desplegadas
 
   function rgUpdateStorageNote(){
     const note = $('registroStorageNote');
@@ -5055,36 +5067,56 @@
       : '0 tickets vencidos';
   }
 
-  function rgList(){
+  // Un grupo = un ticket vencido + sus tareas. Los filtros se aplican a ambos niveles:
+  // el ticket se lista si coincide él o alguna de sus tareas (en ese caso sale desplegado).
+  // El orden de las columnas se aplica a los tickets; sus tareas van siempre debajo, por fecha de registro.
+  function rgGroups(){
     const term = $('registroSearch').value.trim().toLowerCase();
     const filtroEstado = $('registroEstadoFilter').value;
-    const filtroTipo = $('registroTipoFilter').value;
-    const list = rgItems().filter(r => {
-      const rec = rgRecOf(r);
-      if (filtroTipo && r.kind !== filtroTipo) return false;
-      if (filtroEstado && rgEstado(rec) !== filtroEstado) return false;
+    const filtrando = !!(term || filtroEstado);
+    const passEstado = it => !filtroEstado || rgEstado(rgRecOf(it)) === filtroEstado;
+    const passTerm = it => {
       if (!term) return true;
-      return [r.id, r.ticket, r.especialista, r.grupo, r.servicio, r.asunto, rec && rec.sustento, rec && rec.accion]
+      const rec = rgRecOf(it);
+      return [it.id, it.ticket, it.especialista, it.grupo, it.servicio, it.asunto, rec && rec.sustento, rec && rec.accion]
         .some(v => String(v ?? '').toLowerCase().includes(term));
+    };
+
+    const items = rgItems();
+    const tareasPor = new Map();
+    items.forEach(it => {
+      if (it.kind !== 'tarea') return;
+      if (!tareasPor.has(it.ticket)) tareasPor.set(it.ticket, []);
+      tareasPor.get(it.ticket).push(it);
     });
+
+    const groups = [];
+    items.forEach(tk => {
+      if (tk.kind !== 'ticket') return;
+      const todas = (tareasPor.get(tk.ticket) || []).slice()
+        .sort((x, y) => (x.fechaRegistro ? new Date(x.fechaRegistro).getTime() : 0) - (y.fechaRegistro ? new Date(y.fechaRegistro).getTime() : 0));
+      const termTicket = passTerm(tk);
+      const tareas = todas.filter(t => passEstado(t) && (termTicket || passTerm(t)));
+      const ticketOk = passEstado(tk) && termTicket;
+      if (!ticketOk && !tareas.length) return;
+      groups.push({ ticket: tk, tareas, total: todas.length, autoOpen: filtrando && !ticketOk });
+    });
+
     const { key, dir } = rgSort;
     const val = (r) => {
       if (key === 'estado') return RG_ORDEN[rgEstado(rgRecOf(r))];
       if (key === 'pct') return r.pct;
       if (key === 'fechaReal') return (rgRecOf(r) || {}).fechaReal || '';
-      if (key === 'ticket') return r.ticket.toLowerCase() + (r.kind === 'ticket' ? '' : '~' + r.id.toLowerCase());
       if (key === 'fechaRegistro' || key === 'fechaCierre') return r[key] ? new Date(r[key]).getTime() : 0;
       return String(r[key] ?? '').toLowerCase();
     };
-    return list.sort((a, b) => {
+    return groups.sort((ga, gb) => {
+      const a = ga.ticket, b = gb.ticket;
       const av = val(a), bv = val(b);
       if (av < bv) return dir === 'asc' ? -1 : 1;
       if (av > bv) return dir === 'asc' ? 1 : -1;
-      // desempate: mayor exceso primero; las tareas quedan agrupadas justo debajo de su ticket
-      if (b.pct !== a.pct) return b.pct - a.pct;
-      if (a.ticket !== b.ticket) return a.ticket < b.ticket ? -1 : 1;
-      if (a.kind !== b.kind) return a.kind === 'ticket' ? -1 : 1;
-      return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
+      if (b.pct !== a.pct) return b.pct - a.pct; // desempate: mayor exceso primero
+      return a.ticket < b.ticket ? -1 : (a.ticket > b.ticket ? 1 : 0);
     });
   }
 
@@ -5094,27 +5126,37 @@
     // antes de redibujar, para no perder lo que aún no se había guardado.
     if (document.activeElement && body.contains(document.activeElement)) document.activeElement.blur();
 
-    const list = rgList();
+    const groups = rgGroups();
     const hoy = toInputDateTime(new Date());
     updateSortArrow('#registroTable', rgSort.key, rgSort.dir);
-    $('registroTable').classList.toggle('hidden', list.length === 0);
-    $('registroEmpty').classList.toggle('hidden', list.length !== 0);
+    $('registroTable').classList.toggle('hidden', groups.length === 0);
+    $('registroEmpty').classList.toggle('hidden', groups.length !== 0);
     $('registroEmpty').textContent = vencidos.length
       ? 'Ningún ticket ni tarea coincide con los filtros.'
       : 'No hay tickets ni tareas vencidos en este periodo.';
 
-    body.innerHTML = list.map(r => {
-      const esTarea = r.kind === 'tarea';
-      const rec = rgRecOf(r) || {};
-      const min = r.fechaRegistro ? toInputDateTime(new Date(r.fechaRegistro)) : '';
+    const fila = (it, g, abierto) => {
+      const esTarea = it.kind === 'tarea';
+      const rec = rgRecOf(it) || {};
+      const min = it.fechaRegistro ? toInputDateTime(new Date(it.fechaRegistro)) : '';
+      let idCell = escapeHtml(it.id);
+      if (esTarea){
+        idCell += '<div class="rg-sub"><span class="rg-tag">Tarea</span></div>';
+      } else if (g.tareas.length){
+        const n = g.tareas.length + (g.tareas.length !== g.total ? ' de ' + g.total : '');
+        idCell += `<div><button type="button" class="rg-toggle" aria-expanded="${abierto}" title="Mostrar u ocultar las tareas de este ticket"><span class="rg-caret">▸</span> ${n} tarea${g.total === 1 ? '' : 's'}</button></div>`;
+      }
+      const progreso = esTarea
+        ? `<span class="rg-hours" title="${it.abierta ? 'Tiempo transcurrido (la tarea sigue abierta)' : 'Duración de la tarea'}">${rgFmtHoras(it.horas)}</span>`
+        : `<span class="pct-badge">${it.pct}%</span>`;
       return `
-      <tr data-key="${escapeHtml(r.key)}" class="${esTarea ? 'rg-row-tarea' : ''}">
-        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.ticket)}" title="Ver tareas de este caso">${escapeHtml(r.id)}${esTarea ? `<div class="rg-sub"><span class="rg-tag">Tarea</span> ${escapeHtml(r.ticket)}</div>` : ''}</td>
-        <td class="cell-servicio" title="${escapeHtml(r.servicio)}">${escapeHtml(r.servicio)}${esTarea ? `<div class="rg-sub">${escapeHtml(r.asunto)} · ${escapeHtml(r.estadoTarea)}</div>` : ''}</td>
-        <td>${escapeHtml(r.especialista)}${esTarea && r.grupo && r.grupo !== '—' ? `<div class="rg-sub">${escapeHtml(r.grupo)}</div>` : ''}</td>
-        <td class="mono rg-fecha">${r.fechaRegistro ? fmtDate(r.fechaRegistro) : '—'}</td>
-        <td class="mono rg-fecha">${r.fechaCierre ? fmtDate(r.fechaCierre) : '—'}</td>
-        <td><span class="pct-badge">${r.pct}%</span></td>
+      <tr data-key="${escapeHtml(it.key)}" class="${esTarea ? 'rg-row-tarea' + (abierto ? '' : ' hidden') : ''}">
+        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(it.ticket)}" title="Ver tareas de este caso">${idCell}</td>
+        <td class="cell-servicio" title="${escapeHtml(it.servicio)}">${escapeHtml(it.servicio)}${esTarea ? `<div class="rg-sub">${escapeHtml(it.asunto)} · ${escapeHtml(it.estadoTarea)}</div>` : ''}</td>
+        <td>${escapeHtml(it.especialista)}${esTarea && it.grupo && it.grupo !== '—' ? `<div class="rg-sub">${escapeHtml(it.grupo)}</div>` : ''}</td>
+        <td class="mono rg-fecha">${it.fechaRegistro ? fmtDate(it.fechaRegistro) : '—'}</td>
+        <td class="mono rg-fecha">${it.fechaCierre ? fmtDate(it.fechaCierre) : '—'}</td>
+        <td>${progreso}</td>
         <td>
           <input type="datetime-local" class="rg-input rg-date" data-field="fechaReal" value="${escapeHtml(rgToInput(rec.fechaReal))}" min="${min}" max="${hoy}">
           <div class="rg-hint"></div>
@@ -5123,10 +5165,28 @@
         <td><textarea class="rg-input" rows="2" maxlength="500" data-field="accion" placeholder="Opcional">${escapeHtml(rec.accion || '')}</textarea></td>
         <td class="rg-estado-cell">${rgBadge(rgEstado(rec))}</td>
       </tr>`;
+    };
+
+    body.innerHTML = groups.map(g => {
+      const abierto = rgExpanded.has(g.ticket.key) || g.autoOpen;
+      return fila(g.ticket, g, abierto) + g.tareas.map(t => fila(t, g, abierto)).join('');
     }).join('');
 
     body.querySelectorAll('.ticket-id.clickable').forEach(td => {
       td.addEventListener('click', () => openTaskModal(td.dataset.ticket));
+    });
+    // Desplegar/plegar las tareas de un ticket sin volver a dibujar la tabla.
+    body.querySelectorAll('.rg-toggle').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation(); // no abrir el modal de tareas
+        const tr = btn.closest('tr');
+        const abrir = btn.getAttribute('aria-expanded') !== 'true';
+        btn.setAttribute('aria-expanded', abrir);
+        if (abrir) rgExpanded.add(tr.dataset.key); else rgExpanded.delete(tr.dataset.key);
+        for (let n = tr.nextElementSibling; n && n.classList.contains('rg-row-tarea'); n = n.nextElementSibling){
+          n.classList.toggle('hidden', !abrir);
+        }
+      });
     });
     rgUpdateSummary();
     rgUpdateStorageNote();
@@ -5224,21 +5284,22 @@
     key => ['ticket','servicio','especialista','estado'].includes(key) ? 'asc' : 'desc');
   $('registroSearch').addEventListener('input', renderRegistro);
   $('registroEstadoFilter').addEventListener('change', renderRegistro);
-  $('registroTipoFilter').addEventListener('change', renderRegistro);
 
   $('btnExportRegistro').addEventListener('click', () => {
     const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-    const header = ['Tipo','Ticket','Tarea','Servicio','Especialista / Responsable','Fecha Registro','Fecha Cierre','Progreso del ticket','Fecha real sustentada','Sustento de atención','Acción inmediata','Estado'];
+    const header = ['Tipo','Ticket','Tarea','Servicio','Especialista / Responsable','Fecha Registro','Fecha Cierre','Progreso (ticket en % · tarea en horas)','Fecha real sustentada','Sustento de atención','Acción inmediata','Estado'];
     const lines = [header.map(q).join(';')];
-    rgList().forEach(r => {
+    const linea = (r) => {
       const rec = rgRecOf(r) || {};
+      const esTarea = r.kind === 'tarea';
       lines.push([
-        r.kind === 'tarea' ? 'Tarea' : 'Ticket', r.ticket, r.kind === 'tarea' ? r.id : '', r.servicio, r.especialista,
+        esTarea ? 'Tarea' : 'Ticket', r.ticket, esTarea ? r.id : '', r.servicio, r.especialista,
         r.fechaRegistro ? fmtDate(r.fechaRegistro) : '', r.fechaCierre ? fmtDate(r.fechaCierre) : '',
-        r.pct + '%', rgFmtIso(rec.fechaReal || ''), rec.sustento || '', rec.accion || '',
+        esTarea ? rgFmtHoras(r.horas) : r.pct + '%', rgFmtIso(rec.fechaReal || ''), rec.sustento || '', rec.accion || '',
         RG_LABEL[rgEstado(rec)]
       ].map(q).join(';'));
-    });
+    };
+    rgGroups().forEach(g => { linea(g.ticket); g.tareas.forEach(linea); });
     const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
