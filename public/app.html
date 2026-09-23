@@ -5070,9 +5070,9 @@
   //   - Sustento de atención   (obligatorio)
   //   - Acción inmediata       (opcional)
   // Estado: Pendiente (nada registrado) · Incompleto (falta fecha o sustento) · Sustentado.
-  // Los datos se guardan en el navegador (localStorage) y, si el servidor tiene el endpoint
-  // /api/sustentos, también allí (mismo esquema que /api/causas). Sin endpoint, sigue
-  // funcionando solo con el navegador y se avisa en pantalla.
+  // Los datos se guardan en la base de datos (/api/sustentos, mismo esquema que /api/causas), que
+  // es la fuente de verdad y se comparte entre equipos. localStorage es solo una copia de
+  // respaldo: si no hay conexión, los cambios quedan pendientes y se suben solos al reconectar.
 
   const RG_LS_KEY = 'registroVencidosV1';
   const RG_ORDEN = { pendiente: 0, incompleto: 1, sustentado: 2 };
@@ -5081,6 +5081,13 @@
   let rgSort = { key: 'estado', dir: 'asc' };
   let rgServerOk = null;       // null = aún no se probó · true = hay /api/sustentos · false = solo navegador
   let rgLocalFailed = false;
+  const RG_PEND_KEY = 'registroVencidosPend';     // claves con cambios aún sin subir a la base de datos
+  const RG_MIG_KEY = 'registroVencidosMigrado';  // ya se subió lo que solo existía en este navegador
+  let rgPending = new Set();
+  let rgVer = new Map();                          // clave -> n° de cambio (para saber si el último ya se subió)
+  let rgChain = Promise.resolve();                // cola única: los cambios llegan al servidor en orden
+  let rgSyncing = false;
+  let rgPushFailed = false;
 
   function rgLoadLocal(){
     try{
@@ -5250,7 +5257,8 @@
     const note = $('registroStorageNote');
     let msg = '';
     if (rgLocalFailed) msg = 'No se pudo guardar en este navegador (almacenamiento bloqueado o lleno). Los cambios se perderán al recargar.';
-    else if (rgServerOk === false) msg = 'Los registros se guardan solo en este navegador: el servidor aún no tiene el endpoint /api/sustentos, así que no se comparten con otros equipos ni sobreviven a borrar los datos del navegador.';
+    else if (rgServerOk === false) msg = 'No hay conexión con la base de datos: los registros se guardan temporalmente en este navegador y se subirán solos cuando vuelva la conexión. Hasta entonces no se comparten con otros equipos.';
+    else if (rgPushFailed && rgPending.size) msg = `No se pudo guardar ${rgPending.size} cambio${rgPending.size === 1 ? '' : 's'} en la base de datos; queda en este navegador y se reintentará automáticamente.`;
     note.textContent = msg;
     note.classList.toggle('hidden', !msg);
   }
@@ -5591,45 +5599,102 @@
     if (e.target.tagName === 'TEXTAREA'){ e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }
   });
 
-  async function rgPush(ticket, rec){
-    if (rgServerOk === false) return;
+  // ---- Sincronización con la base de datos ----
+  // Cada cambio se envía en orden con el estado ACTUAL del registro. Si falla, la clave queda en
+  // "pendientes" (también en localStorage) y se reintenta sola. Un registro vaciado se envía vacío
+  // y el servidor lo borra. Al abrir la app, la base de datos manda: lo que trae reemplaza la copia local.
+  function rgLoadPending(){
+    try{ (JSON.parse(localStorage.getItem(RG_PEND_KEY) || '[]') || []).forEach(k => rgPending.add(String(k))); }catch(err){}
+  }
+  function rgSavePending(){
+    try{ localStorage.setItem(RG_PEND_KEY, JSON.stringify([...rgPending])); }catch(err){}
+  }
+  async function rgSend(key){
+    const rec = rgRecords.get(key) || {};
+    const res = await fetch('/api/sustentos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticket: key, fechaReal: rec.fechaReal || '', sustento: rec.sustento || '', accion: rec.accion || '', aplicado: !!rec.aplicado })
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + res.status));
+  }
+  function rgPush(key){
+    rgPending.add(key); rgSavePending();
+    const v = (rgVer.get(key) || 0) + 1; rgVer.set(key, v);
+    rgChain = rgChain.then(async () => {
+      try{
+        await rgSend(key);
+        if (rgVer.get(key) === v){ rgPending.delete(key); rgSavePending(); }
+        if (!rgPending.size) rgPushFailed = false;
+      }catch(err){
+        rgPushFailed = true;
+        console.warn('No se pudo guardar el registro en la base de datos:', err.message);
+      }
+      rgUpdateStorageNote();
+    });
+    return rgChain;
+  }
+  async function rgFetchServer(){
+    const res = await fetch('/api/sustentos', { cache: 'no-store' }).then(r => r.ok ? r.json() : null);
+    if (!res || !res.ok || !Array.isArray(res.sustentos)) return null;
+    return new Map(res.sustentos.map(x => [String(x.ticket), {
+      fechaReal: x.fechaReal || '', sustento: x.sustento || '', accion: x.accion || '', aplicado: !!x.aplicado, updatedAt: x.updatedAt || ''
+    }]));
+  }
+  // Devuelve true si cambió lo que se muestra.
+  async function rgSync(){
+    if (rgSyncing) return false;
+    rgSyncing = true;
     try{
-      const res = await fetch('/api/sustentos', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticket, fechaReal: rec.fechaReal, sustento: rec.sustento, accion: rec.accion, aplicado: !!rec.aplicado })
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-    }catch(err){
-      console.warn('No se pudo guardar el registro en el servidor:', err.message);
+      let server = null;
+      try{ server = await rgFetchServer(); }catch(err){}
+      if (!server){ rgServerOk = false; return false; }
+      rgServerOk = true;
+      // Migración única: lo que solo existía en este navegador (versiones anteriores) se sube.
+      let migrado = false;
+      try{ migrado = localStorage.getItem(RG_MIG_KEY) === '1'; }catch(err){}
+      if (!migrado){
+        rgRecords.forEach((loc, t) => {
+          const srv = server.get(t);
+          if (!srv || (loc.updatedAt || '') > (srv.updatedAt || '')) rgPending.add(t);
+        });
+        rgSavePending();
+        try{ localStorage.setItem(RG_MIG_KEY, '1'); }catch(err){}
+      }
+      if (rgPending.size){
+        [...rgPending].forEach(k => rgPush(k));
+        await rgChain;
+        try{ server = (await rgFetchServer()) || server; }catch(err){}
+      }
+      // La base de datos es la verdad; lo que siga pendiente (falló) conserva la versión local.
+      const antes = JSON.stringify([...rgRecords].sort());
+      const nuevo = new Map(server);
+      rgPending.forEach(k => { const loc = rgRecords.get(k); if (loc) nuevo.set(k, loc); else nuevo.delete(k); });
+      rgRecords = nuevo;
+      rgSaveLocal();
+      return JSON.stringify([...rgRecords].sort()) !== antes;
+    } finally {
+      rgSyncing = false;
+      rgUpdateStorageNote();
     }
   }
 
   async function rgInit(){
     rgLoadLocal();
+    rgLoadPending();
     rgReady = true;   // ya se conocen los sustentos guardados en este navegador: desde aquí se aplican los candados
-    try{
-      const res = await fetch('/api/sustentos').then(r => r.ok ? r.json() : null);
-      if (res && res.ok && Array.isArray(res.sustentos)){
-        rgServerOk = true;
-        const server = new Map(res.sustentos.map(x => [String(x.ticket), {
-          fechaReal: x.fechaReal || '', sustento: x.sustento || '', accion: x.accion || '', aplicado: !!x.aplicado, updatedAt: x.updatedAt || ''
-        }]));
-        server.forEach((srv, t) => {
-          const loc = rgRecords.get(t);
-          if (!loc || (srv.updatedAt || '') >= (loc.updatedAt || '')) rgRecords.set(t, srv);
-        });
-        // Lo que solo existe en el navegador (o es más reciente) se sube al servidor.
-        rgRecords.forEach((loc, t) => {
-          const srv = server.get(t);
-          if (!srv || (loc.updatedAt || '') > (srv.updatedAt || '')) rgPush(t, loc);
-        });
-        rgSaveLocal();
-      } else {
-        rgServerOk = false;
-      }
-    }catch(err){ rgServerOk = false; }
+    await rgSync();
     rgRefrescarTodo();   // por si los tickets/tareas ya cargaron antes que los sustentos
   }
+  // Sin conexión o con cambios sin subir: reintenta sola (sin interrumpir a quien esté escribiendo).
+  function rgReintentar(){
+    if (!(rgServerOk === false || rgPending.size)) return;
+    const ae = document.activeElement;
+    if (ae && ae.closest && ae.closest('#registroBody')) return;
+    rgSync().then(cambio => { if (cambio) rgRefrescarTodo(); });
+  }
+  setInterval(rgReintentar, 60000);
+  window.addEventListener('online', rgReintentar);
 
   wireSortableHeaders('#registroTable thead th[data-key]', rgSort, renderRegistro,
     key => ['ticket','servicio','especialista','estado'].includes(key) ? 'asc' : 'desc');
