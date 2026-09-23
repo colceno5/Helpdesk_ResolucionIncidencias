@@ -709,6 +709,19 @@
     display:block;
   }
 
+  /* cuadro flotante del ticket (cliente + descripción) */
+  #ticketTip{
+    position:fixed; z-index:60; left:0; top:0; width:340px; max-width:calc(100vw - 16px);
+    background:var(--ink); color:#fff; font-size:12.5px; line-height:1.45;
+    padding:10px 12px; border-radius:var(--radius-s); box-shadow:0 6px 20px rgba(0,0,0,.25);
+    pointer-events:none; opacity:0; transition:opacity .1s ease;
+  }
+  #ticketTip .tt-label{ display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:#9FB3BB; margin-bottom:2px; }
+  #ticketTip .tk-id{ font-weight:600; margin-bottom:7px; }
+  #ticketTip .tk-cliente{ font-weight:600; margin-bottom:7px; overflow-wrap:anywhere; }
+  #ticketTip .tk-desc{ white-space:pre-line; overflow-wrap:anywhere; max-height:220px; overflow:hidden; }
+  #ticketTip .tk-hint{ margin-top:8px; font-size:11px; color:#9FB3BB; }
+
   .hidden{ display:none !important; }
 
   footer.credit{
@@ -3169,7 +3182,7 @@
     taskTbody.innerHTML = list.map(t => `
       <tr${t.ajustado ? ' class="rg-ajustado"' : ''}>
         <td class="mono ticket-id">${escapeHtml(t.tarea)}${adjBadge(t)}</td>
-        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(t.caso)}" title="Ver todas las tareas de este caso">${escapeHtml(t.caso)}</td>
+        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(t.caso)}" data-tip-ticket="${escapeHtml(t.caso)}">${escapeHtml(t.caso)}</td>
         <td>${escapeHtml(t.estado)}</td>
         <td class="cell-servicio" title="${escapeHtml(t.asunto)}">${escapeHtml(t.asunto)}</td>
         <td>${escapeHtml(t.responsable)}</td>
@@ -3945,6 +3958,55 @@
     });
   }
 
+  // ---- Cuadro flotante del ticket: cliente y descripción ----
+  // Cualquier celda con data-tip-ticket="REQ-…" muestra al pasar el mouse el Cliente Final y la
+  // Descripción del ticket, tomados de los datos originales (allRowsRaw), sin importar el rango
+  // de fechas. Un solo listener delegado: sirve aunque las tablas se redibujen.
+  (function(){
+    let el = null, actual = null, srcRef = null, map = null;
+    function caja(){
+      if (!el){ el = document.createElement('div'); el.id = 'ticketTip'; document.body.appendChild(el); }
+      return el;
+    }
+    function buscar(id){
+      if (srcRef !== allRowsRaw){ srcRef = allRowsRaw; map = new Map(allRowsRaw.map(r => [String(r.ticket), r])); }
+      return map.get(String(id));
+    }
+    function mover(e){
+      if (!el) return;
+      const pad = 16, w = el.offsetWidth, h = el.offsetHeight;
+      let x = e.clientX + pad, y = e.clientY + pad;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - pad;
+      if (y + h > window.innerHeight - 8) y = e.clientY - h - pad;
+      el.style.left = Math.max(8, x) + 'px';
+      el.style.top = Math.max(8, y) + 'px';
+    }
+    function ocultar(){ actual = null; if (el) el.style.opacity = '0'; }
+    function mostrar(td, e){
+      const r = buscar(td.dataset.tipTicket);
+      if (!r){ if (el) el.style.opacity = '0'; return; }
+      const cliente = r.clienteFinal && r.clienteFinal !== '—' ? r.clienteFinal : '—';
+      let desc = String(r.descripcion || '').trim();
+      if (!desc || desc === '(sin descripción)') desc = 'Sin descripción';
+      else if (desc.length > 700) desc = desc.slice(0, 700).trimEnd() + '…';
+      const t = caja();
+      t.innerHTML = `<div class="tk-id">${escapeHtml(r.ticket)}</div>`
+        + `<span class="tt-label">Cliente</span><div class="tk-cliente">${escapeHtml(cliente)}</div>`
+        + `<span class="tt-label">Descripción</span><div class="tk-desc">${escapeHtml(desc)}</div>`
+        + (td.classList.contains('clickable') ? '<div class="tk-hint">Clic para ver las tareas de este caso</div>' : '');
+      t.style.opacity = '1';
+      mover(e);
+    }
+    document.addEventListener('mouseover', (e) => {
+      const td = e.target.closest ? e.target.closest('[data-tip-ticket]') : null;
+      if (td === actual) return;
+      actual = td;
+      if (td) mostrar(td, e); else ocultar();
+    });
+    document.addEventListener('mousemove', (e) => { if (actual) mover(e); });
+    window.addEventListener('scroll', ocultar, true);
+  })();
+
   $('btnExport').addEventListener('click', () => {
     const term = searchBox.value.trim().toLowerCase();
     const sourceList = currentView === 'cumplen' ? cumplen : (currentView === 'abiertos' ? abiertos : vencidos);
@@ -4705,7 +4767,7 @@
 
     $('anBottleneckWeekBody').innerHTML = rows.slice(0, 20).map(r => `
       <tr>
-        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.caso)}">${escapeHtml(r.caso)}</td>
+        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.caso)}" data-tip-ticket="${escapeHtml(r.caso)}">${escapeHtml(r.caso)}</td>
         <td class="mono">${r.count}</td>
         <td class="mono">${r.groups}</td>
         <td>${escapeHtml(r.slowestGroup)}</td>
@@ -5360,7 +5422,7 @@
       const clases = [esTarea ? 'rg-row-tarea' : '', esTarea && !abierto ? 'hidden' : '', it.ajustado ? 'rg-ajustado' : ''].filter(Boolean).join(' ');
       return `
       <tr data-key="${escapeHtml(it.key)}" class="${clases}">
-        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(it.ticket)}" title="Ver tareas de este caso">${idCell}</td>
+        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(it.ticket)}" data-tip-ticket="${escapeHtml(it.ticket)}">${idCell}</td>
         <td class="cell-servicio" title="${escapeHtml(it.servicio)}">${escapeHtml(it.servicio)}${esTarea ? `<div class="rg-sub">${escapeHtml(it.asunto)} · ${escapeHtml(it.estadoTarea)}</div>` : ''}</td>
         <td>${escapeHtml(it.especialista)}${esTarea && it.grupo && it.grupo !== '—' ? `<div class="rg-sub">${escapeHtml(it.grupo)}</div>` : ''}</td>
         <td class="mono rg-fecha">${it.fechaRegistro ? fmtDate(it.fechaRegistro) : '—'}</td>
@@ -5469,7 +5531,7 @@
       const cierreAntes = esTarea && f.cargado && !f.antesCierre ? 'Abierta' : (f.antesCierre ? fmtDate(f.antesCierre) : '—');
       return `
       <tr class="${f.aplicado ? 'rg-ajustado' : ''}">
-        <td class="mono ticket-id">${escapeHtml(f.id)}${esTarea ? `<div class="rg-sub"><span class="rg-tag">Tarea</span> ${escapeHtml(f.ticket)}</div>` : ''}${sinDatos}</td>
+        <td class="mono ticket-id" data-tip-ticket="${escapeHtml(f.ticket)}">${escapeHtml(f.id)}${esTarea ? `<div class="rg-sub"><span class="rg-tag">Tarea</span> ${escapeHtml(f.ticket)}</div>` : ''}${sinDatos}</td>
         <td>${escapeHtml(f.servicio)}${esTarea && f.asunto ? `<div class="rg-sub">${escapeHtml(f.asunto)}</div>` : ''}</td>
         <td>${escapeHtml(f.responsable)}${esTarea && f.grupo && f.grupo !== '—' ? `<div class="rg-sub">${escapeHtml(f.grupo)}</div>` : ''}</td>
         <td class="mono hs-fecha hs-antes">${cierreAntes}</td>
