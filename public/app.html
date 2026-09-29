@@ -826,6 +826,16 @@
   #historialTable td.hs-fecha{ white-space:normal; }
   #historialTable tr.rg-ajustado td{ background:var(--adj-bg); }
   #historialTable tr.rg-ajustado td:first-child{ box-shadow:inset 3px 0 0 var(--adj); }
+  /* Gráfica de brecha (antes vs. después) del historial de sustentos */
+  .hs-chart-card{ border:1px solid var(--border); border-radius:var(--radius-m); background:var(--surface); padding:12px 14px 10px; margin:0 0 14px; }
+  .hs-chart-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px; margin-bottom:6px; }
+  .hs-chart-head h4{ font-family:'Space Grotesk', sans-serif; font-size:14px; margin:0; }
+  .hs-chart-ctrl{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:12.5px; color:var(--ink-soft); }
+  .hs-chart-ctrl label{ display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
+  .hs-chart-box{ position:relative; width:100%; }
+  .hs-chart-legend{ display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--ink-soft); margin:2px 0 4px; }
+  .hs-chart-legend i{ display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .hs-chart-note{ font-size:12px; color:var(--ink-soft); margin-top:4px; line-height:1.4; }
   .hs-antes{ color:var(--ink-soft); }
   .hs-desp{ font-weight:600; }
   .hs-proy{ font-style:italic; color:var(--ink-faint); font-weight:400; }
@@ -1341,6 +1351,19 @@
         </div>
       </div>
       <div class="rg-legend"><span class="rg-dot"></span><span>Compara cada registro sustentado con sus datos <b>originales</b> (los del archivo de Aranda) y con el resultado <b>después</b> del sustento. Los que tienen el candado activo están en <b>naranja</b>; en los demás, la columna "Después" es una <i>proyección</i> de lo que pasaría al activarlo. Incluye todos los sustentos guardados, sin importar el rango de fechas.</span></div>
+      <div class="hs-chart-card" id="hsChartCard">
+        <div class="hs-chart-head">
+          <h4>Brecha de progreso: antes vs. después del sustento</h4>
+          <div class="hs-chart-ctrl">
+            <select class="an-select-inline" id="hsChartTipo" style="max-width:250px; padding:6px 8px; font-size:13px;"></select>
+            <label title="Útil cuando hay valores muy distintos (p. ej. 4313% frente a 78%)"><input type="checkbox" id="hsChartLog"> Escala logarítmica</label>
+          </div>
+        </div>
+        <div class="hs-chart-legend" id="hsChartLegend"></div>
+        <div class="hs-chart-box" id="hsChartBox"><canvas id="hsChartCanvas"></canvas></div>
+        <div class="empty-detail hidden" id="hsChartEmpty"></div>
+        <div class="hs-chart-note" id="hsChartNote"></div>
+      </div>
       <div class="table-scroll">
         <table id="historialTable">
           <thead>
@@ -3805,6 +3828,8 @@
       if (page === 'analysis' && typeof anRenderAll === 'function') anRenderAll();
       // Mismo motivo: el gráfico de "Tendencias" necesita el tamaño real del contenedor.
       if (page === 'tendencias' && allRowsRaw.length && typeof renderTendencias === 'function') renderTendencias();
+      // Igual para la gráfica de brecha del historial de sustentos (Registro de vencidos).
+      if (page === 'registro' && typeof renderHistorial === 'function') renderHistorial();
     });
   });
 
@@ -5512,6 +5537,166 @@
     return (f.delta > 0 ? '+' : '') + n + (f.kind === 'tarea' ? ' h' : ' pts');
   }
   function rgFmtVal(f, v){ return v == null ? '—' : (f.kind === 'tarea' ? rgFmtHoras(v) : rgFmtPct(v)); }
+  // ---------------- Gráfica de brecha: progreso antes vs. después ----------------
+  // Usa exactamente las mismas filas que la tabla (y respeta su filtro). Los tickets se miden en
+  // % de progreso SLA y las tareas en horas, así que no se mezclan: se elige uno u otro.
+  const hsChartState = { tipo: null, log: null, chart: null };
+  function hsChartRows(list){
+    const tk = list.filter(f => f.kind === 'ticket');
+    const tr = list.filter(f => f.kind === 'tarea');
+    return { ticket: tk, tarea: tr };
+  }
+  function hsRenderChart(list){
+    if (!$('hsChartCard')) return;
+    const grupos = hsChartRows(list);
+    const sel = $('hsChartTipo');
+    // Tipo por defecto: tickets; si solo hay tareas, tareas.
+    if (!hsChartState.tipo || !grupos[hsChartState.tipo] || (!grupos[hsChartState.tipo].length && (grupos.ticket.length || grupos.tarea.length))){
+      hsChartState.tipo = grupos.ticket.length || !grupos.tarea.length ? 'ticket' : 'tarea';
+    }
+    const tipo = hsChartState.tipo;
+    sel.innerHTML = `<option value="ticket">Tickets (% de progreso) · ${grupos.ticket.length}</option><option value="tarea">Tareas (horas) · ${grupos.tarea.length}</option>`;
+    sel.value = tipo;
+
+    const esTarea = tipo === 'tarea';
+    const todos = grupos[tipo];
+    const datos = todos.filter(f => f.antesVal != null && f.despVal != null);
+    const omitidos = todos.length - datos.length;
+
+    if (hsChartState.chart){ hsChartState.chart.destroy(); hsChartState.chart = null; }
+    const box = $('hsChartBox'), empty = $('hsChartEmpty'), note = $('hsChartNote'), leg = $('hsChartLegend');
+    box.classList.toggle('hidden', !datos.length);
+    leg.classList.toggle('hidden', !datos.length);
+    empty.classList.toggle('hidden', !!datos.length);
+    if (!datos.length){
+      empty.textContent = todos.length
+        ? 'Los registros de este tipo no tienen datos cargados para comparar (falta el archivo de Aranda de ese periodo).'
+        : 'No hay registros sustentados de este tipo para graficar.';
+      note.textContent = '';
+      return;
+    }
+    if (typeof Chart === 'undefined'){
+      box.classList.add('hidden'); empty.classList.remove('hidden');
+      empty.textContent = 'No se pudo cargar la librería de gráficas (Chart.js). Revisa tu conexión.';
+      return;
+    }
+
+    // Escala: automática (log si la diferencia entre valores es enorme) hasta que el usuario elija.
+    const vals = datos.flatMap(f => [f.antesVal, f.despVal]).filter(v => v > 0);
+    const ratio = vals.length ? Math.max(...vals) / Math.min(...vals) : 1;
+    const log = hsChartState.log == null ? ratio > 25 : hsChartState.log;
+    $('hsChartLog').checked = log;
+    const safe = v => log ? Math.max(v, 0.1) : v;   // el eje log no admite 0
+
+    const verde = '#1F8A5F', rojo = '#D9433D', gris = '#8A99A4', ambar = '#B87A1E';
+    const cumple = f => esTarea ? f.despVal < f.antesVal : f.despVal <= 100;
+    const colAntes = f => (!esTarea && f.antesVal > 100) ? rojo : gris;
+    const colDesp = f => cumple(f) ? verde : (esTarea ? ambar : rojo);
+    const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+
+    leg.innerHTML = esTarea
+      ? `<span><i style="background:${gris}"></i>Antes (dato original de Aranda)</span><span><i style="background:${verde}"></i>Después: menos horas</span><span><i style="background:${ambar}"></i>Después: no baja</span><span><i style="background:#fff;border:1.5px dashed ${ink()}"></i>Borde punteado = proyección (candado sin aplicar)</span>`
+      : `<span><i style="background:${rojo}"></i>Antes: vencido (&gt;100%)</span><span><i style="background:${gris}"></i>Antes: dentro de SLA</span><span><i style="background:${verde}"></i>Después: cumple SLA</span><span><i style="background:${rojo};opacity:.55"></i>Después: sigue vencido</span><span><i style="background:#fff;border:1.5px dashed ${ink()}"></i>Borde punteado = proyección (candado sin aplicar)</span>`;
+    function ink(){ return '#5B6E79'; }
+
+    const labels = datos.map(f => [f.id, String(f.responsable || '').split(' ').slice(0, 2).join(' ')].filter(Boolean));
+    const fmt = f => v => rgFmtVal(f, v);
+    $('hsChartBox').style.height = Math.max(200, datos.length * 62 + 70) + 'px';
+
+    const lineaSLA = {
+      id: 'hsSla',
+      afterDatasetsDraw(ch){
+        if (esTarea) return;
+        const { ctx, chartArea, scales } = ch;
+        const x = scales.x.getPixelForValue(100);
+        if (!(x >= chartArea.left && x <= chartArea.right)) return;
+        ctx.save();
+        ctx.strokeStyle = rojo; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle = rojo; ctx.font = '600 11px "IBM Plex Sans", sans-serif';
+        ctx.textAlign = 'left'; ctx.fillText('Meta SLA 100%', x + 4, chartArea.top + 10);
+        ctx.restore();
+      }
+    };
+    const etiquetaBrecha = {
+      id: 'hsGap',
+      afterDatasetsDraw(ch){
+        const { ctx, chartArea } = ch;
+        const meta = ch.getDatasetMeta(0), meta2 = ch.getDatasetMeta(1);
+        ctx.save();
+        ctx.font = '600 12px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        datos.forEach((f, i) => {
+          const y = (meta.data[i].y + meta2.data[i].y) / 2;
+          ctx.fillStyle = cumple(f) ? verde : rojo;
+          ctx.fillText(rgFmtDelta(f), chartArea.right + 10, y);
+        });
+        ctx.restore();
+      }
+    };
+
+    hsChartState.chart = new Chart($('hsChartCanvas').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Progreso antes', data: datos.map(f => safe(f.antesVal)),
+            backgroundColor: datos.map(f => hexA(colAntes(f), .85)), borderWidth: 0, borderRadius: 3 },
+          { label: 'Progreso después', data: datos.map(f => safe(f.despVal)),
+            backgroundColor: datos.map(f => f.aplicado ? hexA(colDesp(f), .95) : hexA(colDesp(f), .5)),
+            borderColor: datos.map(f => colDesp(f)), borderWidth: datos.map(f => f.aplicado ? 0 : 1.5),
+            borderDash: [5, 3], borderRadius: 3 }
+        ]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        layout: { padding: { right: 118 } },
+        scales: {
+          x: { type: log ? 'logarithmic' : 'linear',
+               min: log ? Math.pow(10, Math.floor(Math.log10(Math.min(...vals.map(safe))))) : 0, beginAtZero: !log,
+               title: { display: true, text: esTarea ? 'Horas' : '% de progreso SLA' },
+               ticks: { maxRotation: 0, autoSkip: false, callback: v => {
+                 // En escala log solo se rotulan 1, 2 y 5 × 10ⁿ para que el eje no se amontone.
+                 if (log && ![1, 2, 5].includes(Math.round(v / Math.pow(10, Math.floor(Math.log10(v)))))) return '';
+                 return esTarea ? v.toLocaleString('es-PE') + ' h' : v.toLocaleString('es-PE') + '%';
+               } },
+               grid: { color: 'rgba(0,0,0,.06)' } },
+          y: { grid: { display: false }, ticks: { font: { size: 11.5 } } }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => { const f = datos[items[0].dataIndex]; return f.kind === 'tarea' ? `Tarea ${f.id} · caso ${f.ticket}` : f.ticket; },
+              label: (item) => {
+                const f = datos[item.dataIndex];
+                const v = item.datasetIndex === 0 ? f.antesVal : f.despVal;
+                const extra = item.datasetIndex === 1 && !f.aplicado ? ' (proyección)' : '';
+                return `${item.dataset.label}: ${fmt(f)(v)}${extra}`;
+              },
+              afterBody: (items) => {
+                const f = datos[items[0].dataIndex];
+                const lin = [`Brecha: ${rgFmtDelta(f)}`];
+                if (f.resultado) lin.push(f.resultado === 'ok' ? 'Pasa a cumplir SLA' : 'Sigue vencido');
+                lin.push(f.aplicado ? 'Candado aplicado' : 'Candado sin aplicar');
+                return lin;
+              }
+            }
+          }
+        }
+      },
+      plugins: [lineaSLA, etiquetaBrecha]
+    });
+
+    const proy = datos.filter(f => !f.aplicado).length;
+    const partes = [];
+    if (proy) partes.push(`${proy} de ${datos.length} son proyección (el candado aún no está activo).`);
+    if (omitidos) partes.push(`${omitidos} sin datos cargados no se grafican.`);
+    if (log) partes.push('Escala logarítmica: la distancia visual no es proporcional a la diferencia real; guíate por la etiqueta de brecha.');
+    note.textContent = partes.join(' ');
+  }
+  $('hsChartTipo').addEventListener('change', (e) => { hsChartState.tipo = e.target.value; renderHistorial(); });
+  $('hsChartLog').addEventListener('change', (e) => { hsChartState.log = e.target.checked; renderHistorial(); });
+
   function renderHistorial(){
     const filtro = $('historialFilter').value;
     const todas = rgHistorial();
@@ -5544,6 +5729,7 @@
         <td class="mono hs-fecha">${f.rec.updatedAt ? fmtDate(new Date(f.rec.updatedAt)) : '—'}</td>
       </tr>`;
     }).join('');
+    hsRenderChart(list);
   }
   $('historialFilter').addEventListener('change', renderHistorial);
   $('btnExportHistorial').addEventListener('click', () => {
