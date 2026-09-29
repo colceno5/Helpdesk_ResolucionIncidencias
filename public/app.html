@@ -1298,7 +1298,7 @@
             <option value="sustentado">Sustentados</option>
           </select>
           <input type="text" class="search-box" id="registroSearch" placeholder="Buscar ticket, tarea, responsable, sustento…">
-          <button id="btnExportRegistro" title="Descarga un Excel con una hoja por especialista, con sus casos ordenados por semana del calendario">Descargar Excel</button>
+          <button id="btnExportRegistro" title="Descarga un Excel con una hoja por especialista, con sus casos (cliente y descripción incluidos) ordenados por semana del calendario">Descargar Excel</button>
         </div>
       </div>
       <div class="rg-note hidden" id="registroStorageNote"></div>
@@ -5802,9 +5802,23 @@
       return;
     }
 
-    const header = ['Semana', 'Tipo', 'Ticket', 'Tarea', 'Servicio', 'Especialista / Responsable', 'Fecha Registro', 'Fecha Cierre',
+    const header = ['Semana', 'Tipo', 'Ticket', 'Tarea', 'Servicio', 'Especialista / Responsable', 'Cliente', 'Descripción', 'Fecha Registro', 'Fecha Cierre',
       'Progreso (ticket en % · tarea en horas)', 'Progreso ajustado (candado)', 'Fecha real sustentada', 'Sustento de atención', 'Acción inmediata', 'Estado'];
-    const anchos = [34, 8, 12, 10, 24, 30, 17, 17, 16, 16, 18, 50, 36, 12];
+    const anchos = [34, 8, 12, 10, 24, 30, 30, 60, 17, 17, 16, 16, 18, 50, 36, 12];
+
+    // Cliente y Descripción salen del ticket original (allRowsRaw), sin importar el rango de fechas.
+    // Las tareas no tienen cliente ni descripción propios: llevan los del ticket al que pertenecen.
+    const rawPorTicket = new Map(allRowsRaw.map(r => [String(r.ticket), r]));
+    const clienteDe = it => {
+      const r = rawPorTicket.get(String(it.ticket));
+      const c = r && r.clienteFinal ? String(r.clienteFinal).trim() : '';
+      return (!c || c === '—') ? '' : c;
+    };
+    const descripcionDe = it => {
+      const r = rawPorTicket.get(String(it.ticket));
+      const d = r && r.descripcion ? String(r.descripcion).trim() : '';
+      return (!d || d === '(sin descripción)') ? '' : d.slice(0, 32000);   // tope de caracteres por celda en Excel
+    };
 
     // 2) Nombre de hoja válido en Excel (máx. 31 caracteres, sin \ / ? * [ ] :) y único.
     const usados = new Set();
@@ -5834,6 +5848,7 @@
         const esTarea = it.kind === 'tarea';
         aoa.push([
           sem.etiqueta, esTarea ? 'Tarea' : 'Ticket', it.ticket, esTarea ? it.id : '', it.servicio ?? '', it.especialista ?? '',
+          clienteDe(it), descripcionDe(it),
           it.fechaRegistro ? fmtDate(it.fechaRegistro) : '', it.fechaCierre ? fmtDate(it.fechaCierre) : '',
           esTarea ? rgFmtHoras(it.horas) : it.pct + '%',
           it.ajustado ? (esTarea ? rgFmtHoras(it.horasAj) : rgFmtPct(it.pctAj)) : '',
