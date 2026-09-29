@@ -1298,7 +1298,7 @@
             <option value="sustentado">Sustentados</option>
           </select>
           <input type="text" class="search-box" id="registroSearch" placeholder="Buscar ticket, tarea, responsable, sustento…">
-          <button id="btnExportRegistro">Descargar CSV</button>
+          <button id="btnExportRegistro" title="Descarga un Excel con una hoja por especialista, con sus casos ordenados por semana del calendario">Descargar Excel</button>
         </div>
       </div>
       <div class="rg-note hidden" id="registroStorageNote"></div>
@@ -5763,28 +5763,91 @@
   $('registroSearch').addEventListener('input', renderRegistro);
   $('registroEstadoFilter').addEventListener('change', renderRegistro);
 
+  // Descarga un Excel con una hoja por especialista/responsable. Dentro de cada hoja los
+  // registros (tickets vencidos y tareas) van ordenados por semana calendario (lunes a domingo,
+  // numeración ISO) según su Fecha de registro y, dentro de la semana, por fecha de registro.
+  // Respeta los filtros activos (estado y búsqueda), igual que la tabla que se ve en pantalla.
   $('btnExportRegistro').addEventListener('click', () => {
-    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-    const header = ['Tipo','Ticket','Tarea','Servicio','Especialista / Responsable','Fecha Registro','Fecha Cierre','Progreso (ticket en % · tarea en horas)','Progreso ajustado (candado)','Fecha real sustentada','Sustento de atención','Acción inmediata','Estado'];
-    const lines = [header.map(q).join(';')];
-    const linea = (r) => {
-      const rec = rgRecOf(r) || {};
-      const esTarea = r.kind === 'tarea';
-      lines.push([
-        esTarea ? 'Tarea' : 'Ticket', r.ticket, esTarea ? r.id : '', r.servicio, r.especialista,
-        r.fechaRegistro ? fmtDate(r.fechaRegistro) : '', r.fechaCierre ? fmtDate(r.fechaCierre) : '',
-        esTarea ? rgFmtHoras(r.horas) : r.pct + '%', r.ajustado ? (esTarea ? rgFmtHoras(r.horasAj) : rgFmtPct(r.pctAj)) : '', rgFmtIso(rec.fechaReal || ''), rec.sustento || '', rec.accion || '',
-        RG_LABEL[rgEstado(rec)]
-      ].map(q).join(';'));
+    const DIA = 86400000;
+    const pad = n => String(n).padStart(2, '0');
+    const fmtD = ms => { const t = new Date(ms); return pad(t.getUTCDate()) + '/' + pad(t.getUTCMonth() + 1) + '/' + t.getUTCFullYear(); };
+    // Semana calendario (lunes-domingo, hora de Perú) de una fecha de registro.
+    const semanaDe = (fecha) => {
+      const d = toDateSafe(fecha);
+      if (!d) return { orden: Infinity, etiqueta: 'Sin fecha de registro' };
+      const p = peruParts(d);
+      const dia = Date.UTC(p.y, p.mo, p.day);
+      const lunes = dia - ((new Date(dia).getUTCDay() + 6) % 7) * DIA;
+      const jueves = lunes + 3 * DIA;                                   // el jueves define la semana ISO
+      const anio = new Date(jueves).getUTCFullYear();
+      const nro = Math.floor((jueves - Date.UTC(anio, 0, 1)) / (7 * DIA)) + 1;
+      return { orden: lunes, etiqueta: 'Semana ' + nro + ' · ' + anio + ' (' + fmtD(lunes) + ' – ' + fmtD(lunes + 6 * DIA) + ')' };
     };
-    rgGroups().forEach(g => { linea(g.ticket); g.tareas.forEach(linea); });
-    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'registro_vencidos.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    const nombreDe = it => {
+      const n = String(it.especialista ?? '').trim();
+      return (!n || n === '—' || n === '-') ? 'Sin asignar' : n;
+    };
+
+    // 1) Todos los ítems visibles (ticket + tareas de cada grupo), agrupados por especialista.
+    const porEsp = new Map();
+    rgGroups().forEach(g => {
+      [g.ticket].concat(g.tareas).forEach(it => {
+        const esp = nombreDe(it);
+        if (!porEsp.has(esp)) porEsp.set(esp, []);
+        porEsp.get(esp).push(it);
+      });
+    });
+    if (!porEsp.size){
+      alert('No hay registros para descargar con los filtros actuales.');
+      return;
+    }
+
+    const header = ['Semana', 'Tipo', 'Ticket', 'Tarea', 'Servicio', 'Especialista / Responsable', 'Fecha Registro', 'Fecha Cierre',
+      'Progreso (ticket en % · tarea en horas)', 'Progreso ajustado (candado)', 'Fecha real sustentada', 'Sustento de atención', 'Acción inmediata', 'Estado'];
+    const anchos = [34, 8, 12, 10, 24, 30, 17, 17, 16, 16, 18, 50, 36, 12];
+
+    // 2) Nombre de hoja válido en Excel (máx. 31 caracteres, sin \ / ? * [ ] :) y único.
+    const usados = new Set();
+    const nombreHoja = (esp) => {
+      let base = esp.replace(/[\\\/\?\*\[\]:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 31) || 'Hoja';
+      let nom = base, i = 2;
+      while (usados.has(nom.toLowerCase())){
+        const suf = ' (' + i++ + ')';
+        nom = base.slice(0, 31 - suf.length) + suf;
+      }
+      usados.add(nom.toLowerCase());
+      return nom;
+    };
+
+    const wb = XLSX.utils.book_new();
+    [...porEsp.keys()].sort((a, b) => a.localeCompare(b, 'es')).forEach(esp => {
+      const filas = porEsp.get(esp).map(it => ({ it, sem: semanaDe(it.fechaRegistro), t: toDateSafe(it.fechaRegistro) }));
+      filas.sort((a, b) =>
+        (a.sem.orden === b.sem.orden ? 0 : (a.sem.orden < b.sem.orden ? -1 : 1)) ||
+        ((a.t ? a.t.getTime() : Infinity) - (b.t ? b.t.getTime() : Infinity)) ||
+        String(a.it.ticket).localeCompare(String(b.it.ticket)) ||
+        (a.it.kind === b.it.kind ? 0 : (a.it.kind === 'ticket' ? -1 : 1)));
+
+      const aoa = [header];
+      filas.forEach(({ it, sem }) => {
+        const rec = rgRecOf(it) || {};
+        const esTarea = it.kind === 'tarea';
+        aoa.push([
+          sem.etiqueta, esTarea ? 'Tarea' : 'Ticket', it.ticket, esTarea ? it.id : '', it.servicio ?? '', it.especialista ?? '',
+          it.fechaRegistro ? fmtDate(it.fechaRegistro) : '', it.fechaCierre ? fmtDate(it.fechaCierre) : '',
+          esTarea ? rgFmtHoras(it.horas) : it.pct + '%',
+          it.ajustado ? (esTarea ? rgFmtHoras(it.horasAj) : rgFmtPct(it.pctAj)) : '',
+          rgFmtIso(rec.fechaReal || ''), rec.sustento || '', rec.accion || '',
+          RG_LABEL[rgEstado(rec)]
+        ]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = anchos.map(w => ({ wch: w }));
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: header.length - 1 } }) };
+      XLSX.utils.book_append_sheet(wb, ws, nombreHoja(esp));
+    });
+
+    XLSX.writeFile(wb, 'registro_vencidos_por_especialista.xlsx');
   });
 
   async function anInit(){
