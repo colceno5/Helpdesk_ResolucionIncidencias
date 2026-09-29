@@ -835,6 +835,19 @@
   .hs-chart-box{ position:relative; width:100%; }
   .hs-chart-legend{ display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--ink-soft); margin:2px 0 4px; }
   .hs-chart-legend i{ display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .hs-totals{ display:flex; flex-wrap:wrap; gap:10px 28px; margin:4px 0 8px; }
+  .hs-tot{ display:flex; flex-direction:column; font-size:12px; color:var(--ink-soft); }
+  .hs-tot b{ font-family:'IBM Plex Mono', monospace; font-size:17px; color:var(--ink); }
+  .hs-tot b.ok{ color:var(--success); }
+  .hs-tot b.bad{ color:var(--danger); }
+  .hs-esp{ margin-top:14px; padding-top:12px; border-top:1px solid var(--border); }
+  .hs-esp-title{ font-family:'Space Grotesk', sans-serif; font-size:13.5px; font-weight:600; margin-bottom:8px; }
+  .hs-esp-row{ display:grid; grid-template-columns:minmax(120px,220px) 1fr 64px; align-items:center; gap:10px; margin:5px 0; font-size:13px; }
+  .hs-esp-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hs-esp-track{ height:14px; background:var(--surface-sunken); border-radius:100px; overflow:hidden; }
+  .hs-esp-fill{ height:100%; background:var(--adj, #B87A1E); border-radius:100px; }
+  .hs-esp-fill.neg{ background:var(--danger); }
+  .hs-esp-pct{ font-family:'IBM Plex Mono', monospace; font-weight:600; text-align:right; }
   .hs-chart-note{ font-size:12px; color:var(--ink-soft); margin-top:4px; line-height:1.4; }
   .hs-antes{ color:var(--ink-soft); }
   .hs-desp{ font-weight:600; }
@@ -1364,12 +1377,20 @@
           <h4>Brecha de progreso: antes vs. después del sustento</h4>
           <div class="hs-chart-ctrl">
             <select class="an-select-inline" id="hsChartTipo" style="max-width:250px; padding:6px 8px; font-size:13px;"></select>
+            <select class="an-select-inline" id="hsChartModo" style="max-width:170px; padding:6px 8px; font-size:13px;" title="Total acumulado suma los casos uno tras otro (por fecha de cierre); Por caso muestra el valor de cada caso">
+              <option value="acum">Total acumulado</option>
+              <option value="caso">Por caso</option>
+            </select>
             <label title="Útil cuando hay valores muy distintos (p. ej. 4313% frente a 78%)"><input type="checkbox" id="hsChartLog"> Escala logarítmica</label>
           </div>
         </div>
-        <div class="hs-chart-legend" id="hsChartLegend"></div>
+        <div class="hs-totals hidden" id="hsChartTotals"></div>
         <div class="hs-chart-box" id="hsChartBox"><canvas id="hsChartCanvas"></canvas></div>
         <div class="empty-detail hidden" id="hsChartEmpty"></div>
+        <div class="hs-esp hidden" id="hsEspBox">
+          <div class="hs-esp-title">Aporte de cada especialista a la brecha</div>
+          <div id="hsEspList"></div>
+        </div>
         <div class="hs-chart-note" id="hsChartNote"></div>
       </div>
       <div class="table-scroll">
@@ -5602,9 +5623,13 @@
   }
   function rgFmtVal(f, v){ return v == null ? '—' : (f.kind === 'tarea' ? rgFmtHoras(v) : rgFmtPct(v)); }
   // ---------------- Gráfica de brecha: progreso antes vs. después ----------------
-  // Usa exactamente las mismas filas que la tabla (y respeta su filtro). Los tickets se miden en
-  // % de progreso SLA y las tareas en horas, así que no se mezclan: se elige uno u otro.
-  const hsChartState = { tipo: null, log: null, chart: null };
+  // Líneas: progreso ANTES total vs. DESPUÉS total. En modo "Total acumulado" se suman los casos
+  // uno tras otro (ordenados por su fecha de cierre original), y el espacio entre las dos líneas
+  // es la brecha. En modo "Por caso" cada punto es el valor de un caso. Debajo se muestra
+  // únicamente qué % de la brecha total aporta cada especialista.
+  // Usa las mismas filas que la tabla (y respeta su filtro). Los tickets se miden en % de progreso
+  // SLA y las tareas en horas, así que no se mezclan: se elige uno u otro.
+  const hsChartState = { tipo: null, log: null, modo: 'acum', chart: null };
   function hsChartRows(list){
     const tk = list.filter(f => f.kind === 'ticket');
     const tr = list.filter(f => f.kind === 'tarea');
@@ -5621,16 +5646,21 @@
     const tipo = hsChartState.tipo;
     sel.innerHTML = `<option value="ticket">Tickets (% de progreso) · ${grupos.ticket.length}</option><option value="tarea">Tareas (horas) · ${grupos.tarea.length}</option>`;
     sel.value = tipo;
+    $('hsChartModo').value = hsChartState.modo;
 
     const esTarea = tipo === 'tarea';
+    const acum = hsChartState.modo !== 'caso';
     const todos = grupos[tipo];
-    const datos = todos.filter(f => f.antesVal != null && f.despVal != null);
+    const tFecha = f => f.antesCierre ? new Date(f.antesCierre).getTime() : 8.64e15;
+    const datos = todos.filter(f => f.antesVal != null && f.despVal != null).sort((x, y) => tFecha(x) - tFecha(y));
     const omitidos = todos.length - datos.length;
 
     if (hsChartState.chart){ hsChartState.chart.destroy(); hsChartState.chart = null; }
-    const box = $('hsChartBox'), empty = $('hsChartEmpty'), note = $('hsChartNote'), leg = $('hsChartLegend');
+    const box = $('hsChartBox'), empty = $('hsChartEmpty'), note = $('hsChartNote');
+    const tot = $('hsChartTotals'), espBox = $('hsEspBox');
     box.classList.toggle('hidden', !datos.length);
-    leg.classList.toggle('hidden', !datos.length);
+    tot.classList.toggle('hidden', !datos.length);
+    espBox.classList.toggle('hidden', !datos.length);
     empty.classList.toggle('hidden', !!datos.length);
     if (!datos.length){
       empty.textContent = todos.length
@@ -5640,125 +5670,127 @@
       return;
     }
     if (typeof Chart === 'undefined'){
-      box.classList.add('hidden'); empty.classList.remove('hidden');
+      box.classList.add('hidden'); tot.classList.add('hidden'); espBox.classList.add('hidden');
+      empty.classList.remove('hidden');
       empty.textContent = 'No se pudo cargar la librería de gráficas (Chart.js). Revisa tu conexión.';
       return;
     }
 
-    // Escala: automática (log si la diferencia entre valores es enorme) hasta que el usuario elija.
-    const vals = datos.flatMap(f => [f.antesVal, f.despVal]).filter(v => v > 0);
-    const ratio = vals.length ? Math.max(...vals) / Math.min(...vals) : 1;
-    const log = hsChartState.log == null ? ratio > 25 : hsChartState.log;
+    // Series (acumuladas o por caso) y totales.
+    let sa = 0, sd = 0;
+    const serieAntes = [], serieDesp = [];
+    datos.forEach(f => {
+      sa += f.antesVal; sd += f.despVal;
+      serieAntes.push(acum ? sa : f.antesVal);
+      serieDesp.push(acum ? sd : f.despVal);
+    });
+    const totAntes = sa, totDesp = sd, totBrecha = sa - sd;
+    const nf = v => v.toLocaleString('es-PE', { maximumFractionDigits: 1 });
+    const fTot = v => esTarea ? rgFmtHoras(v) : nf(v) + '%';
+    const fBrecha = v => esTarea ? rgFmtHoras(v) : nf(v) + ' pts';
+    tot.innerHTML =
+      `<div class="hs-tot"><span>Progreso antes (total)</span><b>${fTot(totAntes)}</b></div>` +
+      `<div class="hs-tot"><span>Progreso después (total)</span><b>${fTot(totDesp)}</b></div>` +
+      `<div class="hs-tot"><span>Brecha total</span><b class="${totBrecha > 0 ? 'ok' : (totBrecha < 0 ? 'bad' : '')}">${totBrecha > 0 ? '−' : (totBrecha < 0 ? '+' : '')}${fBrecha(Math.abs(totBrecha))}</b></div>`;
+
+    // Escala: lineal por defecto; log solo si la persona la activa (el eje log no admite 0).
+    const log = !!hsChartState.log;
     $('hsChartLog').checked = log;
-    const safe = v => log ? Math.max(v, 0.1) : v;   // el eje log no admite 0
+    const safe = v => log ? Math.max(v, 0.1) : v;
+    const positivos = [...serieAntes, ...serieDesp].filter(v => v > 0);
 
-    const verde = '#1F8A5F', rojo = '#D9433D', gris = '#8A99A4', ambar = '#B87A1E';
-    const cumple = f => esTarea ? f.despVal < f.antesVal : f.despVal <= 100;
-    const colAntes = f => (!esTarea && f.antesVal > 100) ? rojo : gris;
-    const colDesp = f => cumple(f) ? verde : (esTarea ? ambar : rojo);
+    const verde = '#1F8A5F', rojo = '#D9433D', ambar = '#B87A1E';
     const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+    $('hsChartBox').style.height = '340px';
 
-    leg.innerHTML = esTarea
-      ? `<span><i style="background:${gris}"></i>Antes (dato original de Aranda)</span><span><i style="background:${verde}"></i>Después: menos horas</span><span><i style="background:${ambar}"></i>Después: no baja</span><span><i style="background:#fff;border:1.5px dashed ${ink()}"></i>Borde punteado = proyección (candado sin aplicar)</span>`
-      : `<span><i style="background:${rojo}"></i>Antes: vencido (&gt;100%)</span><span><i style="background:${gris}"></i>Antes: dentro de SLA</span><span><i style="background:${verde}"></i>Después: cumple SLA</span><span><i style="background:${rojo};opacity:.55"></i>Después: sigue vencido</span><span><i style="background:#fff;border:1.5px dashed ${ink()}"></i>Borde punteado = proyección (candado sin aplicar)</span>`;
-    function ink(){ return '#5B6E79'; }
-
-    const labels = datos.map(f => [f.id, String(f.responsable || '').split(' ').slice(0, 2).join(' ')].filter(Boolean));
-    const fmt = f => v => rgFmtVal(f, v);
-    $('hsChartBox').style.height = Math.max(200, datos.length * 62 + 70) + 'px';
-
-    const lineaSLA = {
-      id: 'hsSla',
-      afterDatasetsDraw(ch){
-        if (esTarea) return;
-        const { ctx, chartArea, scales } = ch;
-        const x = scales.x.getPixelForValue(100);
-        if (!(x >= chartArea.left && x <= chartArea.right)) return;
-        ctx.save();
-        ctx.strokeStyle = rojo; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
-        ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke();
-        ctx.setLineDash([]); ctx.fillStyle = rojo; ctx.font = '600 11px "IBM Plex Sans", sans-serif';
-        ctx.textAlign = 'left'; ctx.fillText('Meta SLA 100%', x + 4, chartArea.top + 10);
-        ctx.restore();
-      }
-    };
-    const etiquetaBrecha = {
-      id: 'hsGap',
-      afterDatasetsDraw(ch){
-        const { ctx, chartArea } = ch;
-        const meta = ch.getDatasetMeta(0), meta2 = ch.getDatasetMeta(1);
-        ctx.save();
-        ctx.font = '600 12px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-        datos.forEach((f, i) => {
-          const y = (meta.data[i].y + meta2.data[i].y) / 2;
-          ctx.fillStyle = cumple(f) ? verde : rojo;
-          ctx.fillText(rgFmtDelta(f), chartArea.right + 10, y);
-        });
-        ctx.restore();
-      }
-    };
+    const datasets = [
+      { label: acum ? 'Progreso antes (total acumulado)' : 'Progreso antes', data: serieAntes.map(safe),
+        borderColor: rojo, backgroundColor: hexA(rojo, .10), pointBackgroundColor: rojo, pointBorderColor: rojo,
+        borderWidth: 2.5, pointRadius: 3.5, pointHoverRadius: 5, tension: .15, fill: false },
+      { label: acum ? 'Progreso después (total acumulado)' : 'Progreso después', data: serieDesp.map(safe),
+        borderColor: verde, backgroundColor: hexA(verde, .12),
+        pointBackgroundColor: datos.map(f => f.aplicado ? verde : '#fff'), pointBorderColor: verde, pointBorderWidth: 2,
+        borderWidth: 2.5, pointRadius: 3.5, pointHoverRadius: 5, tension: .15, fill: '-1' }   // relleno = brecha
+    ];
+    if (!esTarea && !acum){
+      datasets.push({ label: 'Meta SLA 100%', data: datos.map(() => 100), borderColor: ambar, borderDash: [5, 4],
+        borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 0, fill: false });
+    }
 
     hsChartState.chart = new Chart($('hsChartCanvas').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Progreso antes', data: datos.map(f => safe(f.antesVal)),
-            backgroundColor: datos.map(f => hexA(colAntes(f), .85)), borderWidth: 0, borderRadius: 3 },
-          { label: 'Progreso después', data: datos.map(f => safe(f.despVal)),
-            backgroundColor: datos.map(f => f.aplicado ? hexA(colDesp(f), .95) : hexA(colDesp(f), .5)),
-            borderColor: datos.map(f => colDesp(f)), borderWidth: datos.map(f => f.aplicado ? 0 : 1.5),
-            borderDash: [5, 3], borderRadius: 3 }
-        ]
-      },
+      type: 'line',
+      data: { labels: datos.map(f => f.id), datasets },
       options: {
-        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        layout: { padding: { right: 118 } },
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         scales: {
-          x: { type: log ? 'logarithmic' : 'linear',
-               min: log ? Math.pow(10, Math.floor(Math.log10(Math.min(...vals.map(safe))))) : 0, beginAtZero: !log,
-               title: { display: true, text: esTarea ? 'Horas' : '% de progreso SLA' },
-               ticks: { maxRotation: 0, autoSkip: false, callback: v => {
-                 // En escala log solo se rotulan 1, 2 y 5 × 10ⁿ para que el eje no se amontone.
+          x: { grid: { display: false }, ticks: { maxRotation: 60, autoSkip: true, font: { size: 11 } } },
+          y: { type: log ? 'logarithmic' : 'linear',
+               min: log ? Math.pow(10, Math.floor(Math.log10(positivos.length ? Math.min(...positivos.map(safe)) : 0.1))) : 0,
+               beginAtZero: !log,
+               title: { display: true, text: acum
+                 ? (esTarea ? 'Horas acumuladas' : '% de progreso SLA acumulado (suma de los casos)')
+                 : (esTarea ? 'Horas' : '% de progreso SLA') },
+               ticks: { callback: v => {
                  if (log && ![1, 2, 5].includes(Math.round(v / Math.pow(10, Math.floor(Math.log10(v)))))) return '';
                  return esTarea ? v.toLocaleString('es-PE') + ' h' : v.toLocaleString('es-PE') + '%';
                } },
-               grid: { color: 'rgba(0,0,0,.06)' } },
-          y: { grid: { display: false }, ticks: { font: { size: 11.5 } } }
+               grid: { color: 'rgba(0,0,0,.06)' } }
         },
         plugins: {
-          legend: { display: false },
+          legend: { position: 'top', align: 'start', labels: { usePointStyle: true, boxWidth: 8, font: { size: 12 } } },
           tooltip: {
             callbacks: {
               title: (items) => { const f = datos[items[0].dataIndex]; return f.kind === 'tarea' ? `Tarea ${f.id} · caso ${f.ticket}` : f.ticket; },
               label: (item) => {
+                if (item.datasetIndex === 2) return item.dataset.label;
                 const f = datos[item.dataIndex];
-                const v = item.datasetIndex === 0 ? f.antesVal : f.despVal;
+                const v = item.datasetIndex === 0 ? serieAntes[item.dataIndex] : serieDesp[item.dataIndex];
                 const extra = item.datasetIndex === 1 && !f.aplicado ? ' (proyección)' : '';
-                return `${item.dataset.label}: ${fmt(f)(v)}${extra}`;
+                return `${item.dataset.label}: ${fTot(v)}${extra}`;
               },
               afterBody: (items) => {
                 const f = datos[items[0].dataIndex];
-                const lin = [`Brecha: ${rgFmtDelta(f)}`];
-                if (f.resultado) lin.push(f.resultado === 'ok' ? 'Pasa a cumplir SLA' : 'Sigue vencido');
+                const lin = [`Este caso: ${rgFmtVal(f, f.antesVal)} → ${rgFmtVal(f, f.despVal)} (${rgFmtDelta(f)})`];
+                if (f.responsable && f.responsable !== '—') lin.push(`Especialista: ${f.responsable}`);
                 lin.push(f.aplicado ? 'Candado aplicado' : 'Candado sin aplicar');
                 return lin;
               }
             }
           }
         }
-      },
-      plugins: [lineaSLA, etiquetaBrecha]
+      }
     });
+
+    // Aporte de cada especialista a la brecha total (solo porcentaje).
+    const porEsp = new Map();
+    datos.forEach(f => {
+      const k = f.responsable && f.responsable !== '—' ? f.responsable : 'Sin asignar';
+      const e = porEsp.get(k) || { casos: 0, brecha: 0 };
+      e.casos++; e.brecha += f.antesVal - f.despVal;
+      porEsp.set(k, e);
+    });
+    const esp = [...porEsp].map(([nombre, e]) => ({ nombre, casos: e.casos, brecha: e.brecha,
+      pct: totBrecha ? e.brecha / totBrecha * 100 : 0 })).sort((x, y) => y.pct - x.pct);
+    $('hsEspList').innerHTML = totBrecha === 0
+      ? '<div class="hs-chart-note">No hay brecha que repartir: el total antes y después es igual.</div>'
+      : esp.map(e => `
+        <div class="hs-esp-row" title="${escapeHtml(e.nombre)} · ${e.casos} caso${e.casos === 1 ? '' : 's'} · brecha ${escapeHtml(fBrecha(Math.abs(e.brecha)))}">
+          <span class="hs-esp-name">${escapeHtml(e.nombre)}</span>
+          <span class="hs-esp-track"><span class="hs-esp-fill${e.pct < 0 ? ' neg' : ''}" style="display:block; width:${Math.min(100, Math.abs(e.pct)).toFixed(1)}%"></span></span>
+          <span class="hs-esp-pct">${nf(e.pct)}%</span>
+        </div>`).join('');
 
     const proy = datos.filter(f => !f.aplicado).length;
     const partes = [];
-    if (proy) partes.push(`${proy} de ${datos.length} son proyección (el candado aún no está activo).`);
+    if (proy) partes.push(`${proy} de ${datos.length} son proyección (candado sin activar; punto vacío en la línea "después").`);
     if (omitidos) partes.push(`${omitidos} sin datos cargados no se grafican.`);
-    if (log) partes.push('Escala logarítmica: la distancia visual no es proporcional a la diferencia real; guíate por la etiqueta de brecha.');
+    if (acum) partes.push('Total acumulado: casos ordenados por su fecha de cierre original; el área sombreada entre las líneas es la brecha.');
+    if (log) partes.push('Escala logarítmica: la distancia visual no es proporcional a la diferencia real.');
     note.textContent = partes.join(' ');
   }
   $('hsChartTipo').addEventListener('change', (e) => { hsChartState.tipo = e.target.value; renderHistorial(); });
+  $('hsChartModo').addEventListener('change', (e) => { hsChartState.modo = e.target.value; renderHistorial(); });
   $('hsChartLog').addEventListener('change', (e) => { hsChartState.log = e.target.checked; renderHistorial(); });
 
   function renderHistorial(){
