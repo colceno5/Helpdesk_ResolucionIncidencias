@@ -1030,8 +1030,7 @@
      <div class="page-tabs-left">
        <button class="page-tab-btn active" id="pageTabGeneral" data-target-page="general">Resumen</button>
        <button class="page-tab-btn" id="pageTabDashboard" data-target-page="dashboardExtra">Dashboard</button>
-       <button class="page-tab-btn" id="pageTabAnalysis" data-target-page="analysis">Análisis y Mejora</button>
-       <button class="page-tab-btn" id="pageTabTendencias" data-target-page="tendencias">Tendencias</button>
+       <button class="page-tab-btn" id="pageTabTendencias" data-target-page="tendencias">Tendencias y mejoras</button>
        <button class="page-tab-btn" id="pageTabRegistro" data-target-page="registro">Registro de vencidos</button>
      </div>
      <button class="btn-tv" id="btnTvMode" title="Alterna automáticamente, cada 10 segundos, entre la tabla de tickets y la de tareas">🖥️ Modo pantalla</button>
@@ -1435,7 +1434,7 @@
     </section>
    </div>
 
-   <div id="analysisSection" class="hidden" data-page="analysis">
+   <div id="tendenciasSection" class="hidden" data-page="tendencias">
 
     <div class="an-toolbar">
       <label for="anWeekMode">Semana analizada</label>
@@ -1445,7 +1444,6 @@
         <option value="select">Seleccionar semana…</option>
       </select>
       <select id="anWeekSelect" class="hidden"></select>
-      <label class="an-check"><input type="checkbox" id="anCompare" checked> Comparar con semana anterior</label>
       <div class="an-spacer"></div>
       <label for="anTrendWindow">Tendencia</label>
       <select id="anTrendWindow">
@@ -1453,18 +1451,11 @@
         <option value="12" selected>Últimas 12 semanas</option>
         <option value="26">Últimas 26 semanas</option>
       </select>
-      <button class="btn-primary" id="anBtnReport">Generar análisis semanal</button>
     </div>
 
     <p class="an-empty hidden" id="anNoData">Aún no hay tickets cargados para analizar por semana.</p>
 
     <div id="anContent" class="hidden">
-
-      <section class="an-section">
-        <h2 id="anWeekTitle">Resumen ejecutivo</h2>
-        <p class="an-sub" id="anWeekSub"></p>
-        <div class="an-grid" id="anExecGrid"></div>
-      </section>
 
       <section class="an-section">
         <h2>Evolución semanal del cumplimiento SLA</h2>
@@ -1488,123 +1479,29 @@
         </div>
       </section>
 
-      <section class="an-section">
-        <h2>Tareas y cuellos de botella</h2>
-        <p class="an-sub">Casos de la semana con 2 o más tareas asociadas (una tarea abierta hace más de 15 días se considera estancada).</p>
-        <div class="an-grid" id="anTaskGrid" style="margin-bottom:10px;"></div>
-        <div class="an-card">
-          <div class="table-scroll">
-            <table id="anBottleneckWeekTable">
-              <thead><tr><th>Caso</th><th>Tareas</th><th>Grupos</th><th>Grupo más lento</th><th>Duración</th><th>Estado</th></tr></thead>
-              <tbody id="anBottleneckWeekBody"></tbody>
-            </table>
-          </div>
-          <p class="an-empty hidden" id="anBottleneckWeekEmpty">No hay casos con 2 o más tareas en esta semana.</p>
-        </div>
-      </section>
-
-      <section class="an-section">
-        <h2>¿Por qué nos estamos demorando?</h2>
-        <div class="an-card an-why" id="anWhyBox"></div>
-      </section>
-
-      <section class="an-section">
-        <h2>Base de conocimientos</h2>
-        <p class="an-sub">Convierte problemas recurrentes en artículos reutilizables. Los datos de solución provienen de los tickets o de lo que registres manualmente.</p>
-        <div class="an-toolrow">
-          <input type="text" id="anKbSearch" placeholder="Buscar por título, problema o palabra clave…">
-          <select id="anKbServicio"><option value="">Todos los servicios</option></select>
-          <select id="anKbEstado">
-            <option value="">Todos los estados</option>
-            <option>Borrador</option><option>En revisión</option><option>Publicado</option><option>Obsoleto</option>
-          </select>
-          <div class="an-spacer"></div>
-          <button class="btn-primary" id="anBtnNewKb">+ Nuevo artículo</button>
-        </div>
-        <div class="an-kb-list" id="anKbList"></div>
-        <p class="an-empty hidden" id="anKbEmpty">No hay artículos que coincidan con el filtro.</p>
-        <div class="an-card" style="margin-top:12px;">
-          <h3 style="margin:0 0 8px; font-size:13.5px;">Calidad de las soluciones registradas (semana enfocada)</h3>
-          <div class="an-grid" id="anSolutionQualityGrid"></div>
-        </div>
-      </section>
-
-      <section class="an-section">
-        <h2>Acciones de mejora</h2>
-        <div class="an-toolrow">
-          <div class="an-spacer"></div>
-          <button class="btn-primary" id="anBtnNewAccion">+ Registrar acción</button>
-        </div>
-        <div class="an-card">
-          <div class="table-scroll">
-            <table id="anAccionesTable">
-              <thead><tr><th>Acción</th><th>Problema</th><th>Responsable</th><th>Compromiso</th><th>Estado</th><th>Prioridad</th><th>Antes → Después</th><th></th></tr></thead>
-              <tbody id="anAccionesBody"></tbody>
-            </table>
-          </div>
-          <p class="an-empty hidden" id="anAccionesEmpty">Aún no se han registrado acciones de mejora.</p>
-        </div>
-      </section>
-
     </div>
-   </div>
-
-   <div id="tendenciasSection" class="hidden" data-page="tendencias">
 
     <section class="an-section">
-      <h2>¿En cuántas horas se llega al 100% de progreso?</h2>
-      <p class="an-sub">
-        Para cada ticket cerrado con Fecha registro y Fecha cierre se extrapola, a partir del
-        ritmo real observado (horas transcurridas ÷ % de progreso alcanzado × 100), cuántas
-        horas tomaría llegar al 100%. Los tickets de un mismo servicio se separan en distintos
-        "grupos" cuando esa duración estimada difiere claramente entre sí (por ejemplo, por
-        prioridad o categoría distinta) — en vez de promediarse en un solo número que no
-        representaría bien a ninguno de los dos casos.
-      </p>
-      <div class="an-grid" id="tdSummaryGrid"></div>
+      <h2>Detalle por servicio</h2>
+      <p class="an-sub">Horas promedio y mediana que toma llegar al 100% de progreso, por servicio (tickets cerrados con fechas completas, dentro del rango de fechas seleccionado).</p>
+      <div class="an-card">
+        <div class="table-scroll">
+          <table id="tdTable">
+            <thead>
+              <tr>
+                <th data-key="servicio">Servicio</th>
+                <th data-key="total">Tickets</th>
+                <th data-key="avgGeneral">Horas prom. a 100%</th>
+                <th data-key="medianGeneral">Mediana</th>
+                <th data-key="clusterCount">Consistencia</th>
+              </tr>
+            </thead>
+            <tbody id="tdTableBody"></tbody>
+          </table>
+        </div>
+        <p class="an-empty hidden" id="tdTableEmpty">No hay tickets con fechas completas en el rango seleccionado.</p>
+      </div>
     </section>
-
-    <p class="an-empty hidden" id="tdEmpty">Aún no hay tickets cerrados con fechas completas para estimar este tiempo.</p>
-
-    <div id="tdContent" class="hidden">
-
-      <section class="an-section">
-        <h2>Horas hasta el 100% por servicio</h2>
-        <p class="an-sub">Servicios con más tickets evaluados primero (máximo 15 en el gráfico). Cuando un servicio tiene más de un grupo de tiempo, cada uno se dibuja por separado.</p>
-        <div class="an-card">
-          <div class="td-chart-box" id="tdChartBox"><canvas id="chartTendencias"></canvas></div>
-          <div id="tdChartFallback" class="hidden"></div>
-        </div>
-      </section>
-
-      <section class="an-section">
-        <h2>Detalle por servicio</h2>
-        <div class="an-card">
-          <div class="table-scroll">
-            <table id="tdTable">
-              <thead>
-                <tr>
-                  <th data-key="servicio">Servicio</th>
-                  <th data-key="total">Tickets</th>
-                  <th data-key="avgGeneral">Horas prom. a 100%</th>
-                  <th data-key="medianGeneral">Mediana</th>
-                  <th data-key="clusterCount">Consistencia</th>
-                </tr>
-              </thead>
-              <tbody id="tdTableBody"></tbody>
-            </table>
-          </div>
-          <p class="an-empty hidden" id="tdTableEmpty">No hay tickets con fechas completas en el rango seleccionado.</p>
-        </div>
-      </section>
-
-      <section class="an-section">
-        <h2>Servicios con tiempos distintos</h2>
-        <p class="an-sub">Mismo servicio, pero con más de un ritmo de resolución claramente diferenciado — útil para revisar si la causa es la prioridad, la categoría, o el tipo de caso.</p>
-        <div id="tdDetalle"></div>
-      </section>
-
-    </div>
    </div>
 
    <div class="modal-overlay hidden" id="anModalOverlay">
@@ -1759,12 +1656,10 @@
     if (!screens.length) return;
     $('pageTabGeneral').classList.add('active');
     $('pageTabDashboard').classList.remove('active');
-    $('pageTabAnalysis').classList.remove('active');
     $('pageTabTendencias').classList.remove('active');
     $('pageTabRegistro').classList.remove('active');
     document.body.classList.add('page-view-general');
     document.body.classList.remove('page-view-dashboardExtra');
-    document.body.classList.remove('page-view-analysis');
     document.body.classList.remove('page-view-tendencias');
     document.body.classList.remove('page-view-registro');
     document.body.classList.add('tv-mode');
@@ -2317,7 +2212,6 @@
     revealDashboard();
     $('ticketSection').classList.remove('hidden');
     $('trendsSection').classList.remove('hidden');
-    $('analysisSection').classList.remove('hidden');
     $('tendenciasSection').classList.remove('hidden');
     $('registroSection').classList.remove('hidden');
 
@@ -3348,7 +3242,6 @@
 
   // ---------------- Pestaña "Tendencias": horas hasta el 100% de progreso ----------------
 
-  let tendenciasChart = null;
   let tdSortState = { key: 'total', dir: 'desc' };
 
   // Para cada ticket cerrado con fechas completas, extrapola cuántas horas tomaría
@@ -3450,115 +3343,6 @@
     }).sort((a, b) => b.total - a.total);
   }
 
-  // Encuentra el valor más frecuente de un campo dentro de un grupo (p.ej. Prioridad),
-  // para sugerir por qué ese grupo tiene un tiempo distinto al resto del servicio.
-  function dominantField(items, field){
-    const counts = {};
-    items.forEach(it => {
-      const v = it[field];
-      if (!v || v === '—') return;
-      counts[v] = (counts[v] || 0) + 1;
-    });
-    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    if (!entries.length) return null;
-    const [name, count] = entries[0];
-    return { name, count, total: items.length };
-  }
-
-  function renderTendenciasChart(data){
-    const box = document.getElementById('tdChartBox');
-    const fallback = document.getElementById('tdChartFallback');
-    const canvas = $('chartTendencias');
-    if (tendenciasChart){ tendenciasChart.destroy(); tendenciasChart = null; }
-
-    const sorted = data.slice(0, 15).sort((a, b) => a.avgGeneral - b.avgGeneral);
-    const maxGroups = Math.max(1, ...sorted.map(d => d.clusters.length));
-
-    function showFallback(){
-      box.classList.add('hidden');
-      fallback.classList.remove('hidden');
-      fallback.innerHTML = sorted.map(d => `
-        <div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
-          <span>${escapeHtml(d.servicio)}</span>
-          <span class="mono" style="color:var(--ink-soft);">${formatDuration(Math.round(d.avgGeneral * 60))}${d.clusters.length > 1 ? ` (${d.clusters.length} grupos)` : ''}</span>
-        </div>`).join('');
-    }
-
-    if (typeof Chart === 'undefined'){ showFallback(); return; }
-    if (!sorted.length){ box.classList.remove('hidden'); fallback.classList.add('hidden'); return; }
-
-    try {
-      box.classList.remove('hidden');
-      fallback.classList.add('hidden');
-
-      const styles = getComputedStyle(document.documentElement);
-      const inkSoft = styles.getPropertyValue('--ink-soft').trim();
-      const inkColor = styles.getPropertyValue('--ink').trim();
-      const border = styles.getPropertyValue('--border').trim();
-      const groupColors = [
-        styles.getPropertyValue('--accent').trim(),
-        styles.getPropertyValue('--warning').trim(),
-        styles.getPropertyValue('--danger').trim(),
-        styles.getPropertyValue('--success').trim()
-      ];
-
-      const labels = sorted.map(d => d.servicio);
-      const datasets = [];
-      for (let g = 0; g < maxGroups; g++){
-        datasets.push({
-          label: maxGroups > 1 ? `Grupo ${g + 1}` : 'Horas a 100%',
-          data: sorted.map(d => d.clusters[g] ? Number(d.clusters[g].avg.toFixed(1)) : null),
-          backgroundColor: groupColors[g % groupColors.length],
-          borderRadius: 4,
-          maxBarThickness: maxGroups > 1 ? 14 : 22,
-          counts: sorted.map(d => d.clusters[g] ? d.clusters[g].count : null)
-        });
-      }
-
-      tendenciasChart = new Chart(canvas.getContext('2d'), {
-        type: 'bar',
-        data: { labels, datasets },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          layout: { padding: { right: 40 } },
-          scales: {
-            x: {
-              beginAtZero: true,
-              grid: { color: border },
-              ticks: { color: inkSoft, font: { family: "'IBM Plex Mono', monospace", size: 11 }, callback: v => v + 'h' },
-              title: { display: true, text: 'Horas hasta el 100% de progreso', color: inkSoft, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 } }
-            },
-            y: {
-              grid: { display: false },
-              ticks: { color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 12 } }
-            }
-          },
-          plugins: {
-            legend: { display: maxGroups > 1, labels: { color: inkSoft, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 } } },
-            tooltip: {
-              backgroundColor: '#16202B',
-              padding: 10,
-              titleFont: { family: "'IBM Plex Sans', sans-serif", size: 12.5, weight: '600' },
-              bodyFont: { family: "'IBM Plex Sans', sans-serif", size: 12 },
-              callbacks: {
-                label: (ctx) => {
-                  if (ctx.raw == null) return null;
-                  const c = ctx.dataset.counts[ctx.dataIndex];
-                  return `${ctx.dataset.label}: ${formatDuration(Math.round(ctx.raw * 60))}${c ? ` (${c} ticket${c === 1 ? '' : 's'})` : ''}`;
-                }
-              }
-            }
-          }
-        }
-      });
-    } catch (err){
-      console.warn('No se pudo dibujar el gráfico de tendencias:', err.message);
-      showFallback();
-    }
-  }
-
   function renderTendenciasTable(data){
     const rows = data.slice().sort((a, b) => {
       let av = a[tdSortState.key], bv = b[tdSortState.key];
@@ -3581,53 +3365,8 @@
     `).join('');
   }
 
-  function renderTendenciasDetalle(heterog){
-    const box = $('tdDetalle');
-    if (!heterog.length){
-      box.innerHTML = '<p class="an-empty">Todos los servicios con datos suficientes muestran un tiempo consistente hasta el 100% de progreso.</p>';
-      return;
-    }
-    box.innerHTML = heterog.map(d => {
-      const gruposHtml = d.clusters.map((c, i) => {
-        const prio = dominantField(c.items, 'prioridad');
-        const cat = dominantField(c.items, 'categoria');
-        const bits = [];
-        if (prio && prio.count / prio.total >= 0.5) bits.push(`principalmente Prioridad ${escapeHtml(prio.name)} (${prio.count}/${prio.total})`);
-        if (cat && cat.count / cat.total >= 0.5) bits.push(`Categoría ${escapeHtml(cat.name)} (${cat.count}/${cat.total})`);
-        return `<li><b>Grupo ${i + 1}:</b> ${formatDuration(Math.round(c.avg * 60))} prom. (rango ${formatDuration(Math.round(c.min * 60))}–${formatDuration(Math.round(c.max * 60))}) · ${c.count} ticket${c.count === 1 ? '' : 's'}${bits.length ? ' — ' + bits.join(', ') : ''}</li>`;
-      }).join('');
-      return `
-        <div class="an-card" style="margin-bottom:10px;">
-          <h3 style="margin:0 0 6px; font-size:13.5px;">${escapeHtml(d.servicio)}</h3>
-          <ul style="margin:0 0 0 18px; padding:0; font-size:13px; line-height:1.65;">${gruposHtml}</ul>
-        </div>`;
-    }).join('');
-  }
-
   function renderTendencias(){
-    const data = buildTendenciasData();
-    const totalTickets = data.reduce((s, d) => s + d.total, 0);
-    const heterog = data.filter(d => d.clusters.length > 1);
-
-    $('tdEmpty').classList.toggle('hidden', data.length > 0);
-    $('tdContent').classList.toggle('hidden', data.length === 0);
-    if (!data.length){
-      if (tendenciasChart){ tendenciasChart.destroy(); tendenciasChart = null; }
-      $('tdSummaryGrid').innerHTML = '';
-      return;
-    }
-
-    const globalAvg = totalTickets ? data.reduce((s, d) => s + d.avgGeneral * d.total, 0) / totalTickets : null;
-    $('tdSummaryGrid').innerHTML = [
-      anExecStat('Servicios analizados', data.length),
-      anExecStat('Tickets con fechas completas', totalTickets),
-      anExecStat('Horas prom. a 100% (global)', globalAvg == null ? '—' : formatDuration(Math.round(globalAvg * 60))),
-      anExecStat('Servicios con tiempos distintos', heterog.length, heterog.length ? 'bad' : 'ok')
-    ].join('');
-
-    renderTendenciasChart(data);
-    renderTendenciasTable(data);
-    renderTendenciasDetalle(heterog);
+    renderTendenciasTable(buildTendenciasData());
   }
 
   wireSortableHeaders('#tdTable thead th', tdSortState, renderTendencias, key => key === 'servicio' ? 'asc' : 'desc');
@@ -3893,17 +3632,15 @@
     cumplen: 'tickets_cumplen.csv'
   };
 
-  [$('pageTabGeneral'), $('pageTabDashboard'), $('pageTabAnalysis'), $('pageTabTendencias'), $('pageTabRegistro')].forEach(btn => {
+  [$('pageTabGeneral'), $('pageTabDashboard'), $('pageTabTendencias'), $('pageTabRegistro')].forEach(btn => {
     btn.addEventListener('click', () => {
       const page = btn.dataset.targetPage;
       $('pageTabGeneral').classList.toggle('active', page === 'general');
       $('pageTabDashboard').classList.toggle('active', page === 'dashboardExtra');
-      $('pageTabAnalysis').classList.toggle('active', page === 'analysis');
       $('pageTabTendencias').classList.toggle('active', page === 'tendencias');
       $('pageTabRegistro').classList.toggle('active', page === 'registro');
       document.body.classList.toggle('page-view-general', page === 'general');
       document.body.classList.toggle('page-view-dashboardExtra', page === 'dashboardExtra');
-      document.body.classList.toggle('page-view-analysis', page === 'analysis');
       document.body.classList.toggle('page-view-tendencias', page === 'tendencias');
       document.body.classList.toggle('page-view-registro', page === 'registro');
       // Los gráficos (Chart.js) de esta pestaña se dibujan cuando llegan datos, que puede
@@ -3917,11 +3654,12 @@
         trendCategoria.redraw();
         renderEspecialistaChart(groupBy(allRows, r => r.especialista));
       }
-      // Igual que arriba: el gráfico de evolución semanal de "Análisis y Mejora" necesita
-      // tamaño real, así que se vuelve a dibujar cada vez que se entra a esa pestaña.
-      if (page === 'analysis' && typeof anRenderAll === 'function') anRenderAll();
-      // Mismo motivo: el gráfico de "Tendencias" necesita el tamaño real del contenedor.
-      if (page === 'tendencias' && allRowsRaw.length && typeof renderTendencias === 'function') renderTendencias();
+      // "Tendencias y mejoras": sus gráficos y tablas necesitan el tamaño real del contenedor,
+      // así que se vuelven a dibujar cada vez que se entra a la pestaña.
+      if (page === 'tendencias'){
+        if (typeof anRenderAll === 'function') anRenderAll();
+        if (allRowsRaw.length && typeof renderTendencias === 'function') renderTendencias();
+      }
       // Igual para la gráfica de brecha del historial de sustentos (Registro de vencidos).
       if (page === 'registro' && typeof renderHistorial === 'function') renderHistorial();
     });
@@ -4340,21 +4078,10 @@
   // /api/acciones.
   // =====================================================================
 
-  const AN_CAUSAS = ['Espera de usuario','Espera de proveedor','Falta de información','Escalamiento',
-    'Dependencia de otra área','Complejidad técnica','Saturación del equipo','Problema de infraestructura',
-    'Incidencia recurrente','Error de procedimiento','Falta de conocimiento','Otros'];
-  const AN_PENDIENTE = 'Pendiente de análisis';
-
   let anWeekMode = 'actual';
   let anSelectedWeekKey = null;
-  let anCompare = true;
   let anTrendWindow = 12;
-  let anThresholds = { leve: 10, moderado: 25, alto: 50 };
-  let anCausasMap = new Map();     // ticket -> { causa, nota }
-  let anKbArticulos = [];
-  let anAcciones = [];
   let anRecurCache = null;         // se recalcula cuando cambian los tickets
-  let anCurWeekRows = [], anCurPrevRows = [], anCurFocused = null, anCurIncumpl = null; // último render, para refrescos parciales
 
   function anIsoWeek(d){
     const p = peruParts(d);
@@ -4418,16 +4145,6 @@
     return m;
   }
 
-  function anClassifyExceso(exceso){
-    if (exceso <= anThresholds.leve) return 'leve';
-    if (exceso <= anThresholds.moderado) return 'moderado';
-    if (exceso <= anThresholds.alto) return 'alto';
-    return 'critico';
-  }
-  function anNivelLabel(n){
-    return { leve:'Leve', moderado:'Moderado', alto:'Alto', critico:'Crítico' }[n] || n;
-  }
-
   function anTrendArrow(curr, prev){
     if (prev == null || curr == null) return '<span class="an-trend-flat">—</span>';
     if (curr > prev) return '<span class="an-trend-up">▲ subió</span>';
@@ -4439,7 +4156,7 @@
   // Orquestador: se llama cada vez que cambian los datos o los controles.
   // ------------------------------------------------------------------
   function anRenderAll(){
-    if (!$('analysisSection')) return;
+    if (!$('tendenciasSection')) return;
     anRecurCache = null; // los problemas recurrentes se recalculan en cada render, para no quedar desactualizados si se cargó más información
     const buckets = anBucketWeeks();
     if (!buckets.size){
@@ -4451,35 +4168,10 @@
     $('anContent').classList.remove('hidden');
 
     const focused = anResolveFocusedInfo(buckets);
-    const prevInfo = anStepWeek(focused, -1);
     const weekRows = anGetWeekRows(buckets, focused.key);
-    const prevRows = anGetWeekRows(buckets, prevInfo.key);
-
     anPopulateWeekSelect(buckets, focused.key);
-
-    $('anWeekTitle').textContent = `Resumen ejecutivo — ${focused.label}`;
-    $('anWeekSub').textContent = `${anFmtRange(focused)}${anCompare ? ` · comparado con ${prevInfo.label} (${anFmtRange(prevInfo)})` : ''}`;
-
-    anRenderExecSummary(weekRows, anCompare ? prevRows : null);
     anRenderTrendChart(buckets, focused);
-    const incumpl = anRenderIncumplimientos(weekRows, prevRows);
     anRenderRecurring(focused, weekRows);
-    anRenderTasksBottleneck(focused, weekRows);
-    anRenderWhy(focused, weekRows, incumpl);
-    anRenderSolutionQuality(weekRows);
-
-    // Se guardan para poder refrescar solo lo que depende de la causa (ver anRefreshCausaViews),
-    // sin recalcular todo el tablero cada vez que se registra una causa de demora.
-    anCurWeekRows = weekRows; anCurPrevRows = prevRows; anCurFocused = focused; anCurIncumpl = incumpl;
-  }
-
-  // Refresco liviano tras registrar/editar una causa: solo la tabla de exceso+causas y el
-  // resumen "¿Por qué nos estamos demorando?" dependen de anCausasMap; el resto del tablero
-  // (tendencia, incumplimientos, recurrencia, tareas) no cambia, así que no hace falta
-  // recalcularlo ni perder la posición de scroll del usuario.
-  function anRefreshCausaViews(){
-    if (!anCurFocused) return;
-    anRenderWhy(anCurFocused, anCurWeekRows, anCurIncumpl);
   }
 
   function anPopulateWeekSelect(buckets, focusedKey){
@@ -4493,18 +4185,6 @@
     if (keys.includes(anSelectedWeekKey)) sel.value = anSelectedWeekKey;
     else if (keys.includes(prevValue)) sel.value = prevValue;
     sel.classList.toggle('hidden', anWeekMode !== 'select');
-  }
-
-  // ---------------- Resumen ejecutivo ----------------
-  function anExecStat(label, value, cls, delta){
-    return `<div class="an-stat"><div class="l">${escapeHtml(label)}</div><div class="n${cls ? ' ' + cls : ''}">${value}</div>${delta ? `<div class="delta ${delta.cls}">${delta.text}</div>` : ''}</div>`;
-  }
-  function anDelta(curr, prev, fmt, higherIsBetter){
-    if (prev == null || curr == null) return null;
-    const diff = curr - prev;
-    if (Math.abs(diff) < 1e-9) return { cls:'', text:'Igual que la semana anterior' };
-    const good = higherIsBetter ? diff > 0 : diff < 0;
-    return { cls: good ? 'up' : 'down', text: `${diff > 0 ? '+' : ''}${fmt(diff)} vs. semana anterior` };
   }
 
   function anWeekMetrics(rows){
@@ -4521,28 +4201,6 @@
     let mayorExceso = null;
     vencidosArr.forEach(r => { const e = r.pct - 100; if (!mayorExceso || e > mayorExceso.exceso) mayorExceso = { exceso: e, ticket: r.ticket }; });
     return { total, cumplen, vencidos, pct, abiertos, vencidosAbiertos, resolMedDias, excesoProm, mayorExceso };
-  }
-
-  function anRenderExecSummary(rows, prevRows){
-    const m = anWeekMetrics(rows);
-    const pm = prevRows ? anWeekMetrics(prevRows) : null;
-    const recurCount = anDetectRecurring().filter(g => g.enFoco).length;
-
-    const cards = [];
-    cards.push(anExecStat('Tickets evaluados', m.total, '', pm && anDelta(m.total, pm.total, v=>Math.round(v), true)));
-    cards.push(anExecStat('Cumplen SLA', m.cumplen, 'ok'));
-    cards.push(anExecStat('Vencidos', m.vencidos, m.vencidos ? 'bad' : '', pm && anDelta(m.vencidos, pm.vencidos, v=>Math.round(v), false)));
-    cards.push(anExecStat('% cumplimiento SLA', m.pct == null ? '—' : m.pct.toFixed(1) + '%', m.pct != null && m.pct >= META ? 'ok' : 'bad',
-      pm && pm.pct != null && m.pct != null ? anDelta(m.pct, pm.pct, v=>v.toFixed(1)+' pts', true) : null));
-    cards.push(anExecStat('Meta SLA', META + '%'));
-    cards.push(anExecStat('Brecha vs. meta', m.pct == null ? '—' : Math.max(0, META - m.pct).toFixed(1) + ' pts', (m.pct != null && m.pct < META) ? 'bad' : 'ok'));
-    cards.push(anExecStat('Tickets abiertos', m.abiertos));
-    cards.push(anExecStat('Vencidos pendientes', m.vencidosAbiertos, m.vencidosAbiertos ? 'bad' : ''));
-    cards.push(anExecStat('Tiempo prom. de resolución', m.resolMedDias == null ? '—' : m.resolMedDias.toFixed(1) + ' d'));
-    cards.push(anExecStat('Exceso prom. en vencidos', m.excesoProm == null ? '—' : '+' + m.excesoProm.toFixed(1) + ' pts', m.excesoProm ? 'bad' : ''));
-    cards.push(anExecStat('Mayor exceso de SLA', m.mayorExceso == null ? '—' : `+${m.mayorExceso.exceso.toFixed(1)} pts (${escapeHtml(m.mayorExceso.ticket)})`, m.mayorExceso ? 'bad' : ''));
-    cards.push(anExecStat('Incidencias recurrentes', recurCount));
-    $('anExecGrid').innerHTML = cards.join('');
   }
 
   // ---------------- Evolución semanal ----------------
@@ -4588,45 +4246,6 @@
         }
       }
     });
-  }
-
-  // ---------------- ¿Dónde estamos fallando? ----------------
-  function anGroupExcesoBy(rows, keyFn){
-    const map = new Map();
-    rows.filter(r => !r.cumple && r.estado === 'Cerrado').forEach(r => {
-      const k = keyFn(r) || '—';
-      if (!map.has(k)) map.set(k, []);
-      map.get(k).push(r);
-    });
-    return map;
-  }
-
-  // Ya no se dibuja ninguna tabla (se quitaron "¿Dónde estamos fallando?" y "Exceso de SLA y
-  // causas de demora"); solo se calcula lo que necesita el resumen "¿Por qué nos estamos demorando?".
-  function anRenderIncumplimientos(rows, prevRows){
-    const totalVencidos = rows.filter(r => !r.cumple && r.estado === 'Cerrado').length;
-    const byServicio = anGroupExcesoBy(rows, r => r.servicio);
-    const servicioRows = Array.from(byServicio.entries())
-      .map(([servicio, arr]) => ({ servicio, count: arr.length }))
-      .sort((a,b) => b.count - a.count);
-    return { servicioTop: servicioRows[0] || null, totalVencidos };
-  }
-
-  async function anSaveCausa(ticket, causa){
-    anCausasMap.set(ticket, { causa, nota: (anCausasMap.get(ticket) || {}).nota || null });
-    try{
-      await fetch('/api/causas', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ticket, causa }) });
-    }catch(err){ console.warn('No se pudo guardar la causa:', err.message); }
-    anRefreshCausaViews();
-  }
-
-  async function anLoadCausas(){
-    try{
-      const res = await fetch('/api/causas').then(r => r.ok ? r.json() : null);
-      if (res && res.ok){
-        anCausasMap = new Map(res.causas.map(c => [c.ticket, { causa: c.causa, nota: c.nota }]));
-      }
-    }catch(err){ console.warn('No se pudieron cargar las causas:', err.message); }
   }
 
   // ---------------- Problemas recurrentes ----------------
@@ -4691,7 +4310,6 @@
         <td><span class="an-badge potencial-${g.potencial}">${g.potencial === 'alta' ? 'Alta' : g.potencial === 'media' ? 'Media' : 'Baja'}</span></td>
         <td>
           <button class="an-recur-view" data-idx="${i}" style="font-size:11px; padding:3px 7px;">Ver tickets</button>
-          <button class="an-recur-kb" data-idx="${i}" style="font-size:11px; padding:3px 7px;">Crear artículo</button>
         </td>
       </tr>`).join('');
     $('anRecurTable').classList.toggle('hidden', !groups.length);
@@ -4707,124 +4325,6 @@
           `</tbody></table></div>`);
       });
     });
-    $('anRecurBody').querySelectorAll('.an-recur-kb').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const g = groups[Number(btn.dataset.idx)];
-        anOpenKbModal({
-          titulo: g.desc.length > 60 ? g.desc.slice(0,60) + '…' : g.desc,
-          servicio: g.servicio, problema: g.desc,
-          solucion: g.solucionMuestra || '', causa: '',
-          ticketsRelacionados: g.tickets.join(', ')
-        });
-      });
-    });
-  }
-
-  // ---------------- Tareas y cuellos de botella ----------------
-  function anRenderTasksBottleneck(focused, weekRows){
-    const ticketWeek = new Set(weekRows.map(r => r.ticket));
-    const rows = [];
-    tasksByCaso.forEach((tasks, caso) => {
-      if (!ticketWeek.has(caso) || tasks.length < 2) return;
-      const starts = tasks.map(t => t.fechaRegistro).filter(Boolean);
-      if (!starts.length) return;
-      const start = new Date(Math.min(...starts.map(d => d.getTime())));
-      const stillOpen = tasks.some(t => t.abierta);
-      let end;
-      if (stillOpen) end = new Date();
-      else { const closes = tasks.map(t => t.fechaCierre).filter(Boolean); end = closes.length ? new Date(Math.max(...closes.map(d => d.getTime()))) : null; }
-      if (!end) return;
-      const totalMin = Math.round((end - start) / 60000);
-      let slowest = tasks[0];
-      tasks.forEach(t => { if ((t.dias || 0) > (slowest.dias || 0)) slowest = t; });
-      rows.push({ caso, count: tasks.length, groups: new Set(tasks.map(t => t.grupoResponsable)).size, slowestGroup: slowest.grupoResponsable, totalMin, totalDias: totalMin/1440, stillOpen, estancada: stillOpen && totalMin/1440 > STUCK_DAYS });
-    });
-    rows.sort((a,b) => b.totalDias - a.totalDias);
-
-    const withTasks = Array.from(ticketWeek).filter(t => tasksByCaso.has(t));
-    const totalTareasSemana = withTasks.reduce((s,t) => s + tasksByCaso.get(t).length, 0);
-    const promedioTareas = withTasks.length ? (totalTareasSemana / withTasks.length) : null;
-    const estancadas = rows.filter(r => r.estancada).length;
-    const vencidosConVariasTareas = weekRows.filter(r => !r.cumple && r.estado === 'Cerrado' && tasksByCaso.has(r.ticket) && tasksByCaso.get(r.ticket).length >= 2).length;
-    const totalVencidos = weekRows.filter(r => !r.cumple && r.estado === 'Cerrado').length;
-
-    $('anTaskGrid').innerHTML = [
-      anExecStat('Casos con 2+ tareas', rows.length),
-      anExecStat('Tareas estancadas (>15d)', estancadas, estancadas ? 'bad' : ''),
-      anExecStat('Promedio de tareas/caso', promedioTareas == null ? '—' : promedioTareas.toFixed(1)),
-      anExecStat('Vencidos con 2+ tareas', totalVencidos ? `${vencidosConVariasTareas} de ${totalVencidos}` : '—')
-    ].join('');
-
-    $('anBottleneckWeekBody').innerHTML = rows.slice(0, 20).map(r => `
-      <tr>
-        <td class="mono ticket-id clickable" data-ticket="${escapeHtml(r.caso)}" data-tip-ticket="${escapeHtml(r.caso)}">${escapeHtml(r.caso)}</td>
-        <td class="mono">${r.count}</td>
-        <td class="mono">${r.groups}</td>
-        <td>${escapeHtml(r.slowestGroup)}</td>
-        <td class="mono" style="color:${daysColor(r.totalDias)}; font-weight:600;">${formatDuration(r.totalMin)}</td>
-        <td>${r.stillOpen ? '<span class="estado-badge abierta">En curso</span>' : '<span class="estado-badge cerrada">Completo</span>'}</td>
-      </tr>`).join('');
-    $('anBottleneckWeekTable').classList.toggle('hidden', !rows.length);
-    $('anBottleneckWeekEmpty').classList.toggle('hidden', !!rows.length);
-    $('anBottleneckWeekBody').querySelectorAll('.ticket-id.clickable').forEach(td => {
-      td.addEventListener('click', () => openTaskModal(td.dataset.ticket));
-    });
-
-    return { promedioTareas, estancadas };
-  }
-
-  // ---------------- ¿Por qué nos estamos demorando? ----------------
-  function anRenderWhy(focused, weekRows, incumpl){
-    const vencidos = weekRows.filter(r => !r.cumple && r.estado === 'Cerrado');
-    if (!vencidos.length){
-      $('anWhyBox').innerHTML = '<p>No hay información suficiente para determinar la causa: no se registraron tickets vencidos en esta semana.</p>';
-      return;
-    }
-    const servicioTop = incumpl.servicioTop;
-    const causaCount = new Map();
-    vencidos.forEach(r => {
-      const info = anCausasMap.get(r.ticket);
-      const causa = (info && info.causa) ? info.causa : AN_PENDIENTE;
-      causaCount.set(causa, (causaCount.get(causa) || 0) + 1);
-    });
-    const causaTop = Array.from(causaCount.entries()).sort((a,b) => b[1]-a[1])[0];
-    const sinCausa = vencidos.filter(r => { const info = anCausasMap.get(r.ticket); return !info || !info.causa; }).length;
-    const dependencias = vencidos.filter(r => { const info = anCausasMap.get(r.ticket); return info && (info.causa === 'Espera de proveedor' || info.causa === 'Dependencia de otra área'); }).length;
-    const recurGroups = anDetectRecurring().filter(g => g.enFoco);
-    const recurTop = recurGroups.sort((a,b) => b.count - a.count)[0];
-    const evalCount = new Map();
-    weekRows.forEach(r => evalCount.set(r.servicio, (evalCount.get(r.servicio)||0)+1));
-    const concentracion = Array.from(evalCount.entries()).sort((a,b)=>b[1]-a[1])[0];
-    const top3 = vencidos.slice().sort((a,b) => (b.pct-100)-(a.pct-100)).slice(0,3);
-    const oportunidades = anDetectRecurring().filter(g => g.potencial === 'alta' && !anKbArticulos.some(k => (k.problema||'').toLowerCase().includes(g.desc.slice(0,25)))).length;
-
-    $('anWhyBox').innerHTML = `
-      <ul>
-        <li><b>Principal servicio afectado:</b> ${servicioTop ? `${escapeHtml(servicioTop.servicio)} (${servicioTop.count} vencidos)` : 'No hay información suficiente para determinar la causa.'}</li>
-        <li><b>Principal causa de demora:</b> ${causaTop ? `${escapeHtml(causaTop[0])} (${causaTop[1]} tickets)` : 'No hay información suficiente para determinar la causa.'}</li>
-        <li><b>Problema recurrente más importante:</b> ${recurTop ? `"${escapeHtml(recurTop.desc.slice(0,80))}" — ${recurTop.count} tickets en total, ${recurTop.enFocoCount} esta semana` : 'No se detectó ningún patrón recurrente activo esta semana.'}</li>
-        <li><b>Mayor concentración de tickets:</b> ${concentracion ? `${escapeHtml(concentracion[0])} (${concentracion[1]} tickets evaluados)` : 'No hay información suficiente.'}</li>
-        <li><b>Tickets con mayor exceso de SLA:</b> ${top3.map(r => `${escapeHtml(r.ticket)} (+${(r.pct-100).toFixed(1)} pts)`).join(', ')}</li>
-        <li><b>Dependencias externas involucradas:</b> ${dependencias} de ${vencidos.length} tickets vencidos</li>
-        <li><b>Tickets sin causa de demora registrada:</b> ${sinCausa} de ${vencidos.length}${sinCausa ? ' — regístralas en la tabla de "Exceso de SLA" de arriba' : ''}</li>
-        <li><b>Oportunidades de documentación:</b> ${oportunidades ? `${oportunidades} problema(s) recurrente(s) con alto potencial de convertirse en artículo de conocimiento y sin uno ya creado` : 'No se detectaron oportunidades nuevas esta semana.'}</li>
-      </ul>`;
-  }
-
-  // ---------------- Calidad de las soluciones ----------------
-  function anRenderSolutionQuality(rows){
-    const sinSolucion = rows.filter(r => !r.solucion || r.solucion === '—').length;
-    const cortas = rows.filter(r => r.solucion && r.solucion !== '—' && r.solucion.length < 20).length;
-    const textos = rows.map(r => r.solucion).filter(s => s && s !== '—');
-    const repetidasMap = groupCount(textos, s => s.trim().toLowerCase());
-    const repetidas = Object.values(repetidasMap).filter(c => c > 1).reduce((s,c) => s+c, 0);
-    const potencialAlto = anDetectRecurring().filter(g => g.potencial === 'alta').length;
-    $('anSolutionQualityGrid').innerHTML = [
-      anExecStat('Sin solución registrada', sinSolucion, sinSolucion ? 'bad' : ''),
-      anExecStat('Soluciones muy cortas (<20 car.)', cortas),
-      anExecStat('Soluciones repetidas', repetidas),
-      anExecStat('Problemas con alto potencial KB', potencialAlto, potencialAlto ? 'ok' : '')
-    ].join('');
   }
 
   // ---------------- Modal genérico (ver tickets de un problema recurrente, etc.) ----------------
@@ -4838,263 +4338,10 @@
   $('anModalClose').addEventListener('click', anCloseModal);
   $('anModalOverlay').addEventListener('click', (e) => { if (e.target.id === 'anModalOverlay') anCloseModal(); });
 
-  // ---------------- Base de conocimientos ----------------
-  async function anLoadKb(){
-    try{
-      const res = await fetch('/api/kb').then(r => r.ok ? r.json() : null);
-      if (res && res.ok) anKbArticulos = res.articulos;
-    }catch(err){ console.warn('No se pudo cargar la base de conocimientos:', err.message); }
-    anRenderKbFilters();
-    anRenderKbList();
-  }
-  function anRenderKbFilters(){
-    const sel = $('anKbServicio');
-    const current = sel.value;
-    const servicios = Array.from(new Set(anKbArticulos.map(a => a.servicio).filter(Boolean))).sort();
-    sel.innerHTML = '<option value="">Todos los servicios</option>' + servicios.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-    sel.value = current;
-  }
-  function anRenderKbList(){
-    const q = ($('anKbSearch').value || '').toLowerCase().trim();
-    const servicio = $('anKbServicio').value;
-    const estado = $('anKbEstado').value;
-    const filtered = anKbArticulos.filter(a => {
-      if (servicio && a.servicio !== servicio) return false;
-      if (estado && a.estado !== estado) return false;
-      if (q){
-        const hay = `${a.titulo||''} ${a.problema||''} ${a.palabrasClave||''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-    $('anKbList').innerHTML = filtered.map(a => `
-      <div class="an-kb-card">
-        <h4>${escapeHtml(a.titulo || '(sin título)')}</h4>
-        <div class="meta">${escapeHtml(a.servicio || '—')} · ${escapeHtml(a.estado || 'Borrador')} · usado ${a.usos || 0} ${a.usos === 1 ? 'vez' : 'veces'}</div>
-        <div>${escapeHtml((a.problema || '').slice(0,110))}${(a.problema||'').length > 110 ? '…' : ''}</div>
-        <div class="actions">
-          <button class="an-kb-view" data-id="${a.id}">Ver</button>
-          <button class="an-kb-edit" data-id="${a.id}">Editar</button>
-          <button class="an-kb-del" data-id="${a.id}">Eliminar</button>
-        </div>
-      </div>`).join('');
-    $('anKbEmpty').classList.toggle('hidden', !!filtered.length);
-
-    $('anKbList').querySelectorAll('.an-kb-view').forEach(btn => btn.addEventListener('click', () => anViewKb(Number(btn.dataset.id))));
-    $('anKbList').querySelectorAll('.an-kb-edit').forEach(btn => btn.addEventListener('click', () => anOpenKbModal(anKbArticulos.find(a => a.id === Number(btn.dataset.id)))));
-    $('anKbList').querySelectorAll('.an-kb-del').forEach(btn => btn.addEventListener('click', () => anDeleteKb(Number(btn.dataset.id))));
-  }
-  function anViewKb(id){
-    const a = anKbArticulos.find(x => x.id === id);
-    if (!a) return;
-    anOpenModal(a.titulo || '(sin título)', `${a.servicio || '—'} · ${a.estado || 'Borrador'}`, `
-      <p><b>Problema:</b> ${escapeHtml(a.problema || '—')}</p>
-      <p><b>Síntomas:</b> ${escapeHtml(a.sintomas || '—')}</p>
-      <p><b>Causa:</b> ${escapeHtml(a.causa || '—')}</p>
-      <p><b>Solución:</b> ${escapeHtml(a.solucion || '—')}</p>
-      <p><b>Pasos de resolución:</b> ${escapeHtml(a.pasos || '—')}</p>
-      <p><b>Tickets relacionados:</b> ${escapeHtml(a.ticketsRelacionados || '—')}</p>
-    `);
-    fetch('/api/kb', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, incrementarUso: true }) })
-      .then(() => anLoadKb()).catch(() => {});
-  }
-  function anOpenKbModal(prefill){
-    const a = prefill || {};
-    anOpenModal(a.id ? 'Editar artículo' : 'Nuevo artículo de conocimiento', '', `
-      <div class="an-form-grid">
-        <div><label>Título</label><input id="kbTitulo" value="${escapeHtml(a.titulo||'')}"></div>
-        <div><label>Servicio</label><input id="kbServicio" value="${escapeHtml(a.servicio||'')}"></div>
-        <div><label>Categoría</label><input id="kbCategoria" value="${escapeHtml(a.categoria||'')}"></div>
-        <div><label>Estado</label><select id="kbEstado">${['Borrador','En revisión','Publicado','Obsoleto'].map(s=>`<option ${s===(a.estado||'Borrador')?'selected':''}>${s}</option>`).join('')}</select></div>
-        <div class="full"><label>Problema</label><textarea id="kbProblema">${escapeHtml(a.problema||'')}</textarea></div>
-        <div class="full"><label>Síntomas</label><textarea id="kbSintomas">${escapeHtml(a.sintomas||'')}</textarea></div>
-        <div class="full"><label>Causa</label><textarea id="kbCausa">${escapeHtml(a.causa||'')}</textarea></div>
-        <div class="full"><label>Solución (no inventar: solo lo registrado en tickets o lo que confirmes aquí)</label><textarea id="kbSolucion">${escapeHtml(a.solucion||'')}</textarea></div>
-        <div class="full"><label>Pasos de resolución</label><textarea id="kbPasos">${escapeHtml(a.pasos||'')}</textarea></div>
-        <div><label>Palabras clave</label><input id="kbPalabras" value="${escapeHtml(a.palabrasClave||'')}"></div>
-        <div><label>Público objetivo</label><input id="kbPublico" value="${escapeHtml(a.publicoObjetivo||'')}"></div>
-        <div><label>Nivel de dificultad</label><input id="kbDificultad" value="${escapeHtml(a.dificultad||'')}"></div>
-        <div><label>Autor</label><input id="kbAutor" value="${escapeHtml(a.autor||'')}"></div>
-        <div class="full"><label>Tickets relacionados</label><input id="kbTickets" value="${escapeHtml(a.ticketsRelacionados||'')}"></div>
-      </div>
-      <div class="an-form-actions">
-        <button id="kbCancel">Cancelar</button>
-        <button class="btn-primary" id="kbSave">Guardar</button>
-      </div>
-    `);
-    $('kbCancel').addEventListener('click', anCloseModal);
-    $('kbSave').addEventListener('click', async () => {
-      const payload = {
-        id: a.id || undefined, titulo: $('kbTitulo').value, servicio: $('kbServicio').value, categoria: $('kbCategoria').value,
-        estado: $('kbEstado').value, problema: $('kbProblema').value, sintomas: $('kbSintomas').value, causa: $('kbCausa').value,
-        solucion: $('kbSolucion').value, pasos: $('kbPasos').value, palabrasClave: $('kbPalabras').value,
-        publicoObjetivo: $('kbPublico').value, dificultad: $('kbDificultad').value, autor: $('kbAutor').value,
-        ticketsRelacionados: $('kbTickets').value
-      };
-      try{
-        await fetch('/api/kb', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      }catch(err){ console.warn('No se pudo guardar el artículo:', err.message); }
-      anCloseModal();
-      anLoadKb();
-    });
-  }
-  async function anDeleteKb(id){
-    if (!confirm('¿Eliminar este artículo de la base de conocimientos?')) return;
-    try{ await fetch(`/api/kb?id=${id}`, { method:'DELETE' }); }catch(err){ console.warn(err.message); }
-    anLoadKb();
-  }
-
-  // ---------------- Acciones de mejora ----------------
-  async function anLoadAcciones(){
-    try{
-      const res = await fetch('/api/acciones').then(r => r.ok ? r.json() : null);
-      if (res && res.ok) anAcciones = res.acciones;
-    }catch(err){ console.warn('No se pudieron cargar las acciones:', err.message); }
-    anRenderAcciones();
-  }
-  function anRenderAcciones(){
-    $('anAccionesBody').innerHTML = anAcciones.map(a => `
-      <tr>
-        <td>${escapeHtml(a.accion || '—')}</td>
-        <td>${escapeHtml(a.problema || '—')}</td>
-        <td>${escapeHtml(a.responsable || '—')}</td>
-        <td class="mono">${a.fechaCompromiso ? String(a.fechaCompromiso).slice(0,10) : '—'}</td>
-        <td>${escapeHtml(a.estado || 'Pendiente')}</td>
-        <td>${escapeHtml(a.prioridad || '—')}</td>
-        <td class="mono">${a.metricaAntes || '—'} → ${a.metricaDespues || '—'}</td>
-        <td>
-          <button class="an-accion-edit" data-id="${a.id}" style="font-size:11px; padding:3px 7px;">Editar</button>
-          <button class="an-accion-del" data-id="${a.id}" style="font-size:11px; padding:3px 7px;">Eliminar</button>
-        </td>
-      </tr>`).join('');
-    $('anAccionesTable').classList.toggle('hidden', !anAcciones.length);
-    $('anAccionesEmpty').classList.toggle('hidden', !!anAcciones.length);
-    $('anAccionesBody').querySelectorAll('.an-accion-edit').forEach(btn => btn.addEventListener('click', () => anOpenAccionModal(anAcciones.find(a => a.id === Number(btn.dataset.id)))));
-    $('anAccionesBody').querySelectorAll('.an-accion-del').forEach(btn => btn.addEventListener('click', () => anDeleteAccion(Number(btn.dataset.id))));
-  }
-  function anOpenAccionModal(prefill){
-    const a = prefill || {};
-    anOpenModal(a.id ? 'Editar acción de mejora' : 'Registrar acción de mejora', '', `
-      <div class="an-form-grid">
-        <div class="full"><label>Acción</label><textarea id="acAccion">${escapeHtml(a.accion||'')}</textarea></div>
-        <div><label>Problema relacionado</label><input id="acProblema" value="${escapeHtml(a.problema||'')}"></div>
-        <div><label>Causa</label><input id="acCausa" value="${escapeHtml(a.causa||'')}"></div>
-        <div><label>Responsable</label><input id="acResponsable" value="${escapeHtml(a.responsable||'')}"></div>
-        <div><label>Fecha de compromiso</label><input type="date" id="acFechaCompromiso" value="${a.fechaCompromiso ? String(a.fechaCompromiso).slice(0,10) : ''}"></div>
-        <div><label>Estado</label><select id="acEstado">${['Pendiente','En proceso','Completada','Cancelada'].map(s=>`<option ${s===(a.estado||'Pendiente')?'selected':''}>${s}</option>`).join('')}</select></div>
-        <div><label>Prioridad</label><input id="acPrioridad" value="${escapeHtml(a.prioridad||'')}"></div>
-        <div><label>Fecha de cierre</label><input type="date" id="acFechaCierre" value="${a.fechaCierre ? String(a.fechaCierre).slice(0,10) : ''}"></div>
-        <div class="full"><label>Resultado esperado</label><textarea id="acResultado">${escapeHtml(a.resultadoEsperado||'')}</textarea></div>
-        <div><label>Métrica antes</label><input id="acMetricaAntes" value="${escapeHtml(a.metricaAntes||'')}" placeholder="ej. 35 tickets/semana"></div>
-        <div><label>Métrica después</label><input id="acMetricaDespues" value="${escapeHtml(a.metricaDespues||'')}" placeholder="ej. 12 tickets/semana"></div>
-        <div class="full"><label>Observaciones</label><textarea id="acObs">${escapeHtml(a.observaciones||'')}</textarea></div>
-      </div>
-      <div class="an-form-actions">
-        <button id="acCancel">Cancelar</button>
-        <button class="btn-primary" id="acSave">Guardar</button>
-      </div>
-    `);
-    $('acCancel').addEventListener('click', anCloseModal);
-    $('acSave').addEventListener('click', async () => {
-      const payload = {
-        id: a.id || undefined, accion: $('acAccion').value, problema: $('acProblema').value, causa: $('acCausa').value,
-        responsable: $('acResponsable').value, fechaCompromiso: $('acFechaCompromiso').value || null,
-        estado: $('acEstado').value, prioridad: $('acPrioridad').value, resultadoEsperado: $('acResultado').value,
-        fechaCierre: $('acFechaCierre').value || null, observaciones: $('acObs').value,
-        metricaAntes: $('acMetricaAntes').value, metricaDespues: $('acMetricaDespues').value
-      };
-      try{
-        await fetch('/api/acciones', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      }catch(err){ console.warn('No se pudo guardar la acción:', err.message); }
-      anCloseModal();
-      anLoadAcciones();
-    });
-  }
-  async function anDeleteAccion(id){
-    if (!confirm('¿Eliminar esta acción de mejora?')) return;
-    try{ await fetch(`/api/acciones?id=${id}`, { method:'DELETE' }); }catch(err){ console.warn(err.message); }
-    anLoadAcciones();
-  }
-
-  // ---------------- Umbrales de exceso SLA ----------------
-  async function anLoadThresholds(){
-    try{
-      const res = await fetch('/api/settings').then(r => r.ok ? r.json() : null);
-      if (res && res.ok && res.slaThresholds){
-        try{ anThresholds = JSON.parse(res.slaThresholds); }catch(e){}
-      }
-    }catch(err){ console.warn('No se pudieron cargar los umbrales:', err.message); }
-  }
-  // ---------------- Informe semanal (texto descargable) ----------------
-  function anGenerateReport(){
-    const buckets = anBucketWeeks();
-    const focused = anResolveFocusedInfo(buckets);
-    const rows = anGetWeekRows(buckets, focused.key);
-    const m = anWeekMetrics(rows);
-    const vencidos = rows.filter(r => !r.cumple && r.estado === 'Cerrado');
-    const byServicio = anGroupExcesoBy(rows, r => r.servicio);
-    const servicioTop = Array.from(byServicio.entries()).sort((a,b) => b[1].length - a[1].length)[0];
-    const causaCount = new Map();
-    vencidos.forEach(r => { const info = anCausasMap.get(r.ticket); const c = (info && info.causa) ? info.causa : AN_PENDIENTE; causaCount.set(c, (causaCount.get(c)||0)+1); });
-    const causaTop = Array.from(causaCount.entries()).sort((a,b)=>b[1]-a[1]);
-    const recurrentes = anDetectRecurring().filter(g => g.enFoco);
-    const pendientes = anAcciones.filter(a => a.estado === 'Pendiente' || a.estado === 'En proceso');
-    const completadas = anAcciones.filter(a => a.estado === 'Completada');
-
-    const lines = [];
-    lines.push(`ANÁLISIS SEMANAL DE SERVICE DESK — ${focused.label} (${anFmtRange(focused)})`);
-    lines.push('='.repeat(60));
-    lines.push('');
-    lines.push('RESUMEN');
-    lines.push(`- Periodo: ${anFmtRange(focused)}`);
-    lines.push(`- Tickets evaluados: ${m.total}`);
-    lines.push(`- Cumplimiento SLA: ${m.pct == null ? '—' : m.pct.toFixed(1) + '%'} (meta ${META}%)`);
-    lines.push(`- Vencidos: ${m.vencidos}`);
-    lines.push(`- Tickets abiertos: ${m.abiertos} (vencidos pendientes: ${m.vencidosAbiertos})`);
-    lines.push('');
-    lines.push('PRINCIPALES DEMORAS');
-    lines.push(`- Servicio más afectado: ${servicioTop ? `${servicioTop[0]} (${servicioTop[1].length} vencidos)` : '—'}`);
-    lines.push(`- Principal causa: ${causaTop.length ? `${causaTop[0][0]} (${causaTop[0][1]} tickets)` : '—'}`);
-    lines.push('');
-    lines.push('PROBLEMAS RECURRENTES ESTA SEMANA');
-    if (recurrentes.length) recurrentes.slice(0,8).forEach(g => lines.push(`- "${g.desc.slice(0,70)}" — ${g.enFocoCount} esta semana (${g.count} histórico), ${g.servicio}`));
-    else lines.push('- Ninguno detectado esta semana.');
-    lines.push('');
-    lines.push('CAUSAS DE INCUMPLIMIENTO');
-    if (causaTop.length) causaTop.forEach(([c,n]) => lines.push(`- ${c}: ${n} tickets`));
-    else lines.push('- No hubo tickets vencidos.');
-    lines.push('');
-    lines.push('ACCIONES PENDIENTES / EN PROCESO');
-    if (pendientes.length) pendientes.forEach(a => lines.push(`- ${a.accion} (responsable: ${a.responsable || '—'}, compromiso: ${a.fechaCompromiso ? String(a.fechaCompromiso).slice(0,10) : '—'})`));
-    else lines.push('- Ninguna registrada.');
-    lines.push('');
-    lines.push('ACCIONES COMPLETADAS');
-    if (completadas.length) completadas.forEach(a => lines.push(`- ${a.accion}${a.metricaAntes || a.metricaDespues ? ` (${a.metricaAntes||'—'} → ${a.metricaDespues||'—'})` : ''}`));
-    else lines.push('- Ninguna registrada.');
-    lines.push('');
-    lines.push('OPORTUNIDADES DE MEJORA');
-    const oportunidades = anDetectRecurring().filter(g => g.potencial === 'alta');
-    if (oportunidades.length) oportunidades.slice(0,5).forEach(g => lines.push(`- Documentar en base de conocimientos: "${g.desc.slice(0,70)}" (${g.count} tickets históricos)`));
-    else lines.push('- No se detectaron nuevas oportunidades esta semana.');
-
-    const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `analisis_semanal_${focused.key}.txt`;
-    a.click();
-  }
-
   // ---------------- Wiring ----------------
   $('anWeekMode').addEventListener('change', (e) => { anWeekMode = e.target.value; anRecurCache = null; anRenderAll(); });
   $('anWeekSelect').addEventListener('change', (e) => { anSelectedWeekKey = e.target.value; anRecurCache = null; anRenderAll(); });
-  $('anCompare').addEventListener('change', (e) => { anCompare = e.target.checked; anRenderAll(); });
   $('anTrendWindow').addEventListener('change', (e) => { anTrendWindow = Number(e.target.value); anRenderAll(); });
-  $('anBtnReport').addEventListener('click', anGenerateReport);
-  $('anKbSearch').addEventListener('input', anRenderKbList);
-  $('anKbServicio').addEventListener('change', anRenderKbList);
-  $('anKbEstado').addEventListener('change', anRenderKbList);
-  $('anBtnNewKb').addEventListener('click', () => anOpenKbModal(null));
-  $('anBtnNewAccion').addEventListener('click', () => anOpenAccionModal(null));
 
   // ---------------- Registro de tickets vencidos ----------------
   // Lista los tickets de la pestaña "Vencidos" del Resumen (cerrados con >100% de progreso,
@@ -6168,7 +5415,6 @@
   });
 
   async function anInit(){
-    await Promise.all([anLoadCausas(), anLoadKb(), anLoadAcciones(), anLoadThresholds()]);
     anRenderAll();
   }
   anInit();
