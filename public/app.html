@@ -835,6 +835,16 @@
   .hs-chart-box{ position:relative; width:100%; }
   .hs-chart-legend{ display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--ink-soft); margin:2px 0 4px; }
   .hs-chart-legend i{ display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .ao-sub{ font-size:12.5px; color:var(--ink-soft); margin:-4px 0 10px; }
+  .ao-row{ display:grid; grid-template-columns:minmax(120px,190px) 1fr 58px; align-items:center; gap:10px; margin:6px 0; font-size:13px; }
+  .ao-row .ao-name small{ display:block; color:var(--ink-soft); font-size:11.5px; }
+  .ao-track{ height:16px; background:var(--surface-sunken); border-radius:100px; overflow:hidden; }
+  .ao-fill{ display:block; height:100%; border-radius:100px; }
+  .ao-fill.usr{ background:#2F6FA8; }
+  .ao-fill.esp{ background:#1F8A5F; }
+  .ao-pct{ font-family:'IBM Plex Mono', monospace; font-weight:700; text-align:right; }
+  .ao-chart{ position:relative; height:190px; margin-top:12px; }
+  .ao-note{ font-size:11.5px; color:var(--ink-soft); margin-top:8px; }
   .hs-totals{ display:flex; flex-wrap:wrap; gap:10px 28px; margin:4px 0 8px; }
   .hs-tot{ display:flex; flex-direction:column; font-size:12px; color:var(--ink-soft); }
   .hs-tot b{ font-family:'IBM Plex Mono', monospace; font-size:17px; color:var(--ink); }
@@ -1259,6 +1269,13 @@
             <div class="l">de tareas cerradas</div>
           </div>
         </div>
+      </div>
+      <div class="card" id="autorOrigenCard">
+        <h3>¿Quién crea los tickets?</h3>
+        <div class="ao-sub" id="autorOrigenSub"></div>
+        <div id="autorOrigenBars"></div>
+        <div class="ao-chart hidden" id="autorOrigenChartBox"><canvas id="autorOrigenCanvas"></canvas></div>
+        <div class="ao-note" id="autorOrigenNote"></div>
       </div>
     </section>
 
@@ -2050,6 +2067,7 @@
     if (taskMap.size){ renderTasks(); }
     renderRanking();
     renderExtraRankings();
+    try { renderAutorOrigen(); } catch(err){ console.error('Error en origen de tickets:', err); }
     renderRegistro();
     renderTendencias();
 
@@ -2894,6 +2912,91 @@
   }
 
   wireSortableHeaders('#rankingTable thead th', rankingSortState, renderRanking, key => key === 'name' ? 'asc' : 'desc');
+
+  // ---------------- Origen de los tickets: ¿quién los crea? ----------------
+  // % de tickets creados por personas ajenas al equipo de especialistas vs. por los propios
+  // especialistas, más su tendencia en el rango de fechas activo (por semana; por mes si el rango
+  // es largo). "Equipo de especialistas" = las personas que figuran como Especialista en los tickets
+  // cargados (histórico completo). Se compara el nombre del Autor Ticket con el del especialista,
+  // sin distinguir mayúsculas, tildes ni espacios de más. Los tickets sin Autor Ticket no cuentan.
+  let autorOrigenChart = null;
+  const aoNorm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  function renderAutorOrigen(){
+    const card = $('autorOrigenCard'); if (!card) return;
+    if (autorOrigenChart){ autorOrigenChart.destroy(); autorOrigenChart = null; }
+    const bars = $('autorOrigenBars'), sub = $('autorOrigenSub'), note = $('autorOrigenNote'), cbox = $('autorOrigenChartBox');
+    cbox.classList.add('hidden'); note.textContent = ''; sub.textContent = '';
+
+    const equipo = new Set();
+    allRowsRaw.forEach(r => { if (r.especialista && r.especialista !== '—') equipo.add(aoNorm(r.especialista)); });
+    const filas = allRows.filter(r => r.autorTicket && r.autorTicket !== '—');
+    if (!filas.length){
+      bars.innerHTML = `<div class="empty-detail">${allRows.length
+        ? 'Los tickets cargados no traen la columna "Autor Ticket"; súbelos de nuevo con esa columna para ver este cuadro.'
+        : 'Sin datos en el rango seleccionado.'}</div>`;
+      return;
+    }
+    const esEsp = r => equipo.has(aoNorm(r.autorTicket));
+    const nEsp = filas.filter(esEsp).length, nUsr = filas.length - nEsp, N = filas.length;
+    const pUsr = nUsr / N * 100, pEsp = nEsp / N * 100;
+    const nf = v => v.toLocaleString('es-PE', { maximumFractionDigits: 1 });
+    sub.textContent = `${N} ticket${N === 1 ? '' : 's'} del rango seleccionado`;
+    const fila = (titulo, detalle, n, pct, cls) => `
+      <div class="ao-row" title="${n} de ${N} tickets">
+        <span class="ao-name">${titulo}<small>${detalle}</small></span>
+        <span class="ao-track"><span class="ao-fill ${cls}" style="width:${pct.toFixed(1)}%"></span></span>
+        <span class="ao-pct">${nf(pct)}%</span>
+      </div>`;
+    bars.innerHTML =
+      fila('Creados por usuarios', `fuera del equipo · ${nUsr} ticket${nUsr === 1 ? '' : 's'}`, nUsr, pUsr, 'usr') +
+      fila('Creados por especialistas', `del equipo · ${nEsp} ticket${nEsp === 1 ? '' : 's'}`, nEsp, pEsp, 'esp');
+
+    // Tendencia: por semana; si hay más de 26 semanas en el rango, por mes.
+    const semanas = new Set(filas.map(r => { const d = toDateSafe(r.fechaRegistro); return d ? anIsoWeek(d).key : null; }));
+    semanas.delete(null);
+    const porMes = semanas.size > 26;
+    const buckets = new Map();
+    filas.forEach(r => {
+      const d = toDateSafe(r.fechaRegistro); if (!d) return;
+      let key, label;
+      if (porMes){ const p = peruParts(d); key = `${p.y}-${String(p.mo + 1).padStart(2, '0')}`; label = `${MESES_CORTOS[p.mo]} '${String(p.y).slice(2)}`; }
+      else { const w = anIsoWeek(d); key = w.key; label = w.label; }
+      let b = buckets.get(key); if (!b){ b = { label, n: 0, esp: 0 }; buckets.set(key, b); }
+      b.n++; if (esEsp(r)) b.esp++;
+    });
+    const orden = [...buckets.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(e => e[1]);
+    if (typeof Chart === 'undefined' || orden.length < 2){
+      note.textContent = orden.length < 2 ? 'La tendencia aparece cuando el rango abarca más de un periodo.' : '';
+      return;
+    }
+    cbox.classList.remove('hidden');
+    autorOrigenChart = new Chart($('autorOrigenCanvas').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: orden.map(b => b.label),
+        datasets: [
+          { label: 'Usuarios (fuera del equipo)', data: orden.map(b => (b.n - b.esp) / b.n * 100), borderColor: '#2F6FA8', backgroundColor: '#2F6FA8', borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5, tension: .25 },
+          { label: 'Especialistas', data: orden.map(b => b.esp / b.n * 100), borderColor: '#1F8A5F', backgroundColor: '#1F8A5F', borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5, tension: .25 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxRotation: 60, autoSkip: true, font: { size: 10.5 } } },
+          y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10.5 } }, grid: { color: 'rgba(0,0,0,.06)' } }
+        },
+        plugins: {
+          legend: { position: 'top', align: 'start', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11.5 } } },
+          tooltip: { callbacks: {
+            label: (item) => `${item.dataset.label}: ${nf(item.parsed.y)}%`,
+            afterBody: (items) => { const b = orden[items[0].dataIndex]; return [`${b.n} ticket${b.n === 1 ? '' : 's'} (${b.n - b.esp} usuarios · ${b.esp} especialistas)`]; }
+          } }
+        }
+      }
+    });
+    note.textContent = `Tendencia por ${porMes ? 'mes' : 'semana'} de registro. Equipo de especialistas: ${equipo.size} persona${equipo.size === 1 ? '' : 's'} que figuran como especialista en los tickets cargados.`;
+  }
 
   // ---------------- Hoja Dashboard: rankings de Cliente Final / Autor Ticket, volúmenes (E) ----------------
   // Mismo criterio que "Ranking de especialistas" pero solo con datos de tickets (no
