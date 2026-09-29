@@ -5300,6 +5300,8 @@
   // La clave del registro es el ID del ticket (igual que antes, así se conservan los ya
   // guardados) o 'T:' + ID de la tarea. Las tareas se toman de taskMap (no de las filtradas
   // por su propia fecha): las gobierna el rango del ticket, que es el que las hace vencidas.
+  // Umbral (en horas) a partir del cual una tarea de un ticket vencido se considera vencida.
+  const RG_UMBRAL_TAREA_H = 8;
   function rgItems(){
     const base = rgBase();
     const items = base.map(r => {
@@ -5319,6 +5321,10 @@
       // Duración de la tarea en horas: registro -> cierre; si sigue abierta, hasta ahora.
       const fin = t.fechaCierre || (t.abierta ? ahora : null);
       const horas = (t.fechaRegistro && fin) ? (fin - t.fechaRegistro) / 3600000 : null;
+      // Una tarea solo se considera vencida si su duración supera el umbral (RG_UMBRAL_TAREA_H).
+      // Se mide con los datos ORIGINALES (no los ajustados por sustento), igual que los tickets,
+      // para que al activar el candado la tarea no desaparezca de la lista. Sin duración calculable no se lista.
+      if (horas == null || horas <= RG_UMBRAL_TAREA_H) return;
       const aj = rgAjusteTarea(t);
       items.push({
         kind: 'tarea', key: 'T:' + t.tarea, id: String(t.tarea), ticket: String(t.caso),
