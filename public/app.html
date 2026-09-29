@@ -1475,69 +1475,6 @@
       </section>
 
       <section class="an-section">
-        <h2>¿Dónde estamos fallando?</h2>
-        <p class="an-sub">Tickets ya cerrados que vencieron el SLA en la semana, agrupados por servicio, especialista y categoría (los que aún están abiertos se cuentan aparte, en "Vencidos pendientes").</p>
-        <div class="an-card" style="margin-bottom:10px;">
-          <div class="table-scroll">
-            <table id="anByServicioTable">
-              <thead><tr><th>Servicio</th><th>Vencidos</th><th>% del total</th><th>Exceso prom.</th><th>Mayor exceso</th><th>Tendencia</th></tr></thead>
-              <tbody id="anByServicioBody"></tbody>
-            </table>
-          </div>
-          <p class="an-empty hidden" id="anByServicioEmpty">No hubo tickets vencidos en esta semana.</p>
-        </div>
-        <div class="an-card" style="margin-bottom:10px;">
-          <div class="table-scroll">
-            <table id="anByEspecialistaTable">
-              <thead><tr><th>Especialista</th><th>Atendidos</th><th>Vencidos</th><th>% cumplimiento</th><th>Exceso prom.</th><th>Abiertos actualmente</th></tr></thead>
-              <tbody id="anByEspecialistaBody"></tbody>
-            </table>
-          </div>
-          <p class="an-empty hidden" id="anByEspecialistaEmpty">No hay tickets evaluados en esta semana.</p>
-        </div>
-        <div class="an-card">
-          <div class="table-scroll">
-            <table id="anByCategoriaTable">
-              <thead><tr><th>Categoría / tipo</th><th>Vencidos</th><th>% del total</th></tr></thead>
-              <tbody id="anByCategoriaBody"></tbody>
-            </table>
-          </div>
-          <p class="an-empty hidden" id="anByCategoriaEmpty">No hubo tickets vencidos en esta semana.</p>
-        </div>
-      </section>
-
-      <section class="an-section">
-        <h2>Exceso de SLA y causas de demora</h2>
-        <p class="an-sub">Cada ticket cerrado que venció el SLA, clasificado por severidad del exceso (mismo criterio que la pestaña "Vencidos" del resumen). Umbrales configurables (en puntos porcentuales de progreso sobre el 100%). La causa se puede registrar aquí mismo.</p>
-        <div class="an-toolrow">
-          <label class="an-check">Leve ≤ <input type="number" id="anThLeve" style="width:54px;" min="1"></label>
-          <label class="an-check">Moderado ≤ <input type="number" id="anThModerado" style="width:54px;" min="1"></label>
-          <label class="an-check">Alto ≤ <input type="number" id="anThAlto" style="width:54px;" min="1"></label>
-          <span class="an-sub" style="margin:0;">(más de "Alto" se clasifica como Crítico)</span>
-          <button id="anBtnSaveThresholds">Guardar umbrales</button>
-        </div>
-        <div class="an-card">
-          <div class="table-scroll">
-            <table id="anExcesoTable">
-              <thead><tr><th>Ticket</th><th>Servicio</th><th>Especialista</th><th>Registro</th><th>Exceso</th><th>Nivel</th><th>Causa</th></tr></thead>
-              <tbody id="anExcesoBody"></tbody>
-            </table>
-          </div>
-          <p class="an-empty hidden" id="anExcesoEmpty">No hubo tickets vencidos en esta semana.</p>
-        </div>
-        <div class="an-card" style="margin-top:10px;">
-          <h3 style="margin:0 0 8px; font-size:13.5px;">Principales causas de incumplimiento</h3>
-          <div class="table-scroll">
-            <table id="anCausasTable">
-              <thead><tr><th>Causa</th><th>Tickets</th><th>%</th><th>Exceso prom.</th><th>Tendencia</th></tr></thead>
-              <tbody id="anCausasBody"></tbody>
-            </table>
-          </div>
-          <p class="an-empty hidden" id="anCausasEmpty">No hubo tickets vencidos en esta semana.</p>
-        </div>
-      </section>
-
-      <section class="an-section">
         <h2>Problemas recurrentes detectados</h2>
         <p class="an-sub">Agrupados por descripción similar, a lo largo de todo el histórico cargado (no solo la semana enfocada). Haz clic en un problema para ver los tickets relacionados.</p>
         <div class="an-card">
@@ -4526,7 +4463,6 @@
     anRenderExecSummary(weekRows, anCompare ? prevRows : null);
     anRenderTrendChart(buckets, focused);
     const incumpl = anRenderIncumplimientos(weekRows, prevRows);
-    anRenderExcesoYCausas(weekRows, prevRows);
     anRenderRecurring(focused, weekRows);
     anRenderTasksBottleneck(focused, weekRows);
     anRenderWhy(focused, weekRows, incumpl);
@@ -4543,7 +4479,6 @@
   // recalcularlo ni perder la posición de scroll del usuario.
   function anRefreshCausaViews(){
     if (!anCurFocused) return;
-    anRenderExcesoYCausas(anCurWeekRows, anCurPrevRows);
     anRenderWhy(anCurFocused, anCurWeekRows, anCurIncumpl);
   }
 
@@ -4666,142 +4601,15 @@
     return map;
   }
 
+  // Ya no se dibuja ninguna tabla (se quitaron "¿Dónde estamos fallando?" y "Exceso de SLA y
+  // causas de demora"); solo se calcula lo que necesita el resumen "¿Por qué nos estamos demorando?".
   function anRenderIncumplimientos(rows, prevRows){
     const totalVencidos = rows.filter(r => !r.cumple && r.estado === 'Cerrado').length;
     const byServicio = anGroupExcesoBy(rows, r => r.servicio);
-    const prevByServicio = anGroupExcesoBy(prevRows || [], r => r.servicio);
-    const servicioRows = Array.from(byServicio.entries()).map(([servicio, arr]) => {
-      const excesos = arr.map(r => r.pct - 100);
-      return {
-        servicio, count: arr.length,
-        pctTotal: totalVencidos ? (arr.length / totalVencidos * 100) : 0,
-        excesoProm: excesos.reduce((s,v)=>s+v,0) / excesos.length,
-        mayorExceso: Math.max(...excesos),
-        prevCount: (prevByServicio.get(servicio) || []).length
-      };
-    }).sort((a,b) => b.count - a.count);
-
-    $('anByServicioBody').innerHTML = servicioRows.map(r => `
-      <tr>
-        <td>${escapeHtml(r.servicio)}</td>
-        <td class="mono">${r.count}</td>
-        <td class="mono">${r.pctTotal.toFixed(0)}%</td>
-        <td class="mono">+${r.excesoProm.toFixed(1)} pts</td>
-        <td class="mono">+${r.mayorExceso.toFixed(1)} pts</td>
-        <td>${anTrendArrow(r.count, prevRows ? r.prevCount : null)}</td>
-      </tr>`).join('');
-    $('anByServicioTable').classList.toggle('hidden', !servicioRows.length);
-    $('anByServicioEmpty').classList.toggle('hidden', !!servicioRows.length);
-
-    // Por especialista: sobre TODOS los evaluados de la semana (no solo vencidos),
-    // para poder mostrar carga atendida junto al cumplimiento.
-    const byEspAll = new Map();
-    rows.forEach(r => {
-      const k = r.especialista || '—';
-      if (!byEspAll.has(k)) byEspAll.set(k, []);
-      byEspAll.get(k).push(r);
-    });
-    const espRows = Array.from(byEspAll.entries()).map(([especialista, arr]) => {
-      const venc = arr.filter(r => !r.cumple && r.estado === 'Cerrado');
-      const excesos = venc.map(r => r.pct - 100);
-      const abiertosActuales = allRowsEff.filter(r => r.especialista === especialista && !r.fechaCierre).length;
-      return {
-        especialista, atendidos: arr.length, vencidos: venc.length,
-        pctCumple: arr.length ? ((arr.length - venc.length) / arr.length * 100) : 0,
-        excesoProm: excesos.length ? excesos.reduce((s,v)=>s+v,0)/excesos.length : null,
-        abiertosActuales
-      };
-    }).sort((a,b) => b.vencidos - a.vencidos);
-
-    $('anByEspecialistaBody').innerHTML = espRows.map(r => `
-      <tr>
-        <td>${escapeHtml(r.especialista)}</td>
-        <td class="mono">${r.atendidos}</td>
-        <td class="mono">${r.vencidos}</td>
-        <td class="mono"><span class="pct-badge ${r.pctCumple >= META ? 'ok' : ''}">${r.pctCumple.toFixed(0)}%</span></td>
-        <td class="mono">${r.excesoProm == null ? '—' : '+' + r.excesoProm.toFixed(1) + ' pts'}</td>
-        <td class="mono">${r.abiertosActuales}</td>
-      </tr>`).join('');
-    $('anByEspecialistaTable').classList.toggle('hidden', !espRows.length);
-    $('anByEspecialistaEmpty').classList.toggle('hidden', !!espRows.length);
-
-    const byCat = anGroupExcesoBy(rows, r => r.categoria != null ? r.categoria : r.servicio);
-    const catRows = Array.from(byCat.entries()).map(([categoria, arr]) => ({
-      categoria, count: arr.length, pctTotal: totalVencidos ? (arr.length / totalVencidos * 100) : 0
-    })).sort((a,b) => b.count - a.count);
-    $('anByCategoriaBody').innerHTML = catRows.map(r => `
-      <tr><td>${escapeHtml(r.categoria)}</td><td class="mono">${r.count}</td><td class="mono">${r.pctTotal.toFixed(0)}%</td></tr>`).join('');
-    $('anByCategoriaTable').classList.toggle('hidden', !catRows.length);
-    $('anByCategoriaEmpty').classList.toggle('hidden', !!catRows.length);
-
+    const servicioRows = Array.from(byServicio.entries())
+      .map(([servicio, arr]) => ({ servicio, count: arr.length }))
+      .sort((a,b) => b.count - a.count);
     return { servicioTop: servicioRows[0] || null, totalVencidos };
-  }
-
-  // ---------------- Exceso de SLA + causas ----------------
-  function anRenderExcesoYCausas(rows, prevRows){
-    const vencidos = rows.filter(r => !r.cumple && r.estado === 'Cerrado').sort((a,b) => (b.pct - 100) - (a.pct - 100));
-    $('anExcesoBody').innerHTML = vencidos.map(r => {
-      const exceso = r.pct - 100;
-      const nivel = anClassifyExceso(exceso);
-      const causaInfo = anCausasMap.get(r.ticket);
-      const causaVal = causaInfo && causaInfo.causa ? causaInfo.causa : '';
-      return `
-      <tr${r.ajustado ? ' class="rg-ajustado"' : ''}>
-        <td class="mono">${escapeHtml(r.ticket)}${adjBadge(r)}</td>
-        <td>${escapeHtml(r.servicio)}</td>
-        <td>${escapeHtml(r.especialista)}</td>
-        <td class="mono">${fmtDateShort(r.fechaRegistro)}</td>
-        <td class="mono">+${exceso.toFixed(1)} pts</td>
-        <td><span class="an-badge ${nivel}">${anNivelLabel(nivel)}</span></td>
-        <td>
-          <select class="an-select-inline" data-ticket="${escapeHtml(r.ticket)}">
-            <option value="">${AN_PENDIENTE}</option>
-            ${AN_CAUSAS.map(c => `<option value="${escapeHtml(c)}" ${c === causaVal ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
-          </select>
-        </td>
-      </tr>`;
-    }).join('');
-    $('anExcesoTable').classList.toggle('hidden', !vencidos.length);
-    $('anExcesoEmpty').classList.toggle('hidden', !!vencidos.length);
-
-    $('anExcesoBody').querySelectorAll('select.an-select-inline').forEach(sel => {
-      sel.addEventListener('change', () => anSaveCausa(sel.dataset.ticket, sel.value));
-    });
-
-    // Principales causas de incumplimiento
-    const grupos = new Map();
-    vencidos.forEach(r => {
-      const causaInfo = anCausasMap.get(r.ticket);
-      const causa = (causaInfo && causaInfo.causa) ? causaInfo.causa : AN_PENDIENTE;
-      if (!grupos.has(causa)) grupos.set(causa, []);
-      grupos.get(causa).push(r);
-    });
-    const prevVencidos = (prevRows || []).filter(r => !r.cumple && r.estado === 'Cerrado');
-    const prevGrupos = new Map();
-    prevVencidos.forEach(r => {
-      const causaInfo = anCausasMap.get(r.ticket);
-      const causa = (causaInfo && causaInfo.causa) ? causaInfo.causa : AN_PENDIENTE;
-      if (!prevGrupos.has(causa)) prevGrupos.set(causa, []);
-      prevGrupos.get(causa).push(r);
-    });
-    const causaRows = Array.from(grupos.entries()).map(([causa, arr]) => {
-      const excesos = arr.map(r => r.pct - 100);
-      return {
-        causa, count: arr.length, pct: vencidos.length ? (arr.length / vencidos.length * 100) : 0,
-        excesoProm: excesos.reduce((s,v)=>s+v,0) / excesos.length,
-        prevCount: (prevGrupos.get(causa) || []).length
-      };
-    }).sort((a,b) => b.count - a.count);
-    $('anCausasBody').innerHTML = causaRows.map(r => `
-      <tr>
-        <td>${r.causa === AN_PENDIENTE ? `<span class="an-badge pendiente">${AN_PENDIENTE}</span>` : escapeHtml(r.causa)}</td>
-        <td class="mono">${r.count}</td>
-        <td class="mono">${r.pct.toFixed(0)}%</td>
-        <td class="mono">+${r.excesoProm.toFixed(1)} pts</td>
-        <td>${anTrendArrow(r.count, prevRows ? r.prevCount : null)}</td>
-      </tr>`).join('');
-    $('anCausasTable').classList.toggle('hidden', !causaRows.length);
-    $('anCausasEmpty').classList.toggle('hidden', !!causaRows.length);
   }
 
   async function anSaveCausa(ticket, causa){
@@ -5216,22 +5024,7 @@
         try{ anThresholds = JSON.parse(res.slaThresholds); }catch(e){}
       }
     }catch(err){ console.warn('No se pudieron cargar los umbrales:', err.message); }
-    $('anThLeve').value = anThresholds.leve;
-    $('anThModerado').value = anThresholds.moderado;
-    $('anThAlto').value = anThresholds.alto;
   }
-  async function anSaveThresholds(){
-    anThresholds = {
-      leve: Number($('anThLeve').value) || 10,
-      moderado: Number($('anThModerado').value) || 25,
-      alto: Number($('anThAlto').value) || 50
-    };
-    try{
-      await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ slaThresholds: JSON.stringify(anThresholds) }) });
-    }catch(err){ console.warn('No se pudieron guardar los umbrales:', err.message); }
-    anRenderAll();
-  }
-
   // ---------------- Informe semanal (texto descargable) ----------------
   function anGenerateReport(){
     const buckets = anBucketWeeks();
@@ -5296,7 +5089,6 @@
   $('anWeekSelect').addEventListener('change', (e) => { anSelectedWeekKey = e.target.value; anRecurCache = null; anRenderAll(); });
   $('anCompare').addEventListener('change', (e) => { anCompare = e.target.checked; anRenderAll(); });
   $('anTrendWindow').addEventListener('change', (e) => { anTrendWindow = Number(e.target.value); anRenderAll(); });
-  $('anBtnSaveThresholds').addEventListener('click', anSaveThresholds);
   $('anBtnReport').addEventListener('click', anGenerateReport);
   $('anKbSearch').addEventListener('input', anRenderKbList);
   $('anKbServicio').addEventListener('change', anRenderKbList);
