@@ -6026,7 +6026,7 @@
     const anchos = [34, 8, 12, 10, 24, 30, 30, 60, 17, 17, 16, 16, 18, 50, 36, 12];
 
     // Cliente y Descripción salen del ticket original (allRowsRaw), sin importar el rango de fechas.
-    // Las tareas no tienen cliente ni descripción propios: llevan los del ticket al que pertenecen.
+    // Las tareas llevan el cliente del ticket al que pertenecen; su Descripción es el asunto de la tarea.
     const rawPorTicket = new Map(allRowsRaw.map(r => [String(r.ticket), r]));
     const clienteDe = it => {
       const r = rawPorTicket.get(String(it.ticket));
@@ -6034,6 +6034,10 @@
       return (!c || c === '—') ? '' : c;
     };
     const descripcionDe = it => {
+      if (it.kind === 'tarea'){   // en las tareas, "Descripción" es el asunto de la propia tarea
+        const a = String(it.asunto ?? '').trim();
+        return (!a || a === '—' || a === '-') ? '' : a.slice(0, 32000);
+      }
       const r = rawPorTicket.get(String(it.ticket));
       const d = r && r.descripcion ? String(r.descripcion).trim() : '';
       return (!d || d === '(sin descripción)') ? '' : d.slice(0, 32000);   // tope de caracteres por celda en Excel
