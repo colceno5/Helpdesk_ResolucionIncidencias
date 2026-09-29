@@ -1301,6 +1301,9 @@
           <div class="sub" id="registroSub">0 tickets vencidos</div>
         </div>
         <div class="table-actions">
+          <select class="an-select-inline" id="registroEspFilter" title="Filtrar por especialista / responsable" style="max-width:220px; padding:7px 8px; font-size:13px;">
+            <option value="">Todos los especialistas</option>
+          </select>
           <select class="an-select-inline" id="registroEstadoFilter" style="max-width:170px; padding:7px 8px; font-size:13px;">
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendientes</option>
@@ -1308,7 +1311,7 @@
             <option value="sustentado">Sustentados</option>
           </select>
           <input type="text" class="search-box" id="registroSearch" placeholder="Buscar ticket, tarea, responsable, sustento…">
-          <button id="btnExportRegistro" title="Descarga un Excel con una hoja por especialista, con sus casos (cliente y descripción incluidos) ordenados por semana del calendario">Descargar Excel</button>
+          <button id="btnExportRegistro" title="Descarga un Excel con una hoja por especialista, con sus casos (cliente y descripción incluidos) ordenados por semana del calendario. Respeta los filtros activos (especialista, estado y búsqueda)">Descargar Excel</button>
         </div>
       </div>
       <div class="rg-note hidden" id="registroStorageNote"></div>
@@ -5361,14 +5364,39 @@
       : '0 tickets vencidos';
   }
 
+  // Nombre normalizado del especialista (ticket) o responsable (tarea); sin dato => 'Sin asignar'.
+  function rgEspNombre(it){
+    const n = String(it.especialista ?? '').trim();
+    return (!n || n === '—' || n === '-') ? 'Sin asignar' : n;
+  }
+  // Llena el filtro de especialista con los que aparecen hoy en el registro (tickets y tareas),
+  // conservando la selección; si el elegido ya no existe (p. ej. cambió el rango de fechas), vuelve a "Todos".
+  function rgPoblarEspecialistas(){
+    const sel = $('registroEspFilter');
+    const nombres = [...new Set(rgItems().map(rgEspNombre))].sort((a, b) => a.localeCompare(b, 'es'));
+    const firma = nombres.join('\u0001');
+    if (sel.dataset.firma !== firma){
+      const actual = sel.value;
+      sel.innerHTML = '';
+      const todos = document.createElement('option');
+      todos.value = ''; todos.textContent = 'Todos los especialistas';
+      sel.appendChild(todos);
+      nombres.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o); });
+      sel.dataset.firma = firma;
+      sel.value = nombres.includes(actual) ? actual : '';
+    }
+  }
+
   // Un grupo = un ticket vencido + sus tareas. Los filtros se aplican a ambos niveles:
   // el ticket se lista si coincide él o alguna de sus tareas (en ese caso sale desplegado).
   // El orden de las columnas se aplica a los tickets; sus tareas van siempre debajo, por fecha de registro.
   function rgGroups(){
     const term = $('registroSearch').value.trim().toLowerCase();
     const filtroEstado = $('registroEstadoFilter').value;
-    const filtrando = !!(term || filtroEstado);
+    const filtroEsp = $('registroEspFilter').value;
+    const filtrando = !!(term || filtroEstado || filtroEsp);
     const passEstado = it => !filtroEstado || rgEstado(rgRecOf(it)) === filtroEstado;
+    const passEsp = it => !filtroEsp || rgEspNombre(it) === filtroEsp;
     const passTerm = it => {
       if (!term) return true;
       const rec = rgRecOf(it);
@@ -5390,8 +5418,8 @@
       const todas = (tareasPor.get(tk.ticket) || []).slice()
         .sort((x, y) => (x.fechaRegistro ? new Date(x.fechaRegistro).getTime() : 0) - (y.fechaRegistro ? new Date(y.fechaRegistro).getTime() : 0));
       const termTicket = passTerm(tk);
-      const tareas = todas.filter(t => passEstado(t) && (termTicket || passTerm(t)));
-      const ticketOk = passEstado(tk) && termTicket;
+      const tareas = todas.filter(t => passEstado(t) && passEsp(t) && (termTicket || passTerm(t)));
+      const ticketOk = passEstado(tk) && passEsp(tk) && termTicket;
       if (!ticketOk && !tareas.length) return;
       groups.push({ ticket: tk, tareas, total: todas.length, autoOpen: filtrando && !ticketOk });
     });
@@ -5420,6 +5448,7 @@
     // antes de redibujar, para no perder lo que aún no se había guardado.
     if (document.activeElement && body.contains(document.activeElement)) document.activeElement.blur();
 
+    rgPoblarEspecialistas();
     const groups = rgGroups();
     const hoy = toInputDateTime(new Date());
     updateSortArrow('#registroTable', rgSort.key, rgSort.dir);
@@ -5948,11 +5977,13 @@
     key => ['ticket','servicio','especialista','estado'].includes(key) ? 'asc' : 'desc');
   $('registroSearch').addEventListener('input', renderRegistro);
   $('registroEstadoFilter').addEventListener('change', renderRegistro);
+  $('registroEspFilter').addEventListener('change', renderRegistro);
 
   // Descarga un Excel con una hoja por especialista/responsable. Dentro de cada hoja los
   // registros (tickets vencidos y tareas) van ordenados por semana calendario (lunes a domingo,
   // numeración ISO) según su Fecha de registro y, dentro de la semana, por fecha de registro.
-  // Respeta los filtros activos (estado y búsqueda), igual que la tabla que se ve en pantalla.
+  // Respeta los filtros activos (especialista, estado y búsqueda), igual que la tabla que se ve en pantalla.
+  // Con un especialista elegido, el archivo trae solo su hoja (sus tickets y sus tareas).
   $('btnExportRegistro').addEventListener('click', () => {
     const DIA = 86400000;
     const pad = n => String(n).padStart(2, '0');
@@ -5976,9 +6007,11 @@
 
     // 1) Todos los ítems visibles (ticket + tareas de cada grupo), agrupados por especialista.
     const porEsp = new Map();
+    const filtroEsp = $('registroEspFilter').value;
     rgGroups().forEach(g => {
       [g.ticket].concat(g.tareas).forEach(it => {
         const esp = nombreDe(it);
+        if (filtroEsp && esp !== filtroEsp) return;   // p. ej. el ticket de otro especialista que solo aparece como contexto
         if (!porEsp.has(esp)) porEsp.set(esp, []);
         porEsp.get(esp).push(it);
       });
@@ -6048,7 +6081,8 @@
       XLSX.utils.book_append_sheet(wb, ws, nombreHoja(esp));
     });
 
-    XLSX.writeFile(wb, 'registro_vencidos_por_especialista.xlsx');
+    const sufijo = filtroEsp ? '_' + filtroEsp.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '') : '_por_especialista';
+    XLSX.writeFile(wb, 'registro_vencidos' + sufijo + '.xlsx');
   });
 
   async function anInit(){
