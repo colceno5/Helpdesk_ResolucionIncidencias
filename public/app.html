@@ -917,6 +917,9 @@
   .an-card{
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m); padding:14px 16px;
   }
+  /* Contenedor de alto fijo: sin esto Chart.js mide el alto de su propio canvas y la gráfica se va achicando sola. */
+  .an-chart-box{ position:relative; width:100%; min-width:0; height:340px; }
+  .an-card{ min-width:0; }
   .an-empty{ color:var(--ink-faint); font-size:13px; padding:14px 0; }
 
   .an-badge{
@@ -1111,7 +1114,7 @@
 
    <div id="trendsSection" class="hidden" data-page="dashboardExtra">
     <section class="card" style="margin-bottom:14px;">
-      <h3 style="font-family:'Space Grotesk', sans-serif; font-size:15px; margin:0 0 10px;">Tendencia mensual del equipo</h3>
+      <h3 style="font-family:'Space Grotesk', sans-serif; font-size:15px; margin:0 0 10px;">Tendencia mensual del % de cumplimiento del equipo TI</h3>
       <div class="chart-box" id="teamTrendBox" style="height:270px;"><canvas id="chartTeamTrend"></canvas></div>
       <div id="teamTrendFallback" class="hidden"></div>
       <div class="empty-detail hidden" id="teamTrendEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
@@ -1461,7 +1464,7 @@
         <h2>Evolución semanal del cumplimiento SLA</h2>
         <p class="an-sub">% de tickets que cumplen SLA por semana, frente a la meta configurada.</p>
         <div class="an-card">
-          <canvas id="anTrendChart" height="90"></canvas>
+          <div class="an-chart-box"><canvas id="anTrendChart"></canvas></div>
         </div>
       </section>
 
@@ -1599,6 +1602,43 @@
   let loadedTaskFileLabels = [];    // varios: los archivos de tareas se van acumulando
 
   const $ = (id) => document.getElementById(id);
+
+  // ---------------- Animaciones suaves de las gráficas ----------------
+  // Todas las gráficas (Chart.js) comparten estos valores: entrada suave de 1 s y respuesta corta al pasar el
+  // mouse. Además, una gráfica que se creó mientras estaba fuera de la vista (otra pestaña, o más abajo en
+  // la página) vuelve a animarse la primera vez que se muestra, para que la animación se vea de verdad.
+  // Si el sistema pide "reducir movimiento", se desactivan las animaciones.
+  if (typeof Chart !== 'undefined'){
+    const sinMovimiento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    Chart.defaults.animation = sinMovimiento ? false : { duration: 1000, easing: 'easeOutQuart' };
+    if (!sinMovimiento && Chart.defaults.transitions && Chart.defaults.transitions.active){
+      Chart.defaults.transitions.active.animation.duration = 250;
+    }
+    if (!sinMovimiento && 'IntersectionObserver' in window){
+      Chart.register({
+        id: 'animarAlMostrarse',
+        afterInit(chart){
+          const canvas = chart.canvas; if (!canvas) return;
+          let primera = true;
+          const obs = new IntersectionObserver((entries) => {
+            const e = entries[entries.length - 1];
+            if (primera){
+              primera = false;
+              if (e.isIntersecting) obs.disconnect();   // ya se está viendo: basta con la animación de creación
+              return;
+            }
+            if (e.isIntersecting){
+              obs.disconnect();
+              try { if (chart.canvas && chart.canvas.isConnected){ chart.reset(); chart.update(); } } catch (err) {}
+            }
+          }, { threshold: 0.2 });
+          obs.observe(canvas);
+          chart.$animObserver = obs;
+        },
+        afterDestroy(chart){ if (chart.$animObserver) chart.$animObserver.disconnect(); }
+      });
+    }
+  }
   const dropzone = $('dropzone');
   const dashboard = $('dashboard');
   const fileInput = $('fileInput');
@@ -4228,7 +4268,7 @@
         ]
       },
       options: {
-        responsive: true,
+        responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         scales: {
           y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, position: 'left' },
