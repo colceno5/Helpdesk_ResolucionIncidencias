@@ -429,6 +429,25 @@
   .noise-warning .btn-sm.link{ color:var(--ink-soft); white-space:nowrap; }
 
   /* ---------- trend charts (A, G) ---------- */
+
+  /* ---------- análisis volumen vs cumplimiento ---------- */
+  .vc-help{ font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 12px; }
+  .vc-table th.r, .vc-table td.r{ text-align:right; }
+  .vc-table td{ font-size:13px; white-space:nowrap; }
+  .vc-table td.mono{ font-family:'IBM Plex Mono', monospace; }
+  .vc-table tr.vc-row{ cursor:pointer; }
+  .vc-table tr.vc-row:hover td{ background:var(--surface-sunken); }
+  .vc-table tr.vc-row.sel td{ background:var(--surface-sunken); font-weight:600; }
+  .vc-table tr.vc-row.sel td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
+  .vc-table .vc-team td{ border-bottom:2px solid var(--border); }
+  .vc-badge{ display:inline-block; padding:2px 9px; border-radius:100px; font-size:11.5px; font-weight:600; }
+  .vc-badge.sensible{ background:#FBE3E1; color:#A82B26; }
+  .vc-badge.posible{ background:#FCEFD6; color:#8A5A0B; }
+  .vc-badge.otros{ background:#E8EFF3; color:#3D5566; }
+  .vc-badge.estable{ background:#DDF1E8; color:#17694A; }
+  .vc-badge.insuf{ background:#EEF1F3; color:#8A99A4; }
+  .vc-warn{ color:var(--danger); font-weight:600; }
+  .vc-insights{ margin:12px 0 0; padding-left:18px; font-size:13px; line-height:1.7; color:var(--ink); }
   /* ---------- cumplimiento por especialista ---------- */
   .esp-head, .esp-row{ display:grid; grid-template-columns:minmax(160px,1.2fr) minmax(240px,3fr) 100px 100px 90px; gap:14px; align-items:center; }
   .esp-head{ font-size:11.5px; font-weight:600; color:var(--ink-faint); padding:0 10px 8px; border-bottom:1px solid var(--border); margin-top:6px; }
@@ -1214,24 +1233,41 @@
       </div>
     </section>
 
-    <section class="breakdown">
-      <div class="card">
-        <h3>Cumplimiento por servicio</h3>
-        <div id="byServicio"></div>
+    <section class="card" id="vcSection" style="margin-bottom:14px;">
+      <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <span>Análisis Volumen vs % Cumplimiento <span class="sub" id="vcSub" style="font-weight:400; color:var(--ink-faint); font-size:12px;"></span></span>
+        <span class="metric-toggle" id="vcGranToggle">
+          <button class="active" data-g="mes">Mensual</button>
+          <button data-g="sem">Semanal</button>
+        </span>
+      </h3>
+      <p class="vc-help">Detecta a partir de qué volumen de tickets cerrados empieza a caer el cumplimiento de cada especialista. El <b>volumen de quiebre</b> es el corte que mejor separa los periodos de menor y mayor carga (exige una caída de al menos 5 puntos). Un <b>cruce</b> ocurre cuando la línea de volumen (expresada como % de su máximo) pasa por encima o por debajo de la línea de % cumplimiento. El último periodo puede estar incompleto. Haz clic en una fila para ver su gráfico.</p>
+      <div class="table-scroll">
+        <table id="vcTable" class="vc-table">
+          <thead>
+            <tr>
+              <th>Especialista</th>
+              <th class="r">Periodos</th>
+              <th class="r">Vol. prom.</th>
+              <th class="r">Vol. máx.</th>
+              <th class="r" title="Correlación entre volumen y % cumplimiento (−1 a 1). Negativa = a más volumen, menos cumplimiento">Correl. (r)</th>
+              <th class="r" title="Puntos de % cumplimiento que cambian por cada +10 tickets">Pts / +10 tk</th>
+              <th class="r">Vol. de quiebre</th>
+              <th class="r">% antes → después</th>
+              <th class="r" title="Mayor volumen de un periodo que aun así cumplió la meta">Máx. vol. en meta</th>
+              <th class="r">Cruces</th>
+              <th class="r">Último periodo</th>
+              <th>Diagnóstico</th>
+            </tr>
+          </thead>
+          <tbody id="vcBody"></tbody>
+        </table>
       </div>
-
-      <div class="card">
-        <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <span>Categorías/servicios con tendencia</span>
-          <span class="metric-toggle" id="metricToggleCategoria">
-            <button class="active" data-metric="pct">% Cumplimiento</button>
-            <button data-metric="vol">Volumen</button>
-          </span>
-        </h3>
-        <div class="trend-chips" id="trendCategoriaChips"></div>
-        <div class="chart-box" id="trendCategoriaBox" style="height:260px;"><canvas id="chartTrendCategoria"></canvas></div>
-        <div id="trendCategoriaFallback" class="hidden"></div>
-        <div class="empty-detail hidden" id="trendCategoriaEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
+      <div class="empty-detail hidden" id="vcEmpty">No hay tickets cerrados en este rango para analizar.</div>
+      <div id="vcDetail" class="hidden" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+        <strong id="vcDetailTitle" style="font-family:'Space Grotesk', sans-serif; font-size:14px;"></strong>
+        <div class="chart-box" id="vcChartBox" style="height:280px; margin-top:8px;"><canvas id="vcCanvas"></canvas></div>
+        <ul class="vc-insights" id="vcInsights"></ul>
       </div>
     </section>
    </div>
@@ -1949,7 +1985,6 @@
     if (allRowsRaw.length){
       render();
       trendEspecialista.setData(allRows, r => r.especialista);
-      trendCategoria.setData(allRows, r => r.categoria != null ? r.categoria : r.servicio);
       renderTeamTrend(allRows);
     }
     if (taskMap.size){ renderTasks(); }
@@ -2558,11 +2593,6 @@
     boxId: 'trendEspecialistaBox', fallbackId: 'trendEspecialistaFallback',
     emptyId: 'trendEspecialistaEmpty', defaultTopN: 5
   });
-  const trendCategoria = createTrendWidget({
-    canvasId: 'chartTrendCategoria', chipsId: 'trendCategoriaChips',
-    boxId: 'trendCategoriaBox', fallbackId: 'trendCategoriaFallback',
-    emptyId: 'trendCategoriaEmpty', defaultTopN: 6
-  });
 
   function wireMetricToggle(containerId, widget){
     const container = $(containerId);
@@ -2575,7 +2605,6 @@
     });
   }
   wireMetricToggle('metricToggleEspecialista', trendEspecialista);
-  wireMetricToggle('metricToggleCategoria', trendCategoria);
 
   // ---------------- Tendencia mensual del equipo (C) ----------------
 
@@ -2733,6 +2762,7 @@
   // ---------------- Cumplimiento por especialista (todos, con abiertos y histórico) ----------------
   let espSel = null;
   let espHistOn = false;
+  let vcSel = null, vcGran = 'mes', vcChart = null;
 
   function buildEspecialistas(){
     const map = new Map();
@@ -2783,6 +2813,7 @@
     // marcar seleccionado (por si se acaba de fijar el valor por defecto)
     $('espRows').querySelectorAll('.esp-row').forEach(el => el.classList.toggle('sel', el.dataset.name === espSel));
     renderEspHist();
+    try { renderVolCumpl(); } catch(err){ console.error('Error en análisis volumen vs cumplimiento:', err); }
   }
 
   function renderEspHist(){
@@ -2793,6 +2824,267 @@
   }
 
   $('espHistSwitch').addEventListener('change', (e) => { espHistOn = e.target.checked; renderEspHist(); });
+
+  // ---------------- Análisis Volumen vs % Cumplimiento ----------------
+  // Por especialista (y para todo el equipo) agrupa los tickets cerrados por mes o semana y calcula:
+  //  · correlación y pendiente entre volumen y % cumplimiento,
+  //  · "volumen de quiebre": corte de volumen que mejor separa periodos de baja y alta carga
+  //    (mayor caída del % cumplimiento ponderado; mínimo 2 periodos a cada lado y ≥ VC_MIN_CAIDA puntos),
+  //  · cruces entre la línea de volumen (normalizada al máximo del especialista) y la de % cumplimiento.
+  const VC_EQUIPO = '__equipo__';
+  const VC_MIN_PERIODOS = 4;
+  const VC_MIN_CAIDA = 5;
+  const VC_ORDEN = { sensible: 0, posible: 1, otros: 2, estable: 3, insuf: 4 };
+  const VC_LABEL = { sensible: 'Sensible al volumen', posible: 'Posible efecto del volumen', otros: 'Caída no ligada al volumen', estable: 'Estable sobre la meta', insuf: 'Datos insuficientes' };
+  const vcFmt = (v, d = 1) => v == null ? '—' : Number(v).toLocaleString('es-PE', { maximumFractionDigits: d });
+
+  function vcBuildPeriods(rows, gran){
+    const map = new Map();
+    rows.forEach(r => {
+      const d = toDateSafe(r.fechaCierre);
+      if (!d) return;
+      let key, label;
+      if (gran === 'sem'){ const w = anIsoWeek(d); key = w.key; label = w.label; }
+      else { key = monthKeyFromDate(d); label = monthLabelFromKey(key); }
+      let b = map.get(key);
+      if (!b){ b = { key, label, vol: 0, ok: 0 }; map.set(key, b); }
+      b.vol++; if (r.cumple) b.ok++;
+    });
+    return Array.from(map.values())
+      .sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+      .map(b => ({ ...b, pct: b.ok / b.vol * 100 }));
+  }
+
+  function vcWeighted(list){
+    const v = list.reduce((a, p) => a + p.vol, 0);
+    return v ? list.reduce((a, p) => a + p.ok, 0) / v * 100 : null;
+  }
+
+  function vcAnalyze(periods){
+    const n = periods.length;
+    const res = { n, periods, avgVol: null, maxVol: null, r: null, slope: null, cp: null, maxOk: null, bajo: 0, cruces: [], diag: 'insuf' };
+    if (!n) return res;
+    const vols = periods.map(p => p.vol), pcts = periods.map(p => p.pct);
+    res.avgVol = vols.reduce((a, b) => a + b, 0) / n;
+    res.maxVol = Math.max(...vols);
+    res.bajo = periods.filter(p => p.pct < META).length;
+    const okVols = periods.filter(p => p.pct >= META).map(p => p.vol);
+    res.maxOk = okVols.length ? Math.max(...okVols) : null;
+
+    const mv = res.avgVol, mp = pcts.reduce((a, b) => a + b, 0) / n;
+    let sxy = 0, sxx = 0, syy = 0;
+    for (let i = 0; i < n; i++){ const dx = vols[i] - mv, dy = pcts[i] - mp; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; }
+    if (n >= 3 && sxx > 0){
+      res.slope = sxy / sxx * 10;
+      if (syy > 0) res.r = sxy / Math.sqrt(sxx * syy);
+    }
+
+    if (n >= VC_MIN_PERIODOS){
+      const sorted = periods.slice().sort((a, b) => a.vol - b.vol);
+      let best = null;
+      for (let k = 2; k <= n - 2; k++){
+        if (sorted[k - 1].vol === sorted[k].vol) continue;
+        const lo = sorted.slice(0, k), hi = sorted.slice(k);
+        const before = vcWeighted(lo), after = vcWeighted(hi);
+        const drop = before - after;
+        if (!best || drop > best.drop) best = { thr: sorted[k].vol, before, after, drop, nLo: k, nHi: n - k };
+      }
+      if (best && best.drop >= VC_MIN_CAIDA) res.cp = best;
+    }
+
+    if (n >= 2 && res.maxVol > 0){
+      const d = periods.map(p => p.vol / res.maxVol * 100 - p.pct);
+      for (let i = 0; i < n - 1; i++){
+        const a = d[i], b = d[i + 1];
+        if ((a < 0 && b > 0) || (a > 0 && b < 0)){
+          const t = a / (a - b);
+          res.cruces.push({
+            x: i + t,
+            y: periods[i].pct + (periods[i + 1].pct - periods[i].pct) * t,
+            dir: b > 0 ? 'up' : 'down',
+            from: periods[i].label, to: periods[i + 1].label
+          });
+        }
+      }
+    }
+
+    if (n < VC_MIN_PERIODOS) res.diag = 'insuf';
+    else if (res.bajo === 0) res.diag = 'estable';
+    else if (res.cp) res.diag = (res.r != null && res.r <= -0.3) ? 'sensible' : 'posible';
+    else res.diag = 'otros';
+    return res;
+  }
+
+  function vcBuildAll(){
+    const closed = allRows.filter(r => r.fechaCierre != null && toDateSafe(r.fechaCierre));
+    const byEsp = new Map();
+    closed.forEach(r => {
+      const n = r.especialista;
+      if (!n || n === '—') return;
+      if (!byEsp.has(n)) byEsp.set(n, []);
+      byEsp.get(n).push(r);
+    });
+    const list = Array.from(byEsp.entries()).map(([name, rows]) => ({ name, a: vcAnalyze(vcBuildPeriods(rows, vcGran)) }));
+    list.sort((x, y) =>
+      (VC_ORDEN[x.a.diag] - VC_ORDEN[y.a.diag]) ||
+      ((y.a.cp ? y.a.cp.drop : 0) - (x.a.cp ? x.a.cp.drop : 0)) ||
+      x.name.localeCompare(y.name, 'es'));
+    const team = { name: VC_EQUIPO, label: 'Equipo TI (todos)', a: vcAnalyze(vcBuildPeriods(closed, vcGran)) };
+    return { team, list };
+  }
+
+  function vcUnit(){ return vcGran === 'sem' ? 'semana' : 'mes'; }
+
+  function vcRowHtml(item, isTeam){
+    const a = item.a, name = isTeam ? item.label : item.name;
+    const last = a.periods[a.periods.length - 1];
+    const overCp = last && a.cp && last.vol >= a.cp.thr;
+    const rTxt = a.r == null ? '—' : vcFmt(a.r, 2);
+    const slopeTxt = a.slope == null ? '—' : (a.slope > 0 ? '+' : '') + vcFmt(a.slope, 1);
+    return `<tr class="vc-row${isTeam ? ' vc-team' : ''}${item.name === vcSel ? ' sel' : ''}" data-name="${escapeHtml(item.name)}">
+      <td title="${escapeHtml(name)}">${escapeHtml(name)}</td>
+      <td class="r mono">${a.n}</td>
+      <td class="r mono">${vcFmt(a.avgVol)}</td>
+      <td class="r mono">${vcFmt(a.maxVol, 0)}</td>
+      <td class="r mono" style="${a.r != null && a.r <= -0.3 ? 'color:var(--danger); font-weight:600;' : ''}">${rTxt}</td>
+      <td class="r mono">${slopeTxt}</td>
+      <td class="r mono">${a.cp ? '≥ ' + a.cp.thr : '—'}</td>
+      <td class="r mono">${a.cp ? vcFmt(a.cp.before, 0) + '% → <span class="vc-warn">' + vcFmt(a.cp.after, 0) + '%</span>' : '—'}</td>
+      <td class="r mono">${a.maxOk == null ? '—' : a.maxOk}</td>
+      <td class="r mono">${a.n >= 2 ? a.cruces.length : '—'}</td>
+      <td class="r mono${overCp ? ' vc-warn' : ''}" title="${last ? escapeHtml(last.label) : ''}">${last ? last.vol + ' tk · ' + vcFmt(last.pct, 0) + '%' + (overCp ? ' ⚠' : '') : '—'}</td>
+      <td><span class="vc-badge ${a.diag}">${VC_LABEL[a.diag]}</span></td>
+    </tr>`;
+  }
+
+  function vcInsightsHtml(name, a){
+    const u = vcUnit(), items = [];
+    if (a.diag === 'insuf'){
+      items.push(`Se necesitan al menos ${VC_MIN_PERIODOS} periodos con tickets cerrados para detectar un punto de quiebre (hay ${a.n}).`);
+    } else {
+      if (a.cp){
+        items.push(`<b>Quiebre:</b> desde ${a.cp.thr} tickets por ${u} el cumplimiento promedio baja de ${vcFmt(a.cp.before)}% a ${vcFmt(a.cp.after)}% (−${vcFmt(a.cp.drop)} pts). ${a.cp.nHi} de ${a.n} periodos estuvieron en ese rango.`);
+      } else if (a.bajo === 0){
+        items.push(`Se mantuvo sobre la meta de ${META}% en los ${a.n} periodos, incluso con su mayor volumen (${a.maxVol} tickets).`);
+      } else {
+        items.push(`Estuvo bajo la meta en ${a.bajo} de ${a.n} periodos, pero la caída no se concentra en los de mayor volumen (diferencia menor a ${VC_MIN_CAIDA} pts).`);
+      }
+      if (a.r != null){
+        const dir = a.r <= -0.3 ? 'a más volumen, menos cumplimiento' : (a.r >= 0.3 ? 'a más volumen, más cumplimiento' : 'sin relación clara con el volumen');
+        items.push(`<b>Correlación:</b> r = ${vcFmt(a.r, 2)} (${dir}). Por cada +10 tickets el cumplimiento cambia ≈ ${a.slope > 0 ? '+' : ''}${vcFmt(a.slope, 1)} pts.`);
+      }
+      if (a.maxOk != null) items.push(`<b>Mayor volumen dentro de la meta:</b> ${a.maxOk} tickets por ${u}.`);
+      const worst = a.periods.reduce((w, p) => (!w || p.pct < w.pct) ? p : w, null);
+      const busiest = a.periods.reduce((w, p) => (!w || p.vol > w.vol) ? p : w, null);
+      if (worst) items.push(`<b>Peor periodo:</b> ${worst.label} con ${vcFmt(worst.pct, 0)}% (${worst.vol} tickets). <b>Mayor carga:</b> ${busiest.label} con ${busiest.vol} tickets y ${vcFmt(busiest.pct, 0)}%.`);
+    }
+    if (a.n >= 2){
+      items.push(a.cruces.length
+        ? `<b>Cruces (${a.cruces.length}):</b> ` + a.cruces.map(c => `${c.from} → ${c.to} (${c.dir === 'up' ? 'el volumen sobrepasa al cumplimiento' : 'el cumplimiento vuelve a superar al volumen'})`).join('; ') + '.'
+        : '<b>Cruces:</b> las líneas de volumen y cumplimiento no se cruzan en este rango.');
+    }
+    return items.map(t => `<li>${t}</li>`).join('');
+  }
+
+  function vcDrawChart(name, a){
+    if (vcChart){ vcChart.destroy(); vcChart = null; }
+    if (typeof Chart === 'undefined' || !a.n) return;
+    const styles = getComputedStyle(document.documentElement);
+    const inkSoft = styles.getPropertyValue('--ink-soft').trim();
+    const inkColor = styles.getPropertyValue('--ink').trim();
+    const border = styles.getPropertyValue('--border').trim();
+    const labels = a.periods.map(p => p.label);
+    const maxV = Math.max(1, a.maxVol);
+    const datasets = [
+      { label: '% Cumplimiento', data: a.periods.map(p => Number(p.pct.toFixed(1))), yAxisID: 'y', borderColor: '#C1432D', backgroundColor: '#C1432D', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 1 },
+      { label: 'Volumen (tickets)', data: a.periods.map(p => p.vol), yAxisID: 'y1', borderColor: '#2C5F6F', backgroundColor: '#2C5F6F', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 2 },
+      { label: `Meta ${META}%`, data: a.periods.map(() => META), yAxisID: 'y', borderColor: '#1F8A5F', borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0, order: 3 }
+    ];
+    if (a.cp) datasets.push({ label: `Vol. de quiebre (${a.cp.thr})`, data: a.periods.map(() => a.cp.thr), yAxisID: 'y1', borderColor: '#B87A1E', borderDash: [2, 4], borderWidth: 1.5, pointRadius: 0, order: 4 });
+
+    const crossPlugin = {
+      id: 'vcCruces',
+      afterDatasetsDraw(chart){
+        const xs = chart.scales.x, ys = chart.scales.y, ctx = chart.ctx;
+        ctx.save();
+        a.cruces.forEach(c => {
+          const px = xs.getPixelForValue(c.x), py = ys.getPixelForValue(c.y);
+          ctx.beginPath();
+          ctx.moveTo(px, py - 8); ctx.lineTo(px + 8, py); ctx.lineTo(px, py + 8); ctx.lineTo(px - 8, py); ctx.closePath();
+          ctx.fillStyle = '#FFFFFF'; ctx.fill();
+          ctx.lineWidth = 2.5; ctx.strokeStyle = '#B87A1E'; ctx.stroke();
+        });
+        ctx.restore();
+      }
+    };
+    const tick = { color: inkSoft, font: { family: "'IBM Plex Mono', monospace", size: 11 } };
+    vcChart = new Chart($('vcCanvas').getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets },
+      plugins: [crossPlugin],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        layout: { padding: { top: 12, right: 8 } },
+        scales: {
+          y: { min: 0, max: 100, position: 'left', grid: { color: border }, ticks: { ...tick, callback: v => v + '%' }, title: { display: true, text: '% Cumplimiento', color: inkSoft, font: { size: 11 } } },
+          y1: { min: 0, max: maxV, position: 'right', grid: { drawOnChartArea: false }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Volumen (tickets)', color: inkSoft, font: { size: 11 } } },
+          x: { grid: { display: false }, ticks: tick }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 }, boxWidth: 10, boxHeight: 10 } },
+          tooltip: {
+            backgroundColor: '#16202B', padding: 10,
+            callbacks: {
+              label: ctx => {
+                if (ctx.dataset.yAxisID === 'y1') return `${ctx.dataset.label}: ${ctx.formattedValue}`;
+                return `${ctx.dataset.label}: ${ctx.formattedValue}%`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderVolCumpl(){
+    const sec = $('vcSection');
+    if (!sec) return;
+    const { team, list } = vcBuildAll();
+    const hasData = team.a.n > 0;
+    $('vcEmpty').classList.toggle('hidden', hasData);
+    $('vcTable').closest('.table-scroll').classList.toggle('hidden', !hasData);
+    $('vcDetail').classList.toggle('hidden', !hasData);
+    $('vcSub').textContent = hasData ? `· ${list.length} especialista${list.length === 1 ? '' : 's'} · análisis ${vcGran === 'sem' ? 'semanal' : 'mensual'}` : '';
+    if (!hasData){ $('vcBody').innerHTML = ''; if (vcChart){ vcChart.destroy(); vcChart = null; } return; }
+
+    const all = [{ ...team }, ...list];
+    if (!vcSel || !all.some(x => x.name === vcSel)) vcSel = (espSel && list.some(x => x.name === espSel)) ? espSel : VC_EQUIPO;
+
+    $('vcBody').innerHTML = vcRowHtml(team, true) + list.map(x => vcRowHtml(x, false)).join('');
+    $('vcBody').querySelectorAll('.vc-row').forEach(tr => {
+      tr.addEventListener('click', () => { vcSel = tr.dataset.name; renderVolCumpl(); });
+    });
+
+    const cur = all.find(x => x.name === vcSel);
+    const curName = cur.name === VC_EQUIPO ? cur.label : cur.name;
+    $('vcDetailTitle').textContent = `Volumen vs % cumplimiento: ${curName}`;
+    $('vcInsights').innerHTML = vcInsightsHtml(curName, cur.a);
+    vcDrawChart(curName, cur.a);
+  }
+
+  (function wireVcGran(){
+    const c = $('vcGranToggle');
+    if (!c) return;
+    c.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        c.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        vcGran = btn.dataset.g;
+        renderVolCumpl();
+      });
+    });
+  })();
 
   // ---------------- Origen de los tickets: ¿quién los crea? ----------------
   // % de tickets creados por personas ajenas al equipo de especialistas vs. por los propios
@@ -3451,10 +3743,6 @@
     gauge.style.width = Math.min(pct, 100) + '%';
     gauge.className = 'gauge-fill ' + (meetsGoal ? '' : 'bad');
 
-    try {
-      renderBreakdown('byServicio', groupBy(allRows, r => r.servicio));
-    } catch(err){ console.error('Error al renderizar cumplimiento por servicio:', err); }
-
 
     $('tabCountAbiertos').textContent = abiertos.length;
     $('tabCountVencidos').textContent = vencidos.length;
@@ -3650,7 +3938,6 @@
       if (page === 'dashboardExtra' && allRowsRaw.length){
         renderTeamTrend(allRows);
         if (espHistOn) trendEspecialista.redraw();
-        trendCategoria.redraw();
         renderEspecialistaCard();
       }
       // "Tendencias y mejoras": sus gráficos y tablas necesitan el tamaño real del contenedor,
