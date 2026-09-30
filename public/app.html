@@ -596,6 +596,8 @@
   body.tv-mode #noiseWarning,
   body.tv-mode #ticketSection > section.hero,
   body.tv-mode #ticketSection > section.alerts-row,
+  body.tv-mode #ticketSection > section.card,
+  body.tv-mode #ticketSection > #volumenSection,
   body.tv-mode #taskSection > h2.section-title,
   body.tv-mode #taskSection > section.hero,
   body.tv-mode #taskSection > section.breakdown,
@@ -1171,6 +1173,31 @@
       </div>
     </section>
 
+    <section class="card" id="teamTrendCard" style="margin-bottom:14px;">
+      <h3 style="font-family:'Space Grotesk', sans-serif; font-size:15px; margin:0 0 10px;">Tendencia mensual del % de cumplimiento del equipo TI</h3>
+      <div class="chart-box" id="teamTrendBox" style="height:270px;"><canvas id="chartTeamTrend"></canvas></div>
+      <div id="teamTrendFallback" class="hidden"></div>
+      <div class="empty-detail hidden" id="teamTrendEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
+    </section>
+
+    <div id="volumenSection" class="hidden">
+    <h2 class="section-title">Volumen del total de tickets</h2>
+    <section class="breakdown breakdown-3col">
+      <div class="card">
+        <h3>Por Prioridad</h3>
+        <div id="byPrioridad"></div>
+      </div>
+      <div class="card">
+        <h3>Por Impacto</h3>
+        <div id="byImpacto"></div>
+      </div>
+      <div class="card">
+        <h3>Por Urgencia</h3>
+        <div id="byUrgencia"></div>
+      </div>
+    </section>
+    </div>
+
     <section class="table-section" id="ticketTableBlock">
       <div class="view-tabs">
         <button class="tab-btn active" id="tabAbiertos" data-view="abiertos">Abiertos <span class="count" id="tabCountAbiertos">0</span></button>
@@ -1209,13 +1236,63 @@
     </section>
    </div>
 
-   <div id="trendsSection" class="hidden" data-page="dashboardExtra">
-    <section class="card" style="margin-bottom:14px;">
-      <h3 style="font-family:'Space Grotesk', sans-serif; font-size:15px; margin:0 0 10px;">Tendencia mensual del % de cumplimiento del equipo TI</h3>
-      <div class="chart-box" id="teamTrendBox" style="height:270px;"><canvas id="chartTeamTrend"></canvas></div>
-      <div id="teamTrendFallback" class="hidden"></div>
-      <div class="empty-detail hidden" id="teamTrendEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
+   <div id="taskSection" class="hidden" data-page="general">
+    <h2 class="section-title">Tareas</h2>
+
+    <section class="hero" style="grid-template-columns:1fr;">
+      <div class="card">
+        <div class="stat-grid">
+          <div class="stat-box"><div class="n" id="statTaskTotal">0</div><div class="l">Tareas totales</div></div>
+          <div class="stat-box"><div class="n" id="statTaskAbiertas">0</div><div class="l">Abiertas</div></div>
+          <div class="stat-box"><div class="n" id="statTaskCerradas">0</div><div class="l">Cerradas</div></div>
+          <div class="stat-box"><div class="n" id="statTaskEstancadas">0</div><div class="l">Abiertas hace &gt;15 días</div></div>
+          <div class="stat-box excl">
+            <div><div class="l" style="margin-bottom:2px;">Mediana de cierre</div><div class="n" id="statTaskMediana" style="font-size:18px;">—</div></div>
+            <div class="l">de tareas cerradas</div>
+          </div>
+        </div>
+      </div>
     </section>
+
+    <section class="table-section" id="taskTableBlock">
+      <div class="view-tabs">
+        <button class="tab-btn active" id="tabTaskAbiertas" data-view="abiertas">Abiertas <span class="count" id="tabCountTaskAbiertas">0</span></button>
+        <button class="tab-btn" id="tabTaskCerradas" data-view="cerradas">Cerradas <span class="count" id="tabCountTaskCerradas">0</span></button>
+      </div>
+      <div class="table-head">
+        <div>
+          <h3 id="taskTableTitle">Tareas abiertas (ordenadas por antigüedad)</h3>
+          <div class="sub" id="taskDetailSub">0 registros</div>
+        </div>
+        <div class="table-actions">
+          <input type="text" class="search-box" id="taskSearchBox" placeholder="Buscar tarea, caso, responsable…">
+          <button id="btnExportTask">Descargar CSV</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="taskDetailTable">
+          <thead>
+            <tr>
+              <th data-key="tarea">Tarea</th>
+              <th data-key="caso">Caso</th>
+              <th data-key="estado">Estado</th>
+              <th data-key="asunto">Asunto</th>
+              <th data-key="responsable">Responsable</th>
+              <th data-key="grupoResponsable">Grupo</th>
+              <th data-key="fechaRegistro">Fecha registro</th>
+              <th data-key="fechaCierre">Fecha cierre</th>
+              <th data-key="dias">Tiempo</th>
+              <th data-key="razon">Razón</th>
+            </tr>
+          </thead>
+          <tbody id="taskDetailBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-detail hidden" id="emptyTaskDetail">No hay tareas en esta vista.</div>
+    </section>
+   </div>
+
+   <div id="trendsSection" class="hidden" data-page="dashboardExtra">
 
     <section class="card" id="especialistaCard" style="margin-bottom:14px;">
       <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -1286,7 +1363,22 @@
     </section>
    </div>
 
-   <div id="extraRankingSection" class="hidden" data-page="dashboardExtra">
+
+
+   <div id="tendenciasSection" class="hidden" data-page="tendencias">
+
+    <h2 class="section-title">Origen de los tickets</h2>
+    <section style="margin-bottom:14px;">
+      <div class="card" id="autorOrigenCard">
+        <h3>¿Quién crea los tickets?</h3>
+        <div class="ao-sub" id="autorOrigenSub"></div>
+        <div id="autorOrigenBars"></div>
+        <div class="ao-chart hidden" id="autorOrigenChartBox"><canvas id="autorOrigenCanvas"></canvas></div>
+        <div class="ao-note" id="autorOrigenNote"></div>
+      </div>
+    </section>
+
+    <div id="extraRankingSection" class="hidden">
     <h2 class="section-title">Ranking de Cliente Final</h2>
     <section class="table-section">
       <div class="table-head">
@@ -1335,84 +1427,54 @@
       <div class="empty-detail hidden" id="emptyRankingAutor">No hay tickets con "Autor Ticket" en este rango.</div>
     </section>
 
-    <h2 class="section-title">Volumen del total de tickets</h2>
-    <section class="breakdown breakdown-3col">
-      <div class="card">
-        <h3>Por Prioridad</h3>
-        <div id="byPrioridad"></div>
-      </div>
-      <div class="card">
-        <h3>Por Impacto</h3>
-        <div id="byImpacto"></div>
-      </div>
-      <div class="card">
-        <h3>Por Urgencia</h3>
-        <div id="byUrgencia"></div>
-      </div>
-    </section>
-   </div>
+    </div>
 
-   <div id="taskSection" class="hidden" data-page="general">
-    <h2 class="section-title">Tareas</h2>
+    <h2 class="section-title">Evolución semanal y problemas recurrentes</h2>
+    <div class="an-toolbar">
+      <label for="anWeekMode">Semana analizada</label>
+      <select id="anWeekMode">
+        <option value="actual">Semana actual</option>
+        <option value="anterior">Semana anterior</option>
+        <option value="select">Seleccionar semana…</option>
+      </select>
+      <select id="anWeekSelect" class="hidden"></select>
+      <div class="an-spacer"></div>
+      <label for="anTrendWindow">Tendencia</label>
+      <select id="anTrendWindow">
+        <option value="8">Últimas 8 semanas</option>
+        <option value="12" selected>Últimas 12 semanas</option>
+        <option value="26">Últimas 26 semanas</option>
+      </select>
+    </div>
 
-    <section class="hero">
-      <div class="card">
-        <div class="stat-grid">
-          <div class="stat-box"><div class="n" id="statTaskTotal">0</div><div class="l">Tareas totales</div></div>
-          <div class="stat-box"><div class="n" id="statTaskAbiertas">0</div><div class="l">Abiertas</div></div>
-          <div class="stat-box"><div class="n" id="statTaskCerradas">0</div><div class="l">Cerradas</div></div>
-          <div class="stat-box"><div class="n" id="statTaskEstancadas">0</div><div class="l">Abiertas hace &gt;15 días</div></div>
-          <div class="stat-box excl">
-            <div><div class="l" style="margin-bottom:2px;">Mediana de cierre</div><div class="n" id="statTaskMediana" style="font-size:18px;">—</div></div>
-            <div class="l">de tareas cerradas</div>
+    <p class="an-empty hidden" id="anNoData">Aún no hay tickets cargados para analizar por semana.</p>
+
+    <div id="anContent" class="hidden">
+
+      <section class="an-section">
+        <h2>Evolución semanal del cumplimiento SLA</h2>
+        <p class="an-sub">% de tickets que cumplen SLA por semana, frente a la meta configurada.</p>
+        <div class="an-card">
+          <div class="an-chart-box"><canvas id="anTrendChart"></canvas></div>
+        </div>
+      </section>
+
+      <section class="an-section">
+        <h2>Problemas recurrentes detectados</h2>
+        <p class="an-sub">Agrupados por descripción similar, a lo largo de todo el histórico cargado (no solo la semana enfocada). Haz clic en un problema para ver los tickets relacionados.</p>
+        <div class="an-card">
+          <div class="table-scroll">
+            <table id="anRecurTable">
+              <thead><tr><th>Patrón</th><th>Tickets</th><th>Servicio</th><th>Vencidos</th><th>Esta semana</th><th>1ª aparición</th><th>Última</th><th>Tendencia</th><th>Potencial KB</th><th></th></tr></thead>
+              <tbody id="anRecurBody"></tbody>
+            </table>
           </div>
+          <p class="an-empty hidden" id="anRecurEmpty">No se detectaron patrones recurrentes con los datos actuales.</p>
         </div>
-      </div>
-      <div class="card" id="autorOrigenCard">
-        <h3>¿Quién crea los tickets?</h3>
-        <div class="ao-sub" id="autorOrigenSub"></div>
-        <div id="autorOrigenBars"></div>
-        <div class="ao-chart hidden" id="autorOrigenChartBox"><canvas id="autorOrigenCanvas"></canvas></div>
-        <div class="ao-note" id="autorOrigenNote"></div>
-      </div>
-    </section>
+      </section>
 
-    <section class="table-section" id="taskTableBlock">
-      <div class="view-tabs">
-        <button class="tab-btn active" id="tabTaskAbiertas" data-view="abiertas">Abiertas <span class="count" id="tabCountTaskAbiertas">0</span></button>
-        <button class="tab-btn" id="tabTaskCerradas" data-view="cerradas">Cerradas <span class="count" id="tabCountTaskCerradas">0</span></button>
-      </div>
-      <div class="table-head">
-        <div>
-          <h3 id="taskTableTitle">Tareas abiertas (ordenadas por antigüedad)</h3>
-          <div class="sub" id="taskDetailSub">0 registros</div>
-        </div>
-        <div class="table-actions">
-          <input type="text" class="search-box" id="taskSearchBox" placeholder="Buscar tarea, caso, responsable…">
-          <button id="btnExportTask">Descargar CSV</button>
-        </div>
-      </div>
-      <div class="table-scroll">
-        <table id="taskDetailTable">
-          <thead>
-            <tr>
-              <th data-key="tarea">Tarea</th>
-              <th data-key="caso">Caso</th>
-              <th data-key="estado">Estado</th>
-              <th data-key="asunto">Asunto</th>
-              <th data-key="responsable">Responsable</th>
-              <th data-key="grupoResponsable">Grupo</th>
-              <th data-key="fechaRegistro">Fecha registro</th>
-              <th data-key="fechaCierre">Fecha cierre</th>
-              <th data-key="dias">Tiempo</th>
-              <th data-key="razon">Razón</th>
-            </tr>
-          </thead>
-          <tbody id="taskDetailBody"></tbody>
-        </table>
-      </div>
-      <div class="empty-detail hidden" id="emptyTaskDetail">No hay tareas en esta vista.</div>
-    </section>
+    </div>
+
    </div>
 
    <div id="serviciosSection" class="hidden" data-page="servicios">
@@ -1481,6 +1543,28 @@
         <div class="vc-umbral" id="svUmbralCard"></div>
         <div class="chart-box" id="svChartBox" style="height:280px; margin-top:8px;"><canvas id="svCanvas"></canvas></div>
         <ul class="vc-insights" id="svInsights"></ul>
+      </div>
+    </section>
+
+    <section class="an-section">
+      <h2>Detalle por servicio</h2>
+      <p class="an-sub">Horas promedio y mediana que toma llegar al 100% de progreso, por servicio (tickets cerrados con fechas completas, dentro del rango de fechas seleccionado).</p>
+      <div class="an-card">
+        <div class="table-scroll">
+          <table id="tdTable">
+            <thead>
+              <tr>
+                <th data-key="servicio">Servicio</th>
+                <th data-key="total">Tickets</th>
+                <th data-key="avgGeneral">Horas prom. a 100%</th>
+                <th data-key="medianGeneral">Mediana</th>
+                <th data-key="clusterCount">Consistencia</th>
+              </tr>
+            </thead>
+            <tbody id="tdTableBody"></tbody>
+          </table>
+        </div>
+        <p class="an-empty hidden" id="tdTableEmpty">No hay tickets con fechas completas en el rango seleccionado.</p>
       </div>
     </section>
    </div>
@@ -1592,75 +1676,6 @@
     </section>
    </div>
 
-   <div id="tendenciasSection" class="hidden" data-page="tendencias">
-
-    <div class="an-toolbar">
-      <label for="anWeekMode">Semana analizada</label>
-      <select id="anWeekMode">
-        <option value="actual">Semana actual</option>
-        <option value="anterior">Semana anterior</option>
-        <option value="select">Seleccionar semana…</option>
-      </select>
-      <select id="anWeekSelect" class="hidden"></select>
-      <div class="an-spacer"></div>
-      <label for="anTrendWindow">Tendencia</label>
-      <select id="anTrendWindow">
-        <option value="8">Últimas 8 semanas</option>
-        <option value="12" selected>Últimas 12 semanas</option>
-        <option value="26">Últimas 26 semanas</option>
-      </select>
-    </div>
-
-    <p class="an-empty hidden" id="anNoData">Aún no hay tickets cargados para analizar por semana.</p>
-
-    <div id="anContent" class="hidden">
-
-      <section class="an-section">
-        <h2>Evolución semanal del cumplimiento SLA</h2>
-        <p class="an-sub">% de tickets que cumplen SLA por semana, frente a la meta configurada.</p>
-        <div class="an-card">
-          <div class="an-chart-box"><canvas id="anTrendChart"></canvas></div>
-        </div>
-      </section>
-
-      <section class="an-section">
-        <h2>Problemas recurrentes detectados</h2>
-        <p class="an-sub">Agrupados por descripción similar, a lo largo de todo el histórico cargado (no solo la semana enfocada). Haz clic en un problema para ver los tickets relacionados.</p>
-        <div class="an-card">
-          <div class="table-scroll">
-            <table id="anRecurTable">
-              <thead><tr><th>Patrón</th><th>Tickets</th><th>Servicio</th><th>Vencidos</th><th>Esta semana</th><th>1ª aparición</th><th>Última</th><th>Tendencia</th><th>Potencial KB</th><th></th></tr></thead>
-              <tbody id="anRecurBody"></tbody>
-            </table>
-          </div>
-          <p class="an-empty hidden" id="anRecurEmpty">No se detectaron patrones recurrentes con los datos actuales.</p>
-        </div>
-      </section>
-
-    </div>
-
-    <section class="an-section">
-      <h2>Detalle por servicio</h2>
-      <p class="an-sub">Horas promedio y mediana que toma llegar al 100% de progreso, por servicio (tickets cerrados con fechas completas, dentro del rango de fechas seleccionado).</p>
-      <div class="an-card">
-        <div class="table-scroll">
-          <table id="tdTable">
-            <thead>
-              <tr>
-                <th data-key="servicio">Servicio</th>
-                <th data-key="total">Tickets</th>
-                <th data-key="avgGeneral">Horas prom. a 100%</th>
-                <th data-key="medianGeneral">Mediana</th>
-                <th data-key="clusterCount">Consistencia</th>
-              </tr>
-            </thead>
-            <tbody id="tdTableBody"></tbody>
-          </table>
-        </div>
-        <p class="an-empty hidden" id="tdTableEmpty">No hay tickets con fechas completas en el rango seleccionado.</p>
-      </div>
-    </section>
-   </div>
 
    <div class="modal-overlay hidden" id="anModalOverlay">
      <div class="modal-box" style="max-width:640px;">
@@ -3745,6 +3760,7 @@
   function renderExtraRankings(){
     const hasData = allRows.length > 0;
     $('extraRankingSection').classList.toggle('hidden', !hasData);
+    $('volumenSection').classList.toggle('hidden', !hasData);
     if (!hasData) return;
 
     renderSimpleRankingTable(
@@ -4455,8 +4471,10 @@
       // Un canvas creado con tamaño 0 puede quedar en blanco, así que al entrar a
       // "Dashboard" se vuelven a dibujar con el tamaño real ya visible. Los rankings/tablas
       // no lo necesitan porque no dependen del tamaño del contenedor al crearse.
-      if (page === 'dashboardExtra' && allRowsRaw.length){
+      if (page === 'general' && allRowsRaw.length){
         renderTeamTrend(allRows);
+      }
+      if (page === 'dashboardExtra' && allRowsRaw.length){
         if (espHistOn) trendEspecialista.redraw();
         renderEspecialistaCard();
       }
@@ -4468,7 +4486,7 @@
       }
       // "Análisis de servicios": se vuelve a dibujar con el contenedor ya visible.
       if (page === 'servicios'){
-        try { renderServicios(); if (srvHistOn) trendServicio.redraw(); } catch(err){ console.error('Error en análisis de servicios:', err); }
+        try { if (allRowsRaw.length) renderTendencias(); renderServicios(); if (srvHistOn) trendServicio.redraw(); } catch(err){ console.error('Error en análisis de servicios:', err); }
       }
       // Igual para la gráfica de brecha del historial de sustentos (Registro de vencidos).
       if (page === 'registro' && typeof renderHistorial === 'function') renderHistorial();
