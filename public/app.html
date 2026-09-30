@@ -1167,32 +1167,41 @@
       <div class="empty-detail hidden" id="teamTrendEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
     </section>
 
-    <section class="breakdown">
-      <div class="card">
-        <h3>Cumplimiento por servicio</h3>
-        <div id="byServicio"></div>
+    <section class="card" id="especialistaCard" style="margin-bottom:14px;">
+      <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <span>Cumplimiento por especialista <span class="sub" id="espSub" style="font-weight:400; color:var(--ink-faint); font-size:12px;"></span></span>
+        <label class="switch-wrap" title="Muestra la evolución mensual del especialista seleccionado">
+          <input type="checkbox" id="espHistSwitch">
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span class="switch-label" style="font-size:13px;">Ver histórico del seleccionado</span>
+        </label>
+      </h3>
+      <div class="esp-head">
+        <span>Especialista</span><span>% cumplimiento (meta 95%)</span><span class="r">Tickets abiertos</span><span class="r">Tareas abiertas</span><span class="r">Estancadas</span>
       </div>
-      <div class="card">
-        <h3>Cumplimiento por especialista</h3>
-        <div class="chart-box" id="especialistaChartBox"><canvas id="chartEspecialista"></canvas></div>
-        <div id="byEspecialistaFallback" class="hidden"></div>
+      <div id="espRows"></div>
+      <div class="empty-detail hidden" id="espEmpty">No hay especialistas con tickets o tareas en este rango.</div>
+      <div id="espHistBox" class="hidden" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <strong id="espHistTitle" style="font-family:'Space Grotesk', sans-serif; font-size:14px;"></strong>
+          <span class="metric-toggle" id="metricToggleEspecialista">
+            <button class="active" data-metric="pct">% Cumplimiento</button>
+            <button data-metric="vol">Volumen</button>
+          </span>
+        </div>
+        <div class="trend-chips hidden" id="trendEspecialistaChips"></div>
+        <div class="chart-box" id="trendEspecialistaBox" style="height:260px;"><canvas id="chartTrendEspecialista"></canvas></div>
+        <div id="trendEspecialistaFallback" class="hidden"></div>
+        <div class="empty-detail hidden" id="trendEspecialistaEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
       </div>
     </section>
 
     <section class="breakdown">
       <div class="card">
-        <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <span>Rendimiento histórico por especialista</span>
-          <span class="metric-toggle" id="metricToggleEspecialista">
-            <button class="active" data-metric="pct">% Cumplimiento</button>
-            <button data-metric="vol">Volumen</button>
-          </span>
-        </h3>
-        <div class="trend-chips" id="trendEspecialistaChips"></div>
-        <div class="chart-box" id="trendEspecialistaBox" style="height:260px;"><canvas id="chartTrendEspecialista"></canvas></div>
-        <div id="trendEspecialistaFallback" class="hidden"></div>
-        <div class="empty-detail hidden" id="trendEspecialistaEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
+        <h3>Cumplimiento por servicio</h3>
+        <div id="byServicio"></div>
       </div>
+
       <div class="card">
         <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <span>Categorías/servicios con tendencia</span>
@@ -1206,34 +1215,6 @@
         <div id="trendCategoriaFallback" class="hidden"></div>
         <div class="empty-detail hidden" id="trendCategoriaEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
       </div>
-    </section>
-   </div>
-
-   <div id="rankingSection" class="hidden" data-page="dashboardExtra">
-    <h2 class="section-title">Ranking de especialistas</h2>
-    <section class="table-section">
-      <div class="table-head">
-        <div>
-          <h3>Todo el periodo cargado</h3>
-          <div class="sub" id="rankingSub">0 especialistas</div>
-        </div>
-      </div>
-      <div class="table-scroll">
-        <table id="rankingTable">
-          <thead>
-            <tr>
-              <th data-key="name">Especialista</th>
-              <th data-key="ticketsTotal">Tickets atendidos</th>
-              <th data-key="pct">% Cumplimiento</th>
-              <th data-key="avgDias">Tiempo prom. resolución</th>
-              <th data-key="tareasAbiertas">Tareas abiertas</th>
-              <th data-key="tareasEstancadas">Estancadas (&gt;15d)</th>
-            </tr>
-          </thead>
-          <tbody id="rankingBody"></tbody>
-        </table>
-      </div>
-      <div class="empty-detail hidden" id="emptyRanking">No hay especialistas con tickets o tareas en este rango.</div>
     </section>
    </div>
 
@@ -1965,7 +1946,7 @@
       renderTeamTrend(allRows);
     }
     if (taskMap.size){ renderTasks(); }
-    renderRanking();
+    renderEspecialistaCard();
     renderExtraRankings();
     try { renderAutorOrigen(); } catch(err){ console.error('Error en origen de tickets:', err); }
     renderRegistro();
@@ -2553,7 +2534,8 @@
       renderChart();
     }
 
-    return { setData, setMetric, redraw: () => { if (trendData) renderChart(); } };
+    function setSelected(names){ state.selected = new Set(names); renderChips(); renderChart(); }
+    return { setData, setMetric, setSelected, redraw: () => { if (trendData) renderChart(); } };
   }
 
   const trendEspecialista = createTrendWidget({
@@ -2733,84 +2715,69 @@
     }
   }
 
-  // ---------------- Ranking de especialistas (B) ----------------
+  // ---------------- Cumplimiento por especialista (todos, con abiertos y histórico) ----------------
+  let espSel = null;
+  let espHistOn = false;
 
-  let rankingSortState = { key: 'ticketsTotal', dir: 'desc' };
-
-  function blankRankingEntry(){
-    return { ticketsTotal: 0, ticketsCumplen: 0, sumDias: 0, countDias: 0, tareasAbiertas: 0, tareasEstancadas: 0 };
-  }
-
-  // Cruza tickets (por Especialista) y tareas abiertas (por Responsable) usando el
-  // nombre como llave común, ya que ambos archivos identifican a la persona por texto libre.
-  function buildRanking(){
+  function buildEspecialistas(){
     const map = new Map();
+    const get = (n) => { if (!map.has(n)) map.set(n, { total:0, cumplen:0, tickAbiertos:0, tareasAbiertas:0, tareasEstancadas:0 }); return map.get(n); };
     allRows.forEach(r => {
-      if (!map.has(r.especialista)) map.set(r.especialista, blankRankingEntry());
-      const b = map.get(r.especialista);
-      b.ticketsTotal++;
-      if (r.cumple) b.ticketsCumplen++;
-      const fr = toDateSafe(r.fechaRegistro), fc = toDateSafe(r.fechaCierre);
-      if (fr && fc){
-        b.sumDias += (fc - fr) / 86400000;
-        b.countDias++;
-      }
+      if (!r.especialista || r.especialista === '—') return;
+      const b = get(r.especialista);
+      b.total++; if (r.cumple) b.cumplen++;
+      if (r.fechaCierre == null) b.tickAbiertos++;
     });
     taskAbiertas.forEach(t => {
-      if (!map.has(t.responsable)) map.set(t.responsable, blankRankingEntry());
-      const b = map.get(t.responsable);
+      if (!t.responsable || t.responsable === '—') return;
+      const b = get(t.responsable);
       b.tareasAbiertas++;
       if (t.dias != null && t.dias > STUCK_DAYS) b.tareasEstancadas++;
     });
-
-    return Array.from(map.entries())
-      .filter(([name]) => name && name !== '—')
-      .map(([name, b]) => ({
-        name,
-        ticketsTotal: b.ticketsTotal,
-        pct: b.ticketsTotal ? b.ticketsCumplen / b.ticketsTotal * 100 : null,
-        avgDias: b.countDias ? b.sumDias / b.countDias : null,
-        tareasAbiertas: b.tareasAbiertas,
-        tareasEstancadas: b.tareasEstancadas
-      }));
+    return Array.from(map.entries()).map(([name, b]) => ({ name, ...b, pct: b.total ? b.cumplen / b.total * 100 : null }));
   }
 
-  function renderRanking(){
-    const hasData = allRows.length > 0 || taskAbiertas.length > 0;
-    $('rankingSection').classList.toggle('hidden', !hasData);
-    if (!hasData) return;
-
-    const rows = buildRanking();
-    const { key, dir } = rankingSortState;
-    rows.sort((a, b) => {
-      let av = a[key], bv = b[key];
-      if (av == null) av = -Infinity;
-      if (bv == null) bv = -Infinity;
-      if (typeof av === 'string'){ av = av.toLowerCase(); bv = String(bv).toLowerCase(); }
-      if (av < bv) return dir === 'asc' ? -1 : 1;
-      if (av > bv) return dir === 'asc' ? 1 : -1;
-      return 0;
+  function renderEspecialistaCard(){
+    const card = $('especialistaCard');
+    if (!card) return;
+    const rows = buildEspecialistas();
+    // peor cumplimiento primero (sin tickets evaluados al final)
+    rows.sort((a, b) => (a.pct == null ? 1 : b.pct == null ? -1 : a.pct - b.pct) || b.total - a.total);
+    $('espSub').textContent = `· ${rows.length} especialista${rows.length === 1 ? '' : 's'}`;
+    $('espEmpty').classList.toggle('hidden', rows.length !== 0);
+    $('espRows').innerHTML = rows.map(r => {
+      const pct = r.pct == null ? 0 : Math.min(r.pct, 100);
+      const bad = r.pct != null && r.pct < META;
+      return `<div class="esp-row${r.name === espSel ? ' sel' : ''}" data-name="${escapeHtml(r.name)}">
+        <span class="name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
+        <span class="bar-cell"><span class="esp-bar">
+          <span class="fill ${bad ? 'bad' : ''}" style="width:${pct}%"></span>
+          <span class="meta" style="left:${META}%"></span>
+          <span class="lbl"><span>${r.pct == null ? '—' : r.pct.toFixed(1) + '%'}</span><span>${r.cumplen}/${r.total}</span></span>
+        </span></span>
+        <span class="r mono">${r.tickAbiertos}</span>
+        <span class="r mono">${r.tareasAbiertas}</span>
+        <span class="r mono" style="${r.tareasEstancadas > 0 ? 'color:var(--danger); font-weight:600;' : ''}">${r.tareasEstancadas}</span>
+      </div>`;
+    }).join('');
+    $('espRows').querySelectorAll('.esp-row').forEach(el => {
+      el.addEventListener('click', () => { espSel = el.dataset.name; renderEspecialistaCard(); });
     });
-
-    $('rankingSub').textContent = `${rows.length} especialista${rows.length === 1 ? '' : 's'}`;
-    $('rankingTable').classList.toggle('hidden', rows.length === 0);
-    $('emptyRanking').classList.toggle('hidden', rows.length !== 0);
-
-    updateSortArrow('#rankingTable', key, dir);
-
-    $('rankingBody').innerHTML = rows.map(r => `
-      <tr>
-        <td>${escapeHtml(r.name)}</td>
-        <td class="mono">${r.ticketsTotal}</td>
-        <td>${r.pct == null ? '—' : `<span class="pct-badge ${r.pct >= META ? 'ok' : ''}">${r.pct.toFixed(1)}%</span>`}</td>
-        <td class="mono">${r.avgDias == null ? '—' : formatDuration(Math.round(r.avgDias * 1440))}</td>
-        <td class="mono">${r.tareasAbiertas}</td>
-        <td class="mono" style="${r.tareasEstancadas > 0 ? 'color:var(--danger); font-weight:600;' : ''}">${r.tareasEstancadas}</td>
-      </tr>
-    `).join('');
+    if (!rows.length){ espSel = null; }
+    else if (!espSel || !rows.some(r => r.name === espSel)) espSel = rows[0].name;
+    // marcar seleccionado (por si se acaba de fijar el valor por defecto)
+    $('espRows').querySelectorAll('.esp-row').forEach(el => el.classList.toggle('sel', el.dataset.name === espSel));
+    renderEspHist();
   }
 
-  wireSortableHeaders('#rankingTable thead th', rankingSortState, renderRanking, key => key === 'name' ? 'asc' : 'desc');
+  function renderEspHist(){
+    $('espHistBox').classList.toggle('hidden', !espHistOn || !espSel);
+    if (!espHistOn || !espSel) return;
+    $('espHistTitle').textContent = 'Rendimiento histórico: ' + espSel;
+    trendEspecialista.setSelected([espSel]);
+  }
+
+  $('espHistSwitch').addEventListener('change', (e) => { espHistOn = e.target.checked; renderEspHist(); });
 
   // ---------------- Origen de los tickets: ¿quién los crea? ----------------
   // % de tickets creados por personas ajenas al equipo de especialistas vs. por los propios
@@ -3475,9 +3442,6 @@
       renderBreakdown('byServicio', groupBy(allRows, r => r.servicio));
     } catch(err){ console.error('Error al renderizar cumplimiento por servicio:', err); }
 
-    try {
-      renderEspecialistaChart(groupBy(allRows, r => r.especialista));
-    } catch(err){ console.error('Error al renderizar cumplimiento por especialista:', err); }
 
     $('tabCountAbiertos').textContent = abiertos.length;
     $('tabCountVencidos').textContent = vencidos.length;
@@ -3599,133 +3563,6 @@
     `).join('');
   }
 
-  let especialistaChart = null;
-
-  function renderEspecialistaChart(data){
-    const box = document.getElementById('especialistaChartBox');
-    const fallback = document.getElementById('byEspecialistaFallback');
-    const canvas = $('chartEspecialista');
-
-    if (especialistaChart){ especialistaChart.destroy(); especialistaChart = null; }
-
-    function showFallback(){
-      box.classList.add('hidden');
-      fallback.classList.remove('hidden');
-      renderBreakdown('byEspecialistaFallback', data, true);
-    }
-
-    // Chart.js loads from a CDN — if it didn't load (offline, blocked, etc.)
-    // fall back to the plain list so the data still shows.
-    if (typeof Chart === 'undefined'){ showFallback(); return; }
-    if (!data.length){ box.classList.remove('hidden'); fallback.classList.add('hidden'); return; }
-
-    try {
-      box.classList.remove('hidden');
-      fallback.classList.add('hidden');
-
-      const styles = getComputedStyle(document.documentElement);
-      const successColor = styles.getPropertyValue('--success').trim();
-      const dangerColor = styles.getPropertyValue('--danger').trim();
-      const inkSoft = styles.getPropertyValue('--ink-soft').trim();
-      const inkColor = styles.getPropertyValue('--ink').trim();
-      const border = styles.getPropertyValue('--border').trim();
-
-      // worst-performing especialista first, so the eye lands on what needs attention
-      const sorted = data.slice().sort((a,b) => a.pct - b.pct);
-      const labels = sorted.map(d => d.name);
-      const pcts = sorted.map(d => Number(d.pct.toFixed(1)));
-      const colors = sorted.map(d => d.pct < META ? dangerColor : successColor);
-      const counts = sorted.map(d => `${d.cumplen}/${d.total}`);
-
-      especialistaChart = new Chart(canvas.getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: '% cumplimiento',
-            data: pcts,
-            backgroundColor: colors,
-            borderRadius: 4,
-            maxBarThickness: 22,
-            counts
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          layout: { padding: { right: 54 } },
-          scales: {
-            x: {
-              min: 0,
-              max: 100,
-              grid: { color: border },
-              ticks: {
-                color: inkSoft,
-                font: { family: "'IBM Plex Mono', monospace", size: 11 },
-                callback: v => v + '%'
-              }
-            },
-            y: {
-              grid: { display: false },
-              ticks: { color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 12 } }
-            }
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#16202B',
-              padding: 10,
-              titleFont: { family: "'IBM Plex Sans', sans-serif", size: 12.5, weight: '600' },
-              bodyFont: { family: "'IBM Plex Sans', sans-serif", size: 12 },
-              callbacks: {
-                label: (context) => {
-                  const c = context.dataset.counts[context.dataIndex];
-                  return `${context.formattedValue}% cumplimiento · ${c} tickets`;
-                }
-              }
-            }
-          }
-        },
-        plugins: [{
-          id: 'metaLine',
-          afterDraw(chart){
-            const { ctx, chartArea, scales } = chart;
-            const xPos = scales.x.getPixelForValue(META);
-            ctx.save();
-            ctx.strokeStyle = inkColor;
-            ctx.setLineDash([3,3]);
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(xPos, chartArea.top);
-            ctx.lineTo(xPos, chartArea.bottom);
-            ctx.stroke();
-            ctx.restore();
-          }
-        }, {
-          id: 'countLabels',
-          afterDatasetsDraw(chart){
-            const { ctx, chartArea } = chart;
-            const meta = chart.getDatasetMeta(0);
-            const ds = chart.data.datasets[0];
-            ctx.save();
-            ctx.font = "600 11px 'IBM Plex Mono', monospace";
-            ctx.fillStyle = inkSoft;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            meta.data.forEach((bar, i) => {
-              ctx.fillText(ds.counts[i], chartArea.right + 8, bar.y);
-            });
-            ctx.restore();
-          }
-        }]
-      });
-    } catch(err){
-      console.error('No se pudo generar el gráfico de especialistas:', err);
-      showFallback();
-    }
-  }
-
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -3799,9 +3636,9 @@
       // no lo necesitan porque no dependen del tamaño del contenedor al crearse.
       if (page === 'dashboardExtra' && allRowsRaw.length){
         renderTeamTrend(allRows);
-        trendEspecialista.redraw();
+        if (espHistOn) trendEspecialista.redraw();
         trendCategoria.redraw();
-        renderEspecialistaChart(groupBy(allRows, r => r.especialista));
+        renderEspecialistaCard();
       }
       // "Tendencias y mejoras": sus gráficos y tablas necesitan el tamaño real del contenedor,
       // así que se vuelven a dibujar cada vez que se entra a la pestaña.
