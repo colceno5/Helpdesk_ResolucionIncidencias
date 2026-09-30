@@ -429,6 +429,24 @@
   .noise-warning .btn-sm.link{ color:var(--ink-soft); white-space:nowrap; }
 
   /* ---------- trend charts (A, G) ---------- */
+  /* ---------- cumplimiento por especialista ---------- */
+  .esp-head, .esp-row{ display:grid; grid-template-columns:minmax(160px,1.2fr) minmax(240px,3fr) 100px 100px 90px; gap:14px; align-items:center; }
+  .esp-head{ font-size:11.5px; font-weight:600; color:var(--ink-faint); padding:0 10px 8px; border-bottom:1px solid var(--border); margin-top:6px; }
+  .esp-head .r, .esp-row .r{ text-align:right; }
+  .esp-row{ padding:7px 10px; border-bottom:1px solid var(--border); font-size:13px; cursor:pointer; border-radius:8px; transition:background .12s ease; }
+  .esp-row:hover{ background:var(--surface-sunken); }
+  .esp-row.sel{ background:var(--surface-sunken); box-shadow:inset 3px 0 0 var(--accent); font-weight:600; }
+  .esp-row .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .esp-bar{ position:relative; display:block; height:22px; background:var(--surface-sunken); border-radius:6px; overflow:hidden; }
+  .esp-row.sel .esp-bar{ background:var(--surface); box-shadow:inset 0 0 0 1px var(--border); }
+  .esp-bar .fill{ position:absolute; left:0; top:0; bottom:0; background:var(--success); border-radius:6px 0 0 6px; transition:width .3s ease; }
+  .esp-bar .fill.bad{ background:var(--danger); }
+  .esp-bar .meta{ position:absolute; top:0; bottom:0; width:2px; background:var(--ink); opacity:.5; }
+  .esp-bar .lbl{ position:absolute; left:8px; right:8px; top:0; bottom:0; display:flex; justify-content:space-between; align-items:center; font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600; color:var(--ink); white-space:nowrap; }
+  .esp-bar .lbl .in{ color:#fff; text-shadow:0 0 3px rgba(0,0,0,.5); }
+  .esp-row .mono{ font-family:'IBM Plex Mono', monospace; }
+  .esp-row .cero{ color:var(--ink-faint); }
+  @media (max-width: 820px){ .esp-head{ display:none; } .esp-row{ grid-template-columns:1fr 1fr 1fr; } .esp-row .bar-cell, .esp-row .name{ grid-column:1 / -1; } }
   .metric-toggle{
     display:inline-flex; border:1px solid var(--border); border-radius:100px; overflow:hidden;
     font-size:12px;
@@ -1306,17 +1324,6 @@
         <div id="autorOrigenBars"></div>
         <div class="ao-chart hidden" id="autorOrigenChartBox"><canvas id="autorOrigenCanvas"></canvas></div>
         <div class="ao-note" id="autorOrigenNote"></div>
-      </div>
-    </section>
-
-    <section class="breakdown">
-      <div class="card">
-        <h3>Casos con más tareas pendientes</h3>
-        <div id="byCasoPendiente"></div>
-      </div>
-      <div class="card">
-        <h3>Responsables con más tareas abiertas</h3>
-        <div id="byResponsableTask"></div>
       </div>
     </section>
 
@@ -2466,6 +2473,13 @@
         const selectedList = Array.from(state.selected);
         const metric = state.metric;
 
+        // Eje Y con zoom: empieza 10 pts por debajo del valor más bajo para que se noten las variaciones
+        let yMinPct = 0;
+        if (metric === 'pct'){
+          const vals = [];
+          selectedList.forEach(n => { const em = trendData.perEntity.get(n); if (em) em.forEach(b => vals.push(b.cumplen / b.total * 100)); });
+          if (vals.length) yMinPct = Math.max(0, Math.floor((Math.min(...vals) - 10) / 10) * 10);
+        }
         const datasets = selectedList.map(name => {
           const colorIdx = ranked.indexOf(name);
           const color = TREND_PALETTE[(colorIdx >= 0 ? colorIdx : 0) % TREND_PALETTE.length];
@@ -2477,7 +2491,7 @@
           });
           return {
             label: name, data, borderColor: color, backgroundColor: color,
-            spanGaps: true, tension: 0.25, pointRadius: 3, borderWidth: 2
+            spanGaps: true, tension: 0.25, pointRadius: 4, pointHoverRadius: 6, borderWidth: 3, clip: false
           };
         });
 
@@ -2488,9 +2502,10 @@
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
+            layout: { padding: { top: 12, right: 12 } },
             scales: {
               y: {
-                min: metric === 'pct' ? 0 : undefined,
+                min: metric === 'pct' ? yMinPct : undefined,
                 max: metric === 'pct' ? 100 : undefined,
                 grid: { color: border },
                 ticks: {
@@ -2753,11 +2768,11 @@
         <span class="bar-cell"><span class="esp-bar">
           <span class="fill ${bad ? 'bad' : ''}" style="width:${pct}%"></span>
           <span class="meta" style="left:${META}%"></span>
-          <span class="lbl"><span>${r.pct == null ? '—' : r.pct.toFixed(1) + '%'}</span><span>${r.cumplen}/${r.total}</span></span>
+          <span class="lbl"><span class="in">${r.pct == null ? '—' : r.pct.toFixed(1) + '%'}</span><span>${r.cumplen}/${r.total}</span></span>
         </span></span>
-        <span class="r mono">${r.tickAbiertos}</span>
-        <span class="r mono">${r.tareasAbiertas}</span>
-        <span class="r mono" style="${r.tareasEstancadas > 0 ? 'color:var(--danger); font-weight:600;' : ''}">${r.tareasEstancadas}</span>
+        <span class="r mono${r.tickAbiertos ? '' : ' cero'}">${r.tickAbiertos}</span>
+        <span class="r mono${r.tareasAbiertas ? '' : ' cero'}">${r.tareasAbiertas}</span>
+        <span class="r mono${r.tareasEstancadas ? '' : ' cero'}" style="${r.tareasEstancadas > 0 ? 'color:var(--danger); font-weight:600;' : ''}">${r.tareasEstancadas}</span>
       </div>`;
     }).join('');
     $('espRows').querySelectorAll('.esp-row').forEach(el => {
@@ -3159,8 +3174,6 @@
     $('statTaskEstancadas').textContent = estancadas.length;
     $('statTaskMediana').textContent = medianMin == null ? '—' : formatDuration(medianMin);
 
-    try { renderCountBreakdown('byCasoPendiente', groupCount(taskAbiertas, t => t.caso)); } catch(err){ console.error('Error en casos con más tareas pendientes:', err); }
-    try { renderCountBreakdown('byResponsableTask', groupCount(taskAbiertas, t => t.responsable)); } catch(err){ console.error('Error en responsables con más tareas abiertas:', err); }
 
     $('tabCountTaskAbiertas').textContent = taskAbiertas.length;
     $('tabCountTaskCerradas').textContent = taskCerradas.length;
