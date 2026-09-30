@@ -551,6 +551,7 @@
   body.tv-mode .page-tabs,
   body.tv-mode #noiseWarning,
   body.tv-mode #ticketSection > section.hero,
+  body.tv-mode #ticketSection > section.alerts-row,
   body.tv-mode #taskSection > h2.section-title,
   body.tv-mode #taskSection > section.hero,
   body.tv-mode #taskSection > section.breakdown,
@@ -845,6 +846,23 @@
   .ao-pct{ font-family:'IBM Plex Mono', monospace; font-weight:700; text-align:right; }
   .ao-chart{ position:relative; height:190px; margin-top:12px; }
   .ao-note{ font-size:11.5px; color:var(--ink-soft); margin-top:8px; }
+  .alerts-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(290px, 1fr)); gap:14px; margin-bottom:14px; }
+  .alert-card .eyebrow{ font-size:13px; color:var(--ink-soft); margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .alert-card .eyebrow select{ font-size:12px; padding:2px 4px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--ink); }
+  .alert-big{ font-family:'IBM Plex Mono', monospace; font-size:26px; font-weight:700; }
+  .alert-big.ok{ color:var(--success); }
+  .alert-big.warn{ color:var(--warning); }
+  .alert-big.bad{ color:var(--danger); }
+  .alert-text{ font-size:12.5px; color:var(--ink-soft); margin-top:6px; line-height:1.45; }
+  .pv-list{ margin-top:10px; max-height:190px; overflow:auto; border-top:1px solid var(--border); }
+  .pv-row{ display:grid; grid-template-columns:82px 1fr 58px; gap:8px; padding:5px 0; font-size:12.5px; border-bottom:1px solid var(--border); align-items:baseline; }
+  .pv-row .pv-esp{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink-soft); }
+  .pv-row .pv-esp small{ color:var(--ink-faint); }
+  .pv-pct{ font-family:'IBM Plex Mono', monospace; font-weight:700; text-align:right; }
+  .pv-pct.warn{ color:var(--warning); }
+  .pv-pct.bad{ color:var(--danger); }
+  .alert-card .btn-go{ margin-top:12px; font-family:'IBM Plex Sans', sans-serif; font-size:13px; font-weight:600; padding:7px 12px; border-radius:var(--radius-s); border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; }
+  .alert-card .btn-go:hover{ opacity:.9; }
   .hs-totals{ display:flex; flex-wrap:wrap; gap:10px 28px; margin:4px 0 8px; }
   .hs-tot{ display:flex; flex-direction:column; font-size:12px; color:var(--ink-soft); }
   .hs-tot b{ font-family:'IBM Plex Mono', monospace; font-size:17px; color:var(--ink); }
@@ -1071,6 +1089,35 @@
             <div class="l">Estado Cancelado</div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section class="alerts-row" id="alertsRow">
+      <div class="card alert-card" id="metaCard">
+        <div class="eyebrow">Camino a la meta</div>
+        <div class="alert-big" id="metaBig">—</div>
+        <div class="alert-text" id="metaText"></div>
+      </div>
+      <div class="card alert-card" id="porVencerCard">
+        <div class="eyebrow">
+          <span>Por vencer</span>
+          <label>con progreso desde
+            <select id="porVencerUmbral">
+              <option value="70">70%</option>
+              <option value="80" selected>80%</option>
+              <option value="90">90%</option>
+            </select>
+          </label>
+        </div>
+        <div class="alert-big" id="porVencerBig">—</div>
+        <div class="alert-text" id="porVencerText"></div>
+        <div class="pv-list hidden" id="porVencerList"></div>
+      </div>
+      <div class="card alert-card" id="sinSustentoCard">
+        <div class="eyebrow">Vencidos sin sustento</div>
+        <div class="alert-big" id="sinSustentoBig">—</div>
+        <div class="alert-text" id="sinSustentoText"></div>
+        <button class="btn-go" id="btnIrRegistro">Ir a Registro de vencidos</button>
       </div>
     </section>
 
@@ -3456,7 +3503,88 @@
     $('tabCountCumplen').textContent = cumplen.length;
 
     applySortAndFilter();
+    try { renderAlertas(); } catch(err){ console.error('Error en alertas:', err); }
   }
+
+  // ---------------- Alertas y camino a la meta (pestaña Resumen) ----------------
+  // Los tres cuadros usan los mismos tickets que el "Cumplimiento general" (rango de fechas activo y
+  // sustentos con candado ya aplicados), así los números siempre cuadran con el resto de la pantalla.
+  //  · Camino a la meta: cuántos tickets faltan para llegar a META, o el margen si ya se cumple.
+  //  · Por vencer: tickets abiertos que hoy cuentan como "cumplen" pero ya consumieron gran parte de su SLA.
+  //    Ojo: su progreso es el del último archivo de Aranda cargado; no avanza solo con el reloj.
+  //  · Vencidos sin sustento: tickets vencidos cerrados a los que aún les falta fecha real o sustento.
+  let porVencerUmbral = 80;
+  function renderAlertas(){
+    if (!$('alertsRow')) return;
+    const nf = v => v.toLocaleString('es-PE', { maximumFractionDigits: 1 });
+    const setBig = (id, txt, cls) => { const el = $(id); el.textContent = txt; el.className = 'alert-big' + (cls ? ' ' + cls : ''); };
+    const N = allRows.length, C = allRows.filter(r => r.cumple).length, V = N - C;
+    const m = META / 100, eps = 1e-9;
+    const pct = N ? C / N * 100 : 0;
+
+    // --- Camino a la meta ---
+    if (!N){
+      setBig('metaBig', '—'); $('metaText').textContent = 'Sin tickets evaluados en el rango seleccionado.';
+    } else {
+      const permitidos = Math.floor(N * (1 - m) + eps);
+      const resumen = `Vencidos: ${V} de ${N} evaluados · máximo permitido para el ${META}%: ${permitidos}.`;
+      if (pct >= META){
+        const margen = Math.floor(C - m * N + eps);
+        setBig('metaBig', `Margen: ${margen}`, 'ok');
+        $('metaText').textContent = `Cumples la meta (${nf(pct)}%). Hasta ${margen} de los tickets que hoy cumplen pueden vencer antes de bajar del ${META}%. ${resumen}`;
+      } else {
+        const k = Math.ceil((m * N - C) / (1 - m) - eps);
+        setBig('metaBig', `Faltan ${k}`, 'bad');
+        $('metaText').textContent = `Estás en ${nf(pct)}%. Necesitas ${k} ticket${k === 1 ? '' : 's'} más atendido${k === 1 ? '' : 's'} dentro de su SLA, sin ningún vencido nuevo, para llegar al ${META}%. ${resumen}`;
+      }
+    }
+
+    // --- Por vencer ---
+    const pv = allRows
+      .filter(r => r.fechaCierre == null && r.cumple && r.pct != null && r.pct >= porVencerUmbral)
+      .sort((a, b) => b.pct - a.pct);
+    const lista = $('porVencerList');
+    if (!pv.length){
+      setBig('porVencerBig', '0', 'ok');
+      $('porVencerText').textContent = `Ningún ticket abierto tiene ${porVencerUmbral}% o más de su SLA consumido.`;
+      lista.classList.add('hidden'); lista.innerHTML = '';
+    } else {
+      setBig('porVencerBig', `${pv.length} ticket${pv.length === 1 ? '' : 's'}`, 'warn');
+      const despues = N ? (C - pv.length) / N * 100 : 0;
+      $('porVencerText').textContent = `Si ${pv.length === 1 ? 'vence' : 'vencen todos'}, el cumplimiento bajaría de ${nf(pct)}% a ${nf(despues)}%${despues < META ? ` (bajo la meta del ${META}%)` : ` (seguiría sobre la meta del ${META}%)`}. El progreso es el del último archivo de Aranda cargado.`;
+      lista.classList.remove('hidden');
+      lista.innerHTML = pv.map(r => `
+        <div class="pv-row" title="${escapeHtml(String(r.asunto || ''))}">
+          <span class="mono"><b>${escapeHtml(String(r.ticket))}</b></span>
+          <span class="pv-esp">${escapeHtml(String(r.especialista || '—'))}${r.minutosAbierto != null ? ` <small>· abierto ${escapeHtml(formatDuration(r.minutosAbierto))}</small>` : ''}</span>
+          <span class="pv-pct ${r.pct >= 95 ? 'bad' : 'warn'}">${nf(r.pct)}%</span>
+        </div>`).join('');
+    }
+
+    // --- Vencidos sin sustento ---
+    let pend = 0, inc = 0, tot = 0;
+    try {
+      const base = rgBase();
+      tot = base.length;
+      base.forEach(r => {
+        const e = rgEstado(rgRecords.get(String(r.ticket)));
+        if (e === 'pendiente') pend++; else if (e === 'incompleto') inc++;
+      });
+    } catch (err) { /* el registro aún no está listo: se recalcula cuando cargue */ }
+    const faltan = pend + inc;
+    if (!tot){
+      setBig('sinSustentoBig', '0', 'ok');
+      $('sinSustentoText').textContent = 'No hay tickets vencidos cerrados en el rango seleccionado.';
+    } else if (!faltan){
+      setBig('sinSustentoBig', '0', 'ok');
+      $('sinSustentoText').textContent = `Los ${tot} ticket${tot === 1 ? '' : 's'} vencido${tot === 1 ? '' : 's'} ya tiene${tot === 1 ? '' : 'n'} fecha real y sustento.`;
+    } else {
+      setBig('sinSustentoBig', `${faltan} de ${tot}`, faltan === tot ? 'bad' : 'warn');
+      $('sinSustentoText').textContent = `${pend} sin registro y ${inc} incompleto${inc === 1 ? '' : 's'} (les falta fecha real o sustento).`;
+    }
+  }
+  $('porVencerUmbral').addEventListener('change', (e) => { porVencerUmbral = Number(e.target.value) || 80; renderAlertas(); });
+  $('btnIrRegistro').addEventListener('click', () => $('pageTabRegistro').click());
 
   function countCancelled(){
     const range = getDateRange();
@@ -4593,6 +4721,7 @@
   }
 
   function rgUpdateSummary(){
+    try { renderAlertas(); } catch(err){ console.error('Error en alertas:', err); }
     const counts = { pendiente: 0, incompleto: 0, sustentado: 0 };
     const items = rgItems();
     items.forEach(it => { counts[rgEstado(rgRecOf(it))]++; });
