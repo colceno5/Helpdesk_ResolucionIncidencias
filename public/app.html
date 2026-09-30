@@ -447,6 +447,13 @@
   .vc-badge.estable{ background:#DDF1E8; color:#17694A; }
   .vc-badge.insuf{ background:#EEF1F3; color:#8A99A4; }
   .vc-warn{ color:var(--danger); font-weight:600; }
+  .vc-arrow{ font-size:12px; margin-left:4px; font-weight:700; }
+  .vc-arrow.up{ color:#1F8A5F; } .vc-arrow.down{ color:#D9433D; } .vc-arrow.flat{ color:#8A99A4; }
+  .vc-umbral{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin:10px 0 4px; padding:12px 16px; border:1px solid var(--border); border-radius:12px; background:var(--surface-sunken); }
+  .vc-umbral .vu-num{ font-family:'Space Grotesk', sans-serif; font-size:34px; font-weight:700; line-height:1; color:var(--ink); white-space:nowrap; }
+  .vc-umbral .vu-num .vc-arrow{ font-size:22px; margin-left:8px; }
+  .vc-umbral .vu-lbl{ font-size:11.5px; font-weight:600; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px; }
+  .vc-umbral .vu-txt{ flex:1; min-width:240px; font-size:12.5px; color:var(--ink-soft); line-height:1.55; }
   .vc-insights{ margin:12px 0 0; padding-left:18px; font-size:13px; line-height:1.7; color:var(--ink); }
   /* ---------- cumplimiento por especialista ---------- */
   .esp-head, .esp-row{ display:grid; grid-template-columns:minmax(160px,1.2fr) minmax(240px,3fr) 100px 100px 90px; gap:14px; align-items:center; }
@@ -1241,7 +1248,7 @@
           <button data-g="sem">Semanal</button>
         </span>
       </h3>
-      <p class="vc-help">Detecta a partir de qué volumen de tickets cerrados empieza a caer el cumplimiento de cada especialista. El <b>volumen de quiebre</b> es el corte que mejor separa los periodos de menor y mayor carga (exige una caída de al menos 5 puntos). Un <b>cruce</b> ocurre cuando la línea de volumen (expresada como % de su máximo) pasa por encima o por debajo de la línea de % cumplimiento. El último periodo puede estar incompleto. Haz clic en una fila para ver su gráfico.</p>
+      <p class="vc-help">Detecta a partir de qué volumen de tickets cerrados empieza a caer el cumplimiento de cada especialista. El <b>volumen de quiebre</b> es el corte que mejor separa los periodos de menor y mayor carga (exige una caída de al menos 5 puntos). Un <b>cruce</b> ocurre cuando la línea de volumen (expresada como % de su máximo) pasa por encima o por debajo de la línea de % cumplimiento. El último periodo puede estar incompleto. El <b>umbral de volumen</b> es el máximo de tickets por periodo que el especialista atendió sin que su cumplimiento bajara de la meta; su flecha (verde ▲ / roja ▼) indica si sube o baja al sumar el último periodo. Haz clic en una fila para ver su gráfico.</p>
       <div class="table-scroll">
         <table id="vcTable" class="vc-table">
           <thead>
@@ -1254,7 +1261,7 @@
               <th class="r" title="Puntos de % cumplimiento que cambian por cada +10 tickets">Pts / +10 tk</th>
               <th class="r">Vol. de quiebre</th>
               <th class="r">% antes → después</th>
-              <th class="r" title="Mayor volumen de un periodo que aun así cumplió la meta">Máx. vol. en meta</th>
+              <th class="r" title="Máximo de tickets por periodo que atendió sin que su cumplimiento bajara de la meta. La flecha compara contra el cálculo sin el último periodo (verde = sube, roja = baja)">Umbral de volumen</th>
               <th class="r">Cruces</th>
               <th class="r">Último periodo</th>
               <th>Diagnóstico</th>
@@ -1266,6 +1273,7 @@
       <div class="empty-detail hidden" id="vcEmpty">No hay tickets cerrados en este rango para analizar.</div>
       <div id="vcDetail" class="hidden" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
         <strong id="vcDetailTitle" style="font-family:'Space Grotesk', sans-serif; font-size:14px;"></strong>
+        <div class="vc-umbral" id="vcUmbralCard"></div>
         <div class="chart-box" id="vcChartBox" style="height:280px; margin-top:8px;"><canvas id="vcCanvas"></canvas></div>
         <ul class="vc-insights" id="vcInsights"></ul>
       </div>
@@ -2860,16 +2868,52 @@
     return v ? list.reduce((a, p) => a + p.ok, 0) / v * 100 : null;
   }
 
+  // Umbral de volumen: mayor volumen (tickets por periodo) atendido sin que el cumplimiento bajara de la meta.
+  // Se recorren los niveles de volumen de menor a mayor (periodos con igual volumen se juntan y se pondera su %);
+  // el umbral es el último nivel que cumplió la meta antes del primer nivel que no la cumplió.
+  function vcUmbral(periods){
+    const levels = new Map();
+    periods.forEach(p => {
+      let l = levels.get(p.vol);
+      if (!l){ l = { vol: p.vol, tot: 0, ok: 0, labels: [] }; levels.set(p.vol, l); }
+      l.tot += p.vol; l.ok += p.ok; l.labels.push(p.label);
+    });
+    const arr = Array.from(levels.values()).sort((a, b) => a.vol - b.vol);
+    let last = null;
+    for (const l of arr){
+      const pct = l.ok / l.tot * 100;
+      if (pct < META) return { val: last, sinTope: false, failVol: l.vol, failPct: pct, failLabels: l.labels };
+      last = l.vol;
+    }
+    return { val: last, sinTope: last != null, failVol: null, failPct: null, failLabels: [] };
+  }
+  function vcUmbralTrend(a){
+    if (a.n < VC_MIN_PERIODOS || !a.um || !a.umPrev) return null;
+    const v = a.um.val == null ? 0 : a.um.val, pv = a.umPrev.val == null ? 0 : a.umPrev.val;
+    return { dir: v > pv ? 'up' : v < pv ? 'down' : 'flat', from: a.umPrev.val, to: a.um.val };
+  }
+  function vcUmbralTxt(um, n){
+    if (!um || n < 3) return '—';
+    return um.val == null ? '—' : (um.sinTope ? '≥ ' : '') + um.val;
+  }
+  function vcArrowHtml(tr){
+    if (!tr) return '';
+    const sym = tr.dir === 'up' ? '▲' : tr.dir === 'down' ? '▼' : '▬';
+    const fmt = v => v == null ? 'sin umbral' : v;
+    const t = tr.dir === 'flat' ? `Sin cambio (${fmt(tr.to)})` : `${tr.dir === 'up' ? 'Sube' : 'Baja'}: ${fmt(tr.from)} → ${fmt(tr.to)} (al sumar el último periodo)`;
+    return `<span class="vc-arrow ${tr.dir}" title="${t}">${sym}</span>`;
+  }
+
   function vcAnalyze(periods){
     const n = periods.length;
-    const res = { n, periods, avgVol: null, maxVol: null, r: null, slope: null, cp: null, maxOk: null, bajo: 0, cruces: [], diag: 'insuf' };
+    const res = { n, periods, avgVol: null, maxVol: null, r: null, slope: null, cp: null, um: null, umPrev: null, bajo: 0, cruces: [], diag: 'insuf' };
     if (!n) return res;
     const vols = periods.map(p => p.vol), pcts = periods.map(p => p.pct);
     res.avgVol = vols.reduce((a, b) => a + b, 0) / n;
     res.maxVol = Math.max(...vols);
     res.bajo = periods.filter(p => p.pct < META).length;
-    const okVols = periods.filter(p => p.pct >= META).map(p => p.vol);
-    res.maxOk = okVols.length ? Math.max(...okVols) : null;
+    res.um = vcUmbral(periods);
+    res.umPrev = n >= VC_MIN_PERIODOS ? vcUmbral(periods.slice(0, -1)) : null;
 
     const mv = res.avgVol, mp = pcts.reduce((a, b) => a + b, 0) / n;
     let sxy = 0, sxx = 0, syy = 0;
@@ -2950,7 +2994,7 @@
       <td class="r mono">${slopeTxt}</td>
       <td class="r mono">${a.cp ? '≥ ' + a.cp.thr : '—'}</td>
       <td class="r mono">${a.cp ? vcFmt(a.cp.before, 0) + '% → <span class="vc-warn">' + vcFmt(a.cp.after, 0) + '%</span>' : '—'}</td>
-      <td class="r mono">${a.maxOk == null ? '—' : a.maxOk}</td>
+      <td class="r mono" style="font-weight:700;">${vcUmbralTxt(a.um, a.n)}${vcArrowHtml(vcUmbralTrend(a))}</td>
       <td class="r mono">${a.n >= 2 ? a.cruces.length : '—'}</td>
       <td class="r mono${overCp ? ' vc-warn' : ''}" title="${last ? escapeHtml(last.label) : ''}">${last ? last.vol + ' tk · ' + vcFmt(last.pct, 0) + '%' + (overCp ? ' ⚠' : '') : '—'}</td>
       <td><span class="vc-badge ${a.diag}">${VC_LABEL[a.diag]}</span></td>
@@ -2973,7 +3017,6 @@
         const dir = a.r <= -0.3 ? 'a más volumen, menos cumplimiento' : (a.r >= 0.3 ? 'a más volumen, más cumplimiento' : 'sin relación clara con el volumen');
         items.push(`<b>Correlación:</b> r = ${vcFmt(a.r, 2)} (${dir}). Por cada +10 tickets el cumplimiento cambia ≈ ${a.slope > 0 ? '+' : ''}${vcFmt(a.slope, 1)} pts.`);
       }
-      if (a.maxOk != null) items.push(`<b>Mayor volumen dentro de la meta:</b> ${a.maxOk} tickets por ${u}.`);
       const worst = a.periods.reduce((w, p) => (!w || p.pct < w.pct) ? p : w, null);
       const busiest = a.periods.reduce((w, p) => (!w || p.vol > w.vol) ? p : w, null);
       if (worst) items.push(`<b>Peor periodo:</b> ${worst.label} con ${vcFmt(worst.pct, 0)}% (${worst.vol} tickets). <b>Mayor carga:</b> ${busiest.label} con ${busiest.vol} tickets y ${vcFmt(busiest.pct, 0)}%.`);
@@ -2984,6 +3027,21 @@
         : '<b>Cruces:</b> las líneas de volumen y cumplimiento no se cruzan en este rango.');
     }
     return items.map(t => `<li>${t}</li>`).join('');
+  }
+
+  function vcRenderUmbralCard(name, a){
+    const el = $('vcUmbralCard'), u = vcUnit();
+    const um = a.um, tr = vcUmbralTrend(a);
+    let txt;
+    if (a.n < 3) txt = `Se necesitan al menos 3 periodos con tickets cerrados para estimar el umbral (hay ${a.n}).`;
+    else if (um.val == null) txt = `Ya incumplía la meta con su volumen más bajo (${um.failVol} tickets por ${u}, ${vcFmt(um.failPct, 0)}%): la caída no parece depender del volumen.`;
+    else if (um.sinTope) txt = `Cumplió la meta en todos los niveles de volumen observados, hasta ${um.val} tickets por ${u}. Aún no se detecta un tope: el umbral es al menos ${um.val}.`;
+    else txt = `Hasta ${um.val} tickets por ${u} mantuvo la meta de ${META}%. El primer nivel que la incumplió fue ${um.failVol} tickets (${um.failLabels.join(', ')}; ${vcFmt(um.failPct, 0)}%).`;
+    if (tr){
+      const f = v => v == null ? 'sin umbral' : v;
+      txt += tr.dir === 'flat' ? ' Tendencia: sin cambio al sumar el último periodo.' : ` Tendencia: ${tr.dir === 'up' ? 'sube' : 'baja'} (de ${f(tr.from)} a ${f(tr.to)} al sumar el último periodo).`;
+    } else if (a.n >= 3) txt += ` La flecha de tendencia requiere al menos ${VC_MIN_PERIODOS} periodos.`;
+    el.innerHTML = `<div><div class="vu-lbl">Umbral de volumen · tickets por ${u} sin bajar de la meta</div><div class="vu-num">${vcUmbralTxt(um, a.n)}${vcArrowHtml(tr)}</div></div><div class="vu-txt">${txt}</div>`;
   }
 
   function vcDrawChart(name, a){
@@ -3000,6 +3058,7 @@
       { label: 'Volumen (tickets)', data: a.periods.map(p => p.vol), yAxisID: 'y1', borderColor: '#2C5F6F', backgroundColor: '#2C5F6F', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 2 },
       { label: `Meta ${META}%`, data: a.periods.map(() => META), yAxisID: 'y', borderColor: '#1F8A5F', borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0, order: 3 }
     ];
+    if (a.um && a.n >= 3 && a.um.val != null) datasets.push({ label: `Umbral (${a.um.sinTope ? '≥ ' : ''}${a.um.val})`, data: a.periods.map(() => a.um.val), yAxisID: 'y1', borderColor: '#7B4FA6', borderDash: [8, 4], borderWidth: 1.8, pointRadius: 0, order: 4 });
     if (a.cp) datasets.push({ label: `Vol. de quiebre (${a.cp.thr})`, data: a.periods.map(() => a.cp.thr), yAxisID: 'y1', borderColor: '#B87A1E', borderDash: [2, 4], borderWidth: 1.5, pointRadius: 0, order: 4 });
 
     const crossPlugin = {
@@ -3070,6 +3129,7 @@
     const curName = cur.name === VC_EQUIPO ? cur.label : cur.name;
     $('vcDetailTitle').textContent = `Volumen vs % cumplimiento: ${curName}`;
     $('vcInsights').innerHTML = vcInsightsHtml(curName, cur.a);
+    vcRenderUmbralCard(curName, cur.a);
     vcDrawChart(curName, cur.a);
   }
 
