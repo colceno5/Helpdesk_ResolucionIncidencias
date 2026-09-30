@@ -1652,38 +1652,19 @@
 
   // ---------------- Animaciones suaves de las gráficas ----------------
   // Todas las gráficas (Chart.js) comparten estos valores: entrada suave de 1 s y respuesta corta al pasar el
-  // mouse. Además, una gráfica que se creó mientras estaba fuera de la vista (otra pestaña, o más abajo en
-  // la página) vuelve a animarse la primera vez que se muestra, para que la animación se vea de verdad.
+  // mouse. Las gráficas de cada pestaña ya se vuelven a dibujar al entrar a ella (ver el cambio de pestañas),
+  // así que la animación de entrada se ve cada vez que se abre la pestaña.
   // Si el sistema pide "reducir movimiento", se desactivan las animaciones.
   if (typeof Chart !== 'undefined'){
     const sinMovimiento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    Chart.defaults.animation = sinMovimiento ? false : { duration: 1000, easing: 'easeOutQuart' };
-    if (!sinMovimiento && Chart.defaults.transitions && Chart.defaults.transitions.active){
-      Chart.defaults.transitions.active.animation.duration = 250;
-    }
-    if (!sinMovimiento && 'IntersectionObserver' in window){
-      Chart.register({
-        id: 'animarAlMostrarse',
-        afterInit(chart){
-          const canvas = chart.canvas; if (!canvas) return;
-          let primera = true;
-          const obs = new IntersectionObserver((entries) => {
-            const e = entries[entries.length - 1];
-            if (primera){
-              primera = false;
-              if (e.isIntersecting) obs.disconnect();   // ya se está viendo: basta con la animación de creación
-              return;
-            }
-            if (e.isIntersecting){
-              obs.disconnect();
-              try { if (chart.canvas && chart.canvas.isConnected){ chart.reset(); chart.update(); } } catch (err) {}
-            }
-          }, { threshold: 0.2 });
-          obs.observe(canvas);
-          chart.$animObserver = obs;
-        },
-        afterDestroy(chart){ if (chart.$animObserver) chart.$animObserver.disconnect(); }
-      });
+    if (sinMovimiento){
+      Chart.defaults.animation = false;
+    } else {
+      Chart.defaults.animation.duration = 1000;
+      Chart.defaults.animation.easing = 'easeOutQuart';
+      if (Chart.defaults.transitions && Chart.defaults.transitions.active){
+        Chart.defaults.transitions.active.animation.duration = 250;
+      }
     }
   }
   const dropzone = $('dropzone');
