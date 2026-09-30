@@ -603,6 +603,7 @@
   body.tv-mode [data-page="dashboardExtra"],
   body.tv-mode [data-page="analysis"],
   body.tv-mode [data-page="tendencias"],
+  body.tv-mode [data-page="servicios"],
   body.tv-mode [data-page="registro"]{
     display:none !important;
   }
@@ -790,7 +791,11 @@
   body.page-view-tendencias [data-page="dashboardExtra"],
   body.page-view-tendencias [data-page="analysis"]{ display:none !important; }
 
-  /* ---------- Pestaña "Registro de vencidos" ---------- */
+  /* ---------- Pestaña "Análisis de servicios" ---------- */
+  body:not(.page-view-servicios) [data-page="servicios"]{ display:none !important; }
+  body.page-view-servicios [data-page]:not([data-page="servicios"]){ display:none !important; }
+
+  /* ---------- Pestaña "Auditoría de tickets vencidos" ---------- */
   body:not(.page-view-registro) [data-page="registro"]{ display:none !important; }
   body.page-view-registro [data-page="general"],
   body.page-view-registro [data-page="dashboardExtra"],
@@ -1093,10 +1098,11 @@
 
    <div class="page-tabs">
      <div class="page-tabs-left">
-       <button class="page-tab-btn active" id="pageTabGeneral" data-target-page="general">Resumen</button>
-       <button class="page-tab-btn" id="pageTabDashboard" data-target-page="dashboardExtra">Dashboard</button>
-       <button class="page-tab-btn" id="pageTabTendencias" data-target-page="tendencias">Tendencias y mejoras</button>
-       <button class="page-tab-btn" id="pageTabRegistro" data-target-page="registro">Registro de vencidos</button>
+       <button class="page-tab-btn active" id="pageTabGeneral" data-target-page="general">Tickets Tareas &amp; KPI</button>
+       <button class="page-tab-btn" id="pageTabDashboard" data-target-page="dashboardExtra">Análisis de especialistas</button>
+       <button class="page-tab-btn" id="pageTabTendencias" data-target-page="tendencias">Análisis de usuarios</button>
+       <button class="page-tab-btn" id="pageTabServicios" data-target-page="servicios">Análisis de servicios</button>
+       <button class="page-tab-btn" id="pageTabRegistro" data-target-page="registro">Auditoría de tickets vencidos</button>
      </div>
      <button class="btn-tv" id="btnTvMode" title="Alterna automáticamente, cada 10 segundos, entre la tabla de tickets y la de tareas">🖥️ Modo pantalla</button>
    </div>
@@ -1161,7 +1167,7 @@
         <div class="eyebrow">Vencidos sin sustento</div>
         <div class="alert-big" id="sinSustentoBig">—</div>
         <div class="alert-text" id="sinSustentoText"></div>
-        <button class="btn-go" id="btnIrRegistro">Ir a Registro de vencidos</button>
+        <button class="btn-go" id="btnIrRegistro">Ir a Auditoría de tickets vencidos</button>
       </div>
     </section>
 
@@ -1406,6 +1412,76 @@
         </table>
       </div>
       <div class="empty-detail hidden" id="emptyTaskDetail">No hay tareas en esta vista.</div>
+    </section>
+   </div>
+
+   <div id="serviciosSection" class="hidden" data-page="servicios">
+    <section class="card" id="servicioCard" style="margin-bottom:14px;">
+      <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <span>Cumplimiento por servicio <span class="sub" id="srvSub" style="font-weight:400; color:var(--ink-faint); font-size:12px;"></span></span>
+        <label class="switch-wrap" title="Muestra la evolución mensual del servicio seleccionado">
+          <input type="checkbox" id="srvHistSwitch">
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span class="switch-label" style="font-size:13px;">Ver histórico del seleccionado</span>
+        </label>
+      </h3>
+      <div class="esp-head">
+        <span>Servicio</span><span>% cumplimiento (meta 95%)</span><span class="r">Tickets abiertos</span><span class="r">Incumplidos</span><span class="r">Especialistas</span>
+      </div>
+      <div id="srvRows"></div>
+      <div class="empty-detail hidden" id="srvEmpty">No hay servicios con tickets en este rango.</div>
+      <div id="srvHistBox" class="hidden" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <strong id="srvHistTitle" style="font-family:'Space Grotesk', sans-serif; font-size:14px;"></strong>
+          <span class="metric-toggle" id="metricToggleServicio">
+            <button class="active" data-metric="pct">% Cumplimiento</button>
+            <button data-metric="vol">Volumen</button>
+          </span>
+        </div>
+        <div class="trend-chips hidden" id="trendServicioChips"></div>
+        <div class="chart-box" id="trendServicioBox" style="height:260px;"><canvas id="chartTrendServicio"></canvas></div>
+        <div id="trendServicioFallback" class="hidden"></div>
+        <div class="empty-detail hidden" id="trendServicioEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
+      </div>
+    </section>
+
+    <section class="card" id="svSection" style="margin-bottom:14px; margin-top:14px;">
+      <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <span>Análisis Volumen vs % Cumplimiento por servicio <span class="sub" id="svSub" style="font-weight:400; color:var(--ink-faint); font-size:12px;"></span></span>
+        <span class="metric-toggle" id="svGranToggle">
+          <button class="active" data-g="mes">Mensual</button>
+          <button data-g="sem">Semanal</button>
+        </span>
+      </h3>
+      <p class="vc-help">Detecta a partir de qué volumen de tickets cerrados empieza a caer el cumplimiento de cada servicio. El <b>volumen de quiebre</b> es el corte que mejor separa los periodos de menor y mayor carga (exige una caída de al menos 5 puntos). Un <b>cruce</b> ocurre cuando la línea de volumen (expresada como % de su máximo) pasa por encima o por debajo de la línea de % cumplimiento. El último periodo puede estar incompleto. El <b>umbral de volumen</b> es el máximo de tickets por periodo que el especialista atendió sin que su cumplimiento bajara de la meta; su flecha (verde ▲ / roja ▼) indica si sube o baja al sumar el último periodo. Haz clic en una fila para ver su gráfico.</p>
+      <div class="table-scroll">
+        <table id="svTable" class="vc-table">
+          <thead>
+            <tr>
+              <th>Servicio</th>
+              <th class="r">Periodos</th>
+              <th class="r">Vol. prom.</th>
+              <th class="r">Vol. máx.</th>
+              <th class="r" title="Correlación entre volumen y % cumplimiento (−1 a 1). Negativa = a más volumen, menos cumplimiento">Correl. (r)</th>
+              <th class="r" title="Puntos de % cumplimiento que cambian por cada +10 tickets">Pts / +10 tk</th>
+              <th class="r">Vol. de quiebre</th>
+              <th class="r">% antes → después</th>
+              <th class="r" title="Máximo de tickets por periodo que atendió sin que su cumplimiento bajara de la meta. La flecha compara contra el cálculo sin el último periodo (verde = sube, roja = baja)">Umbral de volumen</th>
+              <th class="r">Cruces</th>
+              <th class="r">Último periodo</th>
+              <th>Diagnóstico</th>
+            </tr>
+          </thead>
+          <tbody id="svBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-detail hidden" id="svEmpty">No hay tickets cerrados en este rango para analizar.</div>
+      <div id="svDetail" class="hidden" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+        <strong id="svDetailTitle" style="font-family:'Space Grotesk', sans-serif; font-size:14px;"></strong>
+        <div class="vc-umbral" id="svUmbralCard"></div>
+        <div class="chart-box" id="svChartBox" style="height:280px; margin-top:8px;"><canvas id="svCanvas"></canvas></div>
+        <ul class="vc-insights" id="svInsights"></ul>
+      </div>
     </section>
    </div>
 
@@ -1758,6 +1834,8 @@
     $('pageTabDashboard').classList.remove('active');
     $('pageTabTendencias').classList.remove('active');
     $('pageTabRegistro').classList.remove('active');
+    $('pageTabServicios').classList.remove('active');
+    document.body.classList.remove('page-view-servicios');
     document.body.classList.add('page-view-general');
     document.body.classList.remove('page-view-dashboardExtra');
     document.body.classList.remove('page-view-tendencias');
@@ -1997,6 +2075,7 @@
     }
     if (taskMap.size){ renderTasks(); }
     renderEspecialistaCard();
+    try { renderServicios(); } catch(err){ console.error('Error en análisis de servicios:', err); }
     renderExtraRankings();
     try { renderAutorOrigen(); } catch(err){ console.error('Error en origen de tickets:', err); }
     renderRegistro();
@@ -2313,6 +2392,7 @@
     $('trendsSection').classList.remove('hidden');
     $('tendenciasSection').classList.remove('hidden');
     $('registroSection').classList.remove('hidden');
+    $('serviciosSection').classList.remove('hidden');
 
     resetColumnFilters();
     populateColumnFilters();
@@ -3145,6 +3225,384 @@
       });
     });
   })();
+
+  // ---------------- Análisis Volumen vs % Cumplimiento por servicio (copia del de especialistas, agrupada por Servicio) ----------------
+  let svSel = null, svGran = 'mes', svChart = null;
+  const SV_EQUIPO = '__equipo__';
+  const SV_MIN_PERIODOS = 4;
+  const SV_MIN_CAIDA = 5;
+  const SV_ORDEN = { sensible: 0, posible: 1, otros: 2, estable: 3, insuf: 4 };
+  const SV_LABEL = { sensible: 'Sensible al volumen', posible: 'Posible efecto del volumen', otros: 'Caída no ligada al volumen', estable: 'Estable sobre la meta', insuf: 'Datos insuficientes' };
+  const svFmt = (v, d = 1) => v == null ? '—' : Number(v).toLocaleString('es-PE', { maximumFractionDigits: d });
+
+  function svBuildPeriods(rows, gran){
+    const map = new Map();
+    rows.forEach(r => {
+      const d = toDateSafe(r.fechaCierre);
+      if (!d) return;
+      let key, label;
+      if (gran === 'sem'){ const w = anIsoWeek(d); key = w.key; label = w.label; }
+      else { key = monthKeyFromDate(d); label = monthLabelFromKey(key); }
+      let b = map.get(key);
+      if (!b){ b = { key, label, vol: 0, ok: 0 }; map.set(key, b); }
+      b.vol++; if (r.cumple) b.ok++;
+    });
+    return Array.from(map.values())
+      .sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+      .map(b => ({ ...b, pct: b.ok / b.vol * 100 }));
+  }
+
+  function svWeighted(list){
+    const v = list.reduce((a, p) => a + p.vol, 0);
+    return v ? list.reduce((a, p) => a + p.ok, 0) / v * 100 : null;
+  }
+
+  // Umbral de volumen: mayor volumen (tickets por periodo) atendido sin que el cumplimiento bajara de la meta.
+  // Se recorren los niveles de volumen de menor a mayor (periodos con igual volumen se juntan y se pondera su %);
+  // el umbral es el último nivel que cumplió la meta antes del primer nivel que no la cumplió.
+  function svUmbral(periods){
+    const levels = new Map();
+    periods.forEach(p => {
+      let l = levels.get(p.vol);
+      if (!l){ l = { vol: p.vol, tot: 0, ok: 0, labels: [] }; levels.set(p.vol, l); }
+      l.tot += p.vol; l.ok += p.ok; l.labels.push(p.label);
+    });
+    const arr = Array.from(levels.values()).sort((a, b) => a.vol - b.vol);
+    let last = null;
+    for (const l of arr){
+      const pct = l.ok / l.tot * 100;
+      if (pct < META) return { val: last, sinTope: false, failVol: l.vol, failPct: pct, failLabels: l.labels };
+      last = l.vol;
+    }
+    return { val: last, sinTope: last != null, failVol: null, failPct: null, failLabels: [] };
+  }
+  function svUmbralTrend(a){
+    if (a.n < SV_MIN_PERIODOS || !a.um || !a.umPrev) return null;
+    const v = a.um.val == null ? 0 : a.um.val, pv = a.umPrev.val == null ? 0 : a.umPrev.val;
+    return { dir: v > pv ? 'up' : v < pv ? 'down' : 'flat', from: a.umPrev.val, to: a.um.val };
+  }
+  function svUmbralTxt(um, n){
+    if (!um || n < 3) return '—';
+    return um.val == null ? '—' : (um.sinTope ? '≥ ' : '') + um.val;
+  }
+  function svArrowHtml(tr){
+    if (!tr) return '';
+    const sym = tr.dir === 'up' ? '▲' : tr.dir === 'down' ? '▼' : '▬';
+    const fmt = v => v == null ? 'sin umbral' : v;
+    const t = tr.dir === 'flat' ? `Sin cambio (${fmt(tr.to)})` : `${tr.dir === 'up' ? 'Sube' : 'Baja'}: ${fmt(tr.from)} → ${fmt(tr.to)} (al sumar el último periodo)`;
+    return `<span class="vc-arrow ${tr.dir}" title="${t}">${sym}</span>`;
+  }
+
+  function svAnalyze(periods){
+    const n = periods.length;
+    const res = { n, periods, avgVol: null, maxVol: null, r: null, slope: null, cp: null, um: null, umPrev: null, bajo: 0, cruces: [], diag: 'insuf' };
+    if (!n) return res;
+    const vols = periods.map(p => p.vol), pcts = periods.map(p => p.pct);
+    res.avgVol = vols.reduce((a, b) => a + b, 0) / n;
+    res.maxVol = Math.max(...vols);
+    res.bajo = periods.filter(p => p.pct < META).length;
+    res.um = svUmbral(periods);
+    res.umPrev = n >= SV_MIN_PERIODOS ? svUmbral(periods.slice(0, -1)) : null;
+
+    const mv = res.avgVol, mp = pcts.reduce((a, b) => a + b, 0) / n;
+    let sxy = 0, sxx = 0, syy = 0;
+    for (let i = 0; i < n; i++){ const dx = vols[i] - mv, dy = pcts[i] - mp; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; }
+    if (n >= 3 && sxx > 0){
+      res.slope = sxy / sxx * 10;
+      if (syy > 0) res.r = sxy / Math.sqrt(sxx * syy);
+    }
+
+    if (n >= SV_MIN_PERIODOS){
+      const sorted = periods.slice().sort((a, b) => a.vol - b.vol);
+      let best = null;
+      for (let k = 2; k <= n - 2; k++){
+        if (sorted[k - 1].vol === sorted[k].vol) continue;
+        const lo = sorted.slice(0, k), hi = sorted.slice(k);
+        const before = svWeighted(lo), after = svWeighted(hi);
+        const drop = before - after;
+        if (!best || drop > best.drop) best = { thr: sorted[k].vol, before, after, drop, nLo: k, nHi: n - k };
+      }
+      if (best && best.drop >= SV_MIN_CAIDA) res.cp = best;
+    }
+
+    if (n >= 2 && res.maxVol > 0){
+      const d = periods.map(p => p.vol / res.maxVol * 100 - p.pct);
+      for (let i = 0; i < n - 1; i++){
+        const a = d[i], b = d[i + 1];
+        if ((a < 0 && b > 0) || (a > 0 && b < 0)){
+          const t = a / (a - b);
+          res.cruces.push({
+            x: i + t,
+            y: periods[i].pct + (periods[i + 1].pct - periods[i].pct) * t,
+            dir: b > 0 ? 'up' : 'down',
+            from: periods[i].label, to: periods[i + 1].label
+          });
+        }
+      }
+    }
+
+    if (n < SV_MIN_PERIODOS) res.diag = 'insuf';
+    else if (res.bajo === 0) res.diag = 'estable';
+    else if (res.cp) res.diag = (res.r != null && res.r <= -0.3) ? 'sensible' : 'posible';
+    else res.diag = 'otros';
+    return res;
+  }
+
+  function svBuildAll(){
+    const closed = allRows.filter(r => r.fechaCierre != null && toDateSafe(r.fechaCierre));
+    const byEsp = new Map();
+    closed.forEach(r => {
+      const n = r.servicio;
+      if (!n || n === '—') return;
+      if (!byEsp.has(n)) byEsp.set(n, []);
+      byEsp.get(n).push(r);
+    });
+    const list = Array.from(byEsp.entries()).map(([name, rows]) => ({ name, a: svAnalyze(svBuildPeriods(rows, svGran)) }));
+    list.sort((x, y) =>
+      (SV_ORDEN[x.a.diag] - SV_ORDEN[y.a.diag]) ||
+      ((y.a.cp ? y.a.cp.drop : 0) - (x.a.cp ? x.a.cp.drop : 0)) ||
+      x.name.localeCompare(y.name, 'es'));
+    const team = { name: SV_EQUIPO, label: 'Todos los servicios', a: svAnalyze(svBuildPeriods(closed, svGran)) };
+    return { team, list };
+  }
+
+  function svUnit(){ return svGran === 'sem' ? 'semana' : 'mes'; }
+
+  function svRowHtml(item, isTeam){
+    const a = item.a, name = isTeam ? item.label : item.name;
+    const last = a.periods[a.periods.length - 1];
+    const overCp = last && a.cp && last.vol >= a.cp.thr;
+    const rTxt = a.r == null ? '—' : svFmt(a.r, 2);
+    const slopeTxt = a.slope == null ? '—' : (a.slope > 0 ? '+' : '') + svFmt(a.slope, 1);
+    return `<tr class="vc-row${isTeam ? ' vc-team' : ''}${item.name === svSel ? ' sel' : ''}" data-name="${escapeHtml(item.name)}">
+      <td title="${escapeHtml(name)}">${escapeHtml(name)}</td>
+      <td class="r mono">${a.n}</td>
+      <td class="r mono">${svFmt(a.avgVol)}</td>
+      <td class="r mono">${svFmt(a.maxVol, 0)}</td>
+      <td class="r mono" style="${a.r != null && a.r <= -0.3 ? 'color:var(--danger); font-weight:600;' : ''}">${rTxt}</td>
+      <td class="r mono">${slopeTxt}</td>
+      <td class="r mono">${a.cp ? '≥ ' + a.cp.thr : '—'}</td>
+      <td class="r mono">${a.cp ? svFmt(a.cp.before, 0) + '% → <span class="vc-warn">' + svFmt(a.cp.after, 0) + '%</span>' : '—'}</td>
+      <td class="r mono" style="font-weight:700;">${svUmbralTxt(a.um, a.n)}${svArrowHtml(svUmbralTrend(a))}</td>
+      <td class="r mono">${a.n >= 2 ? a.cruces.length : '—'}</td>
+      <td class="r mono${overCp ? ' vc-warn' : ''}" title="${last ? escapeHtml(last.label) : ''}">${last ? last.vol + ' tk · ' + svFmt(last.pct, 0) + '%' + (overCp ? ' ⚠' : '') : '—'}</td>
+      <td><span class="vc-badge ${a.diag}">${SV_LABEL[a.diag]}</span></td>
+    </tr>`;
+  }
+
+  function svInsightsHtml(name, a){
+    const u = svUnit(), items = [];
+    if (a.diag === 'insuf'){
+      items.push(`Se necesitan al menos ${SV_MIN_PERIODOS} periodos con tickets cerrados para detectar un punto de quiebre (hay ${a.n}).`);
+    } else {
+      if (a.cp){
+        items.push(`<b>Quiebre:</b> desde ${a.cp.thr} tickets por ${u} el cumplimiento promedio baja de ${svFmt(a.cp.before)}% a ${svFmt(a.cp.after)}% (−${svFmt(a.cp.drop)} pts). ${a.cp.nHi} de ${a.n} periodos estuvieron en ese rango.`);
+      } else if (a.bajo === 0){
+        items.push(`Se mantuvo sobre la meta de ${META}% en los ${a.n} periodos, incluso con su mayor volumen (${a.maxVol} tickets).`);
+      } else {
+        items.push(`Estuvo bajo la meta en ${a.bajo} de ${a.n} periodos, pero la caída no se concentra en los de mayor volumen (diferencia menor a ${SV_MIN_CAIDA} pts).`);
+      }
+      if (a.r != null){
+        const dir = a.r <= -0.3 ? 'a más volumen, menos cumplimiento' : (a.r >= 0.3 ? 'a más volumen, más cumplimiento' : 'sin relación clara con el volumen');
+        items.push(`<b>Correlación:</b> r = ${svFmt(a.r, 2)} (${dir}). Por cada +10 tickets el cumplimiento cambia ≈ ${a.slope > 0 ? '+' : ''}${svFmt(a.slope, 1)} pts.`);
+      }
+      const worst = a.periods.reduce((w, p) => (!w || p.pct < w.pct) ? p : w, null);
+      const busiest = a.periods.reduce((w, p) => (!w || p.vol > w.vol) ? p : w, null);
+      if (worst) items.push(`<b>Peor periodo:</b> ${worst.label} con ${svFmt(worst.pct, 0)}% (${worst.vol} tickets). <b>Mayor carga:</b> ${busiest.label} con ${busiest.vol} tickets y ${svFmt(busiest.pct, 0)}%.`);
+    }
+    if (a.n >= 2){
+      items.push(a.cruces.length
+        ? `<b>Cruces (${a.cruces.length}):</b> ` + a.cruces.map(c => `${c.from} → ${c.to} (${c.dir === 'up' ? 'el volumen sobrepasa al cumplimiento' : 'el cumplimiento vuelve a superar al volumen'})`).join('; ') + '.'
+        : '<b>Cruces:</b> las líneas de volumen y cumplimiento no se cruzan en este rango.');
+    }
+    return items.map(t => `<li>${t}</li>`).join('');
+  }
+
+  function svRenderUmbralCard(name, a){
+    const el = $('svUmbralCard'), u = svUnit();
+    const um = a.um, tr = svUmbralTrend(a);
+    let txt;
+    if (a.n < 3) txt = `Se necesitan al menos 3 periodos con tickets cerrados para estimar el umbral (hay ${a.n}).`;
+    else if (um.val == null) txt = `Ya incumplía la meta con su volumen más bajo (${um.failVol} tickets por ${u}, ${svFmt(um.failPct, 0)}%): la caída no parece depender del volumen.`;
+    else if (um.sinTope) txt = `Cumplió la meta en todos los niveles de volumen observados, hasta ${um.val} tickets por ${u}. Aún no se detecta un tope: el umbral es al menos ${um.val}.`;
+    else txt = `Hasta ${um.val} tickets por ${u} mantuvo la meta de ${META}%. El primer nivel que la incumplió fue ${um.failVol} tickets (${um.failLabels.join(', ')}; ${svFmt(um.failPct, 0)}%).`;
+    if (tr){
+      const f = v => v == null ? 'sin umbral' : v;
+      txt += tr.dir === 'flat' ? ' Tendencia: sin cambio al sumar el último periodo.' : ` Tendencia: ${tr.dir === 'up' ? 'sube' : 'baja'} (de ${f(tr.from)} a ${f(tr.to)} al sumar el último periodo).`;
+    } else if (a.n >= 3) txt += ` La flecha de tendencia requiere al menos ${SV_MIN_PERIODOS} periodos.`;
+    el.innerHTML = `<div><div class="vu-lbl">Umbral de volumen · tickets por ${u} sin bajar de la meta</div><div class="vu-num">${svUmbralTxt(um, a.n)}${svArrowHtml(tr)}</div></div><div class="vu-txt">${txt}</div>`;
+  }
+
+  function svDrawChart(name, a){
+    if (svChart){ svChart.destroy(); svChart = null; }
+    if (typeof Chart === 'undefined' || !a.n) return;
+    const styles = getComputedStyle(document.documentElement);
+    const inkSoft = styles.getPropertyValue('--ink-soft').trim();
+    const inkColor = styles.getPropertyValue('--ink').trim();
+    const border = styles.getPropertyValue('--border').trim();
+    const labels = a.periods.map(p => p.label);
+    const maxV = Math.max(1, a.maxVol);
+    const datasets = [
+      { label: '% Cumplimiento', data: a.periods.map(p => Number(p.pct.toFixed(1))), yAxisID: 'y', borderColor: '#C1432D', backgroundColor: '#C1432D', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 1 },
+      { label: 'Volumen (tickets)', data: a.periods.map(p => p.vol), yAxisID: 'y1', borderColor: '#2C5F6F', backgroundColor: '#2C5F6F', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 2 },
+      { label: `Meta ${META}%`, data: a.periods.map(() => META), yAxisID: 'y', borderColor: '#1F8A5F', borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0, order: 3 }
+    ];
+    if (a.um && a.n >= 3 && a.um.val != null) datasets.push({ label: `Umbral (${a.um.sinTope ? '≥ ' : ''}${a.um.val})`, data: a.periods.map(() => a.um.val), yAxisID: 'y1', borderColor: '#7B4FA6', borderDash: [8, 4], borderWidth: 1.8, pointRadius: 0, order: 4 });
+    if (a.cp) datasets.push({ label: `Vol. de quiebre (${a.cp.thr})`, data: a.periods.map(() => a.cp.thr), yAxisID: 'y1', borderColor: '#B87A1E', borderDash: [2, 4], borderWidth: 1.5, pointRadius: 0, order: 4 });
+
+    const crossPlugin = {
+      id: 'svCruces',
+      afterDatasetsDraw(chart){
+        const xs = chart.scales.x, ys = chart.scales.y, ctx = chart.ctx;
+        ctx.save();
+        a.cruces.forEach(c => {
+          const px = xs.getPixelForValue(c.x), py = ys.getPixelForValue(c.y);
+          ctx.beginPath();
+          ctx.moveTo(px, py - 8); ctx.lineTo(px + 8, py); ctx.lineTo(px, py + 8); ctx.lineTo(px - 8, py); ctx.closePath();
+          ctx.fillStyle = '#FFFFFF'; ctx.fill();
+          ctx.lineWidth = 2.5; ctx.strokeStyle = '#B87A1E'; ctx.stroke();
+        });
+        ctx.restore();
+      }
+    };
+    const tick = { color: inkSoft, font: { family: "'IBM Plex Mono', monospace", size: 11 } };
+    svChart = new Chart($('svCanvas').getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets },
+      plugins: [crossPlugin],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        layout: { padding: { top: 12, right: 8 } },
+        scales: {
+          y: { min: 0, max: 100, position: 'left', grid: { color: border }, ticks: { ...tick, callback: v => v + '%' }, title: { display: true, text: '% Cumplimiento', color: inkSoft, font: { size: 11 } } },
+          y1: { min: 0, max: maxV, position: 'right', grid: { drawOnChartArea: false }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Volumen (tickets)', color: inkSoft, font: { size: 11 } } },
+          x: { grid: { display: false }, ticks: tick }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 }, boxWidth: 10, boxHeight: 10 } },
+          tooltip: {
+            backgroundColor: '#16202B', padding: 10,
+            callbacks: {
+              label: ctx => {
+                if (ctx.dataset.yAxisID === 'y1') return `${ctx.dataset.label}: ${ctx.formattedValue}`;
+                return `${ctx.dataset.label}: ${ctx.formattedValue}%`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderSvVolCumpl(){
+    const sec = $('svSection');
+    if (!sec) return;
+    const { team, list } = svBuildAll();
+    const hasData = team.a.n > 0;
+    $('svEmpty').classList.toggle('hidden', hasData);
+    $('svTable').closest('.table-scroll').classList.toggle('hidden', !hasData);
+    $('svDetail').classList.toggle('hidden', !hasData);
+    $('svSub').textContent = hasData ? `· ${list.length} servicio${list.length === 1 ? '' : 's'} · análisis ${svGran === 'sem' ? 'semanal' : 'mensual'}` : '';
+    if (!hasData){ $('svBody').innerHTML = ''; if (svChart){ svChart.destroy(); svChart = null; } return; }
+
+    const all = [{ ...team }, ...list];
+    if (!svSel || !all.some(x => x.name === svSel)) svSel = SV_EQUIPO;
+
+    $('svBody').innerHTML = svRowHtml(team, true) + list.map(x => svRowHtml(x, false)).join('');
+    $('svBody').querySelectorAll('.vc-row').forEach(tr => {
+      tr.addEventListener('click', () => { svSel = tr.dataset.name; renderSvVolCumpl(); });
+    });
+
+    const cur = all.find(x => x.name === svSel);
+    const curName = cur.name === SV_EQUIPO ? cur.label : cur.name;
+    $('svDetailTitle').textContent = `Volumen vs % cumplimiento: ${curName}`;
+    $('svInsights').innerHTML = svInsightsHtml(curName, cur.a);
+    svRenderUmbralCard(curName, cur.a);
+    svDrawChart(curName, cur.a);
+  }
+
+  (function wireVcGran(){
+    const c = $('svGranToggle');
+    if (!c) return;
+    c.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        c.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        svGran = btn.dataset.g;
+        renderSvVolCumpl();
+      });
+    });
+  })();
+
+
+  // ---------------- Pestaña "Análisis de servicios" (análoga a "Análisis de especialistas") ----------------
+  let srvSel = null, srvHistOn = false;
+  const trendServicio = createTrendWidget({
+    canvasId: 'chartTrendServicio', chipsId: 'trendServicioChips',
+    boxId: 'trendServicioBox', fallbackId: 'trendServicioFallback',
+    emptyId: 'trendServicioEmpty', defaultTopN: 5
+  });
+  wireMetricToggle('metricToggleServicio', trendServicio);
+
+  function buildServicios(){
+    const map = new Map();
+    allRows.forEach(r => {
+      if (!r.servicio || r.servicio === '—') return;
+      if (!map.has(r.servicio)) map.set(r.servicio, { total:0, cumplen:0, tickAbiertos:0, esps:new Set() });
+      const b = map.get(r.servicio);
+      b.total++; if (r.cumple) b.cumplen++;
+      if (r.fechaCierre == null) b.tickAbiertos++;
+      if (r.especialista && r.especialista !== '—') b.esps.add(r.especialista);
+    });
+    return Array.from(map.entries()).map(([name, b]) => ({ name, total:b.total, cumplen:b.cumplen, tickAbiertos:b.tickAbiertos, incumplidos:b.total - b.cumplen, nEsp:b.esps.size, pct: b.total ? b.cumplen / b.total * 100 : null }));
+  }
+
+  function renderServiciosCard(){
+    if (!$('servicioCard')) return;
+    const rows = buildServicios();
+    rows.sort((a, b) => (a.pct == null ? 1 : b.pct == null ? -1 : a.pct - b.pct) || b.total - a.total);
+    $('srvSub').textContent = `· ${rows.length} servicio${rows.length === 1 ? '' : 's'}`;
+    $('srvEmpty').classList.toggle('hidden', rows.length !== 0);
+    $('srvRows').innerHTML = rows.map(r => {
+      const pct = r.pct == null ? 0 : Math.min(r.pct, 100);
+      const bad = r.pct != null && r.pct < META;
+      return `<div class="esp-row${r.name === srvSel ? ' sel' : ''}" data-name="${escapeHtml(r.name)}">
+        <span class="name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
+        <span class="bar-cell"><span class="esp-bar">
+          <span class="fill ${bad ? 'bad' : ''}" style="width:${pct}%"></span>
+          <span class="meta" style="left:${META}%"></span>
+          <span class="lbl"><span class="in">${r.pct == null ? '—' : r.pct.toFixed(1) + '%'}</span><span>${r.cumplen}/${r.total}</span></span>
+        </span></span>
+        <span class="r mono${r.tickAbiertos ? '' : ' cero'}">${r.tickAbiertos}</span>
+        <span class="r mono${r.incumplidos ? '' : ' cero'}" style="${r.incumplidos > 0 ? 'color:var(--danger); font-weight:600;' : ''}">${r.incumplidos}</span>
+        <span class="r mono${r.nEsp ? '' : ' cero'}">${r.nEsp}</span>
+      </div>`;
+    }).join('');
+    $('srvRows').querySelectorAll('.esp-row').forEach(el => {
+      el.addEventListener('click', () => { srvSel = el.dataset.name; renderServiciosCard(); });
+    });
+    if (!rows.length){ srvSel = null; }
+    else if (!srvSel || !rows.some(r => r.name === srvSel)) srvSel = rows[0].name;
+    $('srvRows').querySelectorAll('.esp-row').forEach(el => el.classList.toggle('sel', el.dataset.name === srvSel));
+    renderSrvHist();
+    try { renderSvVolCumpl(); } catch(err){ console.error('Error en análisis volumen vs cumplimiento por servicio:', err); }
+  }
+
+  function renderSrvHist(){
+    $('srvHistBox').classList.toggle('hidden', !srvHistOn || !srvSel);
+    if (!srvHistOn || !srvSel) return;
+    $('srvHistTitle').textContent = 'Rendimiento histórico: ' + srvSel;
+    trendServicio.setSelected([srvSel]);
+  }
+  $('srvHistSwitch').addEventListener('change', (e) => { srvHistOn = e.target.checked; renderSrvHist(); });
+
+  // Se llama desde el filtro de fechas / carga de datos y al entrar a la pestaña.
+  function renderServicios(){
+    if (!allRowsRaw.length) return;
+    trendServicio.setData(allRows, r => r.servicio);
+    renderServiciosCard();
+  }
 
   // ---------------- Origen de los tickets: ¿quién los crea? ----------------
   // % de tickets creados por personas ajenas al equipo de especialistas vs. por los propios
@@ -3979,16 +4437,18 @@
     cumplen: 'tickets_cumplen.csv'
   };
 
-  [$('pageTabGeneral'), $('pageTabDashboard'), $('pageTabTendencias'), $('pageTabRegistro')].forEach(btn => {
+  [$('pageTabGeneral'), $('pageTabDashboard'), $('pageTabTendencias'), $('pageTabServicios'), $('pageTabRegistro')].forEach(btn => {
     btn.addEventListener('click', () => {
       const page = btn.dataset.targetPage;
       $('pageTabGeneral').classList.toggle('active', page === 'general');
       $('pageTabDashboard').classList.toggle('active', page === 'dashboardExtra');
       $('pageTabTendencias').classList.toggle('active', page === 'tendencias');
+      $('pageTabServicios').classList.toggle('active', page === 'servicios');
       $('pageTabRegistro').classList.toggle('active', page === 'registro');
       document.body.classList.toggle('page-view-general', page === 'general');
       document.body.classList.toggle('page-view-dashboardExtra', page === 'dashboardExtra');
       document.body.classList.toggle('page-view-tendencias', page === 'tendencias');
+      document.body.classList.toggle('page-view-servicios', page === 'servicios');
       document.body.classList.toggle('page-view-registro', page === 'registro');
       // Los gráficos (Chart.js) de esta pestaña se dibujan cuando llegan datos, que puede
       // pasar mientras el usuario todavía está en "Resumen" (contenedor en display:none).
@@ -4005,6 +4465,10 @@
       if (page === 'tendencias'){
         if (typeof anRenderAll === 'function') anRenderAll();
         if (allRowsRaw.length && typeof renderTendencias === 'function') renderTendencias();
+      }
+      // "Análisis de servicios": se vuelve a dibujar con el contenedor ya visible.
+      if (page === 'servicios'){
+        try { renderServicios(); if (srvHistOn) trendServicio.redraw(); } catch(err){ console.error('Error en análisis de servicios:', err); }
       }
       // Igual para la gráfica de brecha del historial de sustentos (Registro de vencidos).
       if (page === 'registro' && typeof renderHistorial === 'function') renderHistorial();
