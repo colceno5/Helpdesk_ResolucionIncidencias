@@ -434,6 +434,13 @@
   .vc-help{ font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 12px; }
   .vc-table th.r, .vc-table td.r{ text-align:right; }
   .vc-table td{ font-size:13px; white-space:nowrap; }
+  .iu-matrix{ width:100%; border-collapse:collapse; font-size:13px; }
+  .iu-matrix th, .iu-matrix td{ padding:7px 9px; text-align:center; border:1px solid var(--border); }
+  .iu-matrix th{ font-weight:600; color:var(--ink-soft); background:var(--surface-sunken); }
+  .iu-matrix th.rowh{ text-align:left; }
+  .iu-matrix td.cell{ font-family:'IBM Plex Mono', monospace; }
+  .iu-matrix td.tot, .iu-matrix th.tot{ font-weight:700; background:var(--surface-sunken); }
+  .vc-n{ color:var(--ink-soft); font-size:11px; }
   .vc-table td.mono{ font-family:'IBM Plex Mono', monospace; }
   .vc-table tr.vc-row{ cursor:pointer; }
   .vc-table tr.vc-row:hover td{ background:var(--surface-sunken); }
@@ -960,6 +967,11 @@
   .an-toolbar .an-check{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); }
   .an-spacer{ flex:1 1 auto; }
 
+  .team-tag{ display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:600; color:var(--ink-soft); background:var(--surface-sunken); border:1px solid var(--border); white-space:nowrap; }
+  .card-head-flex{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  .card-head-sub{ font-weight:400; color:var(--ink-faint); font-size:12px; }
+  .card-detail{ margin-top:16px; border-top:1px solid var(--border); padding-top:14px; }
+  .card-detail-title{ font-family:'Space Grotesk', sans-serif; font-size:14px; }
   .an-section{ margin-bottom:22px; }
   .an-section > h2{
     font-family:'Space Grotesk', sans-serif; font-size:16px; margin:0 0 4px; color:var(--ink);
@@ -1125,7 +1137,7 @@
         </div>
         <div class="meta-line" id="metaLine"></div>
         <div class="gauge-track">
-          <div class="gauge-target" style="left:95%"></div>
+          <div class="gauge-target"></div>
           <div class="gauge-fill" id="gaugeFill" style="width:0%"></div>
         </div>
       </div>
@@ -1135,11 +1147,7 @@
           <div class="stat-box"><div class="n" id="statTotal">0</div><div class="l">Tickets evaluados</div></div>
           <div class="stat-box"><div class="n" id="statCumplen">0</div><div class="l">Cumplen SLA</div></div>
           <div class="stat-box"><div class="n" id="statVencidos">0</div><div class="l">Vencidos</div></div>
-          <div class="stat-box"><div class="n" id="statBrecha">0</div><div class="l">Pts. bajo la meta</div></div>
-          <div class="stat-box excl">
-            <div><div class="l" style="margin-bottom:2px;">Excluidos del análisis</div><div class="n" id="statCancelados" style="font-size:18px;">0</div></div>
-            <div class="l">Estado Cancelado</div>
-          </div>
+          <div class="stat-box"><div class="n" id="statCancelados">0</div><div class="l">Excluidos (estado Cancelado)</div></div>
         </div>
       </div>
     </section>
@@ -1174,26 +1182,28 @@
     </section>
 
     <section class="card" id="teamTrendCard" style="margin-bottom:14px;">
-      <h3 style="font-family:'Space Grotesk', sans-serif; font-size:15px; margin:0 0 10px;">Tendencia mensual del % de cumplimiento del equipo TI</h3>
+      <h3 class="card-head-flex" style="font-family:'Space Grotesk', sans-serif; font-size:15px; margin:0 0 10px;">
+        <span>Tendencia del % de cumplimiento del equipo TI <span class="sub card-head-sub">· por fecha de cierre</span></span>
+        <span class="metric-toggle" id="teamGranToggle">
+          <button class="active" data-g="mes">Mensual</button>
+          <button data-g="sem">Semanal</button>
+        </span>
+      </h3>
       <div class="chart-box" id="teamTrendBox" style="height:270px;"><canvas id="chartTeamTrend"></canvas></div>
       <div id="teamTrendFallback" class="hidden"></div>
-      <div class="empty-detail hidden" id="teamTrendEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
+      <div class="empty-detail hidden" id="teamTrendEmpty">No hay suficientes tickets cerrados para trazar una tendencia.</div>
     </section>
 
     <div id="volumenSection" class="hidden">
     <h2 class="section-title">Volumen del total de tickets</h2>
-    <section class="breakdown breakdown-3col">
+    <section class="breakdown">
       <div class="card">
         <h3>Por Prioridad</h3>
         <div id="byPrioridad"></div>
       </div>
       <div class="card">
-        <h3>Por Impacto</h3>
-        <div id="byImpacto"></div>
-      </div>
-      <div class="card">
-        <h3>Por Urgencia</h3>
-        <div id="byUrgencia"></div>
+        <h3>Impacto × Urgencia <span class="sub">tickets por combinación; totales en los bordes</span></h3>
+        <div class="table-scroll"><table class="iu-matrix" id="impUrgMatrix"></table></div>
       </div>
     </section>
     </div>
@@ -1295,8 +1305,8 @@
    <div id="trendsSection" class="hidden" data-page="dashboardExtra">
 
     <section class="card" id="especialistaCard" style="margin-bottom:14px;">
-      <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <span>Cumplimiento por especialista <span class="sub" id="espSub" style="font-weight:400; color:var(--ink-faint); font-size:12px;"></span></span>
+      <h3 class="card-head-flex">
+        <span>Cumplimiento por especialista <span class="sub card-head-sub" id="espSub"></span></span>
         <label class="switch-wrap" title="Muestra la evolución mensual del especialista seleccionado">
           <input type="checkbox" id="espHistSwitch">
           <span class="switch-track"><span class="switch-thumb"></span></span>
@@ -1304,13 +1314,13 @@
         </label>
       </h3>
       <div class="esp-head">
-        <span>Especialista</span><span>% cumplimiento (meta 95%)</span><span class="r">Tickets abiertos</span><span class="r">Tareas abiertas</span><span class="r">Estancadas</span>
+        <span>Especialista</span><span>% cumplimiento (meta <span class="js-meta">95</span>%)</span><span class="r">Tickets abiertos</span><span class="r">Tareas abiertas</span><span class="r">Estancadas</span>
       </div>
       <div id="espRows"></div>
       <div class="empty-detail hidden" id="espEmpty">No hay especialistas con tickets o tareas en este rango.</div>
-      <div id="espHistBox" class="hidden" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+      <div id="espHistBox" class="hidden card-detail">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-          <strong id="espHistTitle" style="font-family:'Space Grotesk', sans-serif; font-size:14px;"></strong>
+          <strong class="card-detail-title" id="espHistTitle"></strong>
           <span class="metric-toggle" id="metricToggleEspecialista">
             <button class="active" data-metric="pct">% Cumplimiento</button>
             <button data-metric="vol">Volumen</button>
@@ -1324,8 +1334,8 @@
     </section>
 
     <section class="card" id="vcSection" style="margin-bottom:14px;">
-      <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <span>Análisis Volumen vs % Cumplimiento <span class="sub" id="vcSub" style="font-weight:400; color:var(--ink-faint); font-size:12px;"></span></span>
+      <h3 class="card-head-flex">
+        <span>Análisis Volumen vs % Cumplimiento <span class="sub card-head-sub" id="vcSub"></span></span>
         <span class="metric-toggle" id="vcGranToggle">
           <button class="active" data-g="mes">Mensual</button>
           <button data-g="sem">Semanal</button>
@@ -1337,13 +1347,9 @@
           <thead>
             <tr>
               <th>Especialista</th>
-              <th class="r">Periodos</th>
-              <th class="r">Vol. prom.</th>
-              <th class="r">Vol. máx.</th>
-              <th class="r" title="Correlación entre volumen y % cumplimiento (−1 a 1). Negativa = a más volumen, menos cumplimiento">Correl. (r)</th>
-              <th class="r" title="Puntos de % cumplimiento que cambian por cada +10 tickets">Pts / +10 tk</th>
-              <th class="r">Vol. de quiebre</th>
-              <th class="r">% antes → después</th>
+              <th class="r" title="Promedio y máximo de tickets cerrados por periodo, y número de periodos analizados">Volumen (prom. / máx.)</th>
+              <th class="r" title="Correlación r entre volumen y % cumplimiento (−1 a 1; negativa = a más volumen, menos cumplimiento) · puntos de % cumplimiento que cambian por cada +10 tickets">Relación (r · pts/+10 tk)</th>
+              <th class="r" title="Volumen de quiebre y % de cumplimiento antes → después del corte">Quiebre (vol. · % antes → después)</th>
               <th class="r" title="Máximo de tickets por periodo que atendió sin que su cumplimiento bajara de la meta. La flecha compara contra el cálculo sin el último periodo (verde = sube, roja = baja)">Umbral de volumen</th>
               <th class="r">Cruces</th>
               <th class="r">Último periodo</th>
@@ -1354,8 +1360,8 @@
         </table>
       </div>
       <div class="empty-detail hidden" id="vcEmpty">No hay tickets cerrados en este rango para analizar.</div>
-      <div id="vcDetail" class="hidden" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
-        <strong id="vcDetailTitle" style="font-family:'Space Grotesk', sans-serif; font-size:14px;"></strong>
+      <div id="vcDetail" class="hidden card-detail">
+        <strong class="card-detail-title" id="vcDetailTitle"></strong>
         <div class="vc-umbral" id="vcUmbralCard"></div>
         <div class="chart-box" id="vcChartBox" style="height:280px; margin-top:8px;"><canvas id="vcCanvas"></canvas></div>
         <ul class="vc-insights" id="vcInsights"></ul>
@@ -1379,57 +1385,57 @@
     </section>
 
     <div id="extraRankingSection" class="hidden">
-    <h2 class="section-title">Ranking de Cliente Final</h2>
+    <h2 class="section-title">Ranking de usuarios</h2>
     <section class="table-section">
       <div class="table-head">
         <div>
-          <h3>Todo el periodo cargado</h3>
+          <h3>Rango de fechas seleccionado</h3>
           <div class="sub" id="rankingClienteSub">0 clientes</div>
+          <div class="sub hidden" id="rankingAutorSub">0 autores</div>
+        </div>
+        <div class="table-actions">
+          <span class="metric-toggle" id="rankingModeToggle">
+            <button class="active" data-mode="cliente">Cliente final</button>
+            <button data-mode="autor" title="Quién registró el ticket. Los autores que también son especialistas se marcan como Equipo TI">Autor del ticket</button>
+          </span>
         </div>
       </div>
-      <div class="table-scroll">
-        <table id="rankingClienteTable">
-          <thead>
-            <tr>
-              <th data-key="name">Cliente Final</th>
-              <th data-key="ticketsTotal">Tickets</th>
-              <th data-key="pct">% Cumplimiento</th>
-              <th data-key="avgDias">Tiempo prom. resolución</th>
-            </tr>
-          </thead>
-          <tbody id="rankingClienteBody"></tbody>
-        </table>
-      </div>
-      <div class="empty-detail hidden" id="emptyRankingCliente">No hay tickets con "Cliente Final" en este rango.</div>
-    </section>
-
-    <h2 class="section-title">Ranking de Autor de Ticket</h2>
-    <section class="table-section">
-      <div class="table-head">
-        <div>
-          <h3>Todo el periodo cargado</h3>
-          <div class="sub" id="rankingAutorSub">0 autores</div>
+      <div id="rankingClienteWrap">
+        <div class="table-scroll">
+          <table id="rankingClienteTable">
+            <thead>
+              <tr>
+                <th data-key="name">Cliente Final</th>
+                <th data-key="ticketsTotal">Tickets</th>
+                <th data-key="pct">% Cumplimiento</th>
+                <th data-key="avgDias">Tiempo prom. resolución</th>
+              </tr>
+            </thead>
+            <tbody id="rankingClienteBody"></tbody>
+          </table>
         </div>
+        <div class="empty-detail hidden" id="emptyRankingCliente">No hay tickets con "Cliente Final" en este rango.</div>
       </div>
-      <div class="table-scroll">
-        <table id="rankingAutorTable">
-          <thead>
-            <tr>
-              <th data-key="name">Autor de Ticket</th>
-              <th data-key="ticketsTotal">Tickets</th>
-              <th data-key="pct">% Cumplimiento</th>
-              <th data-key="avgDias">Tiempo prom. resolución</th>
-            </tr>
-          </thead>
-          <tbody id="rankingAutorBody"></tbody>
-        </table>
+      <div id="rankingAutorWrap" class="hidden">
+        <div class="table-scroll">
+          <table id="rankingAutorTable">
+            <thead>
+              <tr>
+                <th data-key="name">Autor de Ticket</th>
+                <th data-key="ticketsTotal">Tickets</th>
+                <th data-key="pct">% Cumplimiento</th>
+                <th data-key="avgDias">Tiempo prom. resolución</th>
+              </tr>
+            </thead>
+            <tbody id="rankingAutorBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-detail hidden" id="emptyRankingAutor">No hay tickets con "Autor Ticket" en este rango.</div>
       </div>
-      <div class="empty-detail hidden" id="emptyRankingAutor">No hay tickets con "Autor Ticket" en este rango.</div>
     </section>
-
     </div>
 
-    <h2 class="section-title">Evolución semanal y problemas recurrentes</h2>
+    <h2 class="section-title">Problemas recurrentes</h2>
     <div class="an-toolbar">
       <label for="anWeekMode">Semana analizada</label>
       <select id="anWeekMode">
@@ -1438,13 +1444,6 @@
         <option value="select">Seleccionar semana…</option>
       </select>
       <select id="anWeekSelect" class="hidden"></select>
-      <div class="an-spacer"></div>
-      <label for="anTrendWindow">Tendencia</label>
-      <select id="anTrendWindow">
-        <option value="8">Últimas 8 semanas</option>
-        <option value="12" selected>Últimas 12 semanas</option>
-        <option value="26">Últimas 26 semanas</option>
-      </select>
     </div>
 
     <p class="an-empty hidden" id="anNoData">Aún no hay tickets cargados para analizar por semana.</p>
@@ -1452,15 +1451,7 @@
     <div id="anContent" class="hidden">
 
       <section class="an-section">
-        <h2>Evolución semanal del cumplimiento SLA</h2>
-        <p class="an-sub">% de tickets que cumplen SLA por semana, frente a la meta configurada.</p>
-        <div class="an-card">
-          <div class="an-chart-box"><canvas id="anTrendChart"></canvas></div>
-        </div>
-      </section>
-
-      <section class="an-section">
-        <h2>Problemas recurrentes detectados</h2>
+        <h2>Patrones detectados</h2>
         <p class="an-sub">Agrupados por descripción similar, a lo largo de todo el histórico cargado (no solo la semana enfocada). Haz clic en un problema para ver los tickets relacionados.</p>
         <div class="an-card">
           <div class="table-scroll">
@@ -1479,8 +1470,8 @@
 
    <div id="serviciosSection" class="hidden" data-page="servicios">
     <section class="card" id="servicioCard" style="margin-bottom:14px;">
-      <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <span>Cumplimiento por servicio <span class="sub" id="srvSub" style="font-weight:400; color:var(--ink-faint); font-size:12px;"></span></span>
+      <h3 class="card-head-flex">
+        <span>Cumplimiento por servicio <span class="sub card-head-sub" id="srvSub"></span></span>
         <label class="switch-wrap" title="Muestra la evolución mensual del servicio seleccionado">
           <input type="checkbox" id="srvHistSwitch">
           <span class="switch-track"><span class="switch-thumb"></span></span>
@@ -1488,13 +1479,13 @@
         </label>
       </h3>
       <div class="esp-head">
-        <span>Servicio</span><span>% cumplimiento (meta 95%)</span><span class="r">Tickets abiertos</span><span class="r">Incumplidos</span><span class="r">Especialistas</span>
+        <span>Servicio</span><span>% cumplimiento (meta <span class="js-meta">95</span>%)</span><span class="r">Tickets abiertos</span><span class="r">Incumplidos</span><span class="r">Especialistas</span>
       </div>
       <div id="srvRows"></div>
       <div class="empty-detail hidden" id="srvEmpty">No hay servicios con tickets en este rango.</div>
-      <div id="srvHistBox" class="hidden" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+      <div id="srvHistBox" class="hidden card-detail">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-          <strong id="srvHistTitle" style="font-family:'Space Grotesk', sans-serif; font-size:14px;"></strong>
+          <strong class="card-detail-title" id="srvHistTitle"></strong>
           <span class="metric-toggle" id="metricToggleServicio">
             <button class="active" data-metric="pct">% Cumplimiento</button>
             <button data-metric="vol">Volumen</button>
@@ -1508,26 +1499,22 @@
     </section>
 
     <section class="card" id="svSection" style="margin-bottom:14px; margin-top:14px;">
-      <h3 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <span>Análisis Volumen vs % Cumplimiento por servicio <span class="sub" id="svSub" style="font-weight:400; color:var(--ink-faint); font-size:12px;"></span></span>
+      <h3 class="card-head-flex">
+        <span>Análisis Volumen vs % Cumplimiento por servicio <span class="sub card-head-sub" id="svSub"></span></span>
         <span class="metric-toggle" id="svGranToggle">
           <button class="active" data-g="mes">Mensual</button>
           <button data-g="sem">Semanal</button>
         </span>
       </h3>
-      <p class="vc-help">Detecta a partir de qué volumen de tickets cerrados empieza a caer el cumplimiento de cada servicio. El <b>volumen de quiebre</b> es el corte que mejor separa los periodos de menor y mayor carga (exige una caída de al menos 5 puntos). Un <b>cruce</b> ocurre cuando la línea de volumen (expresada como % de su máximo) pasa por encima o por debajo de la línea de % cumplimiento. El último periodo puede estar incompleto. El <b>umbral de volumen</b> es el máximo de tickets por periodo que el especialista atendió sin que su cumplimiento bajara de la meta; su flecha (verde ▲ / roja ▼) indica si sube o baja al sumar el último periodo. Haz clic en una fila para ver su gráfico.</p>
+      <p class="vc-help">Detecta a partir de qué volumen de tickets cerrados empieza a caer el cumplimiento de cada servicio. El <b>volumen de quiebre</b> es el corte que mejor separa los periodos de menor y mayor carga (exige una caída de al menos 5 puntos). Un <b>cruce</b> ocurre cuando la línea de volumen (expresada como % de su máximo) pasa por encima o por debajo de la línea de % cumplimiento. El último periodo puede estar incompleto. El <b>umbral de volumen</b> es el máximo de tickets por periodo que el servicio atendió sin que su cumplimiento bajara de la meta; su flecha (verde ▲ / roja ▼) indica si sube o baja al sumar el último periodo. Haz clic en una fila para ver su gráfico.</p>
       <div class="table-scroll">
         <table id="svTable" class="vc-table">
           <thead>
             <tr>
               <th>Servicio</th>
-              <th class="r">Periodos</th>
-              <th class="r">Vol. prom.</th>
-              <th class="r">Vol. máx.</th>
-              <th class="r" title="Correlación entre volumen y % cumplimiento (−1 a 1). Negativa = a más volumen, menos cumplimiento">Correl. (r)</th>
-              <th class="r" title="Puntos de % cumplimiento que cambian por cada +10 tickets">Pts / +10 tk</th>
-              <th class="r">Vol. de quiebre</th>
-              <th class="r">% antes → después</th>
+              <th class="r" title="Promedio y máximo de tickets cerrados por periodo, y número de periodos analizados">Volumen (prom. / máx.)</th>
+              <th class="r" title="Correlación r entre volumen y % cumplimiento (−1 a 1; negativa = a más volumen, menos cumplimiento) · puntos de % cumplimiento que cambian por cada +10 tickets">Relación (r · pts/+10 tk)</th>
+              <th class="r" title="Volumen de quiebre y % de cumplimiento antes → después del corte">Quiebre (vol. · % antes → después)</th>
               <th class="r" title="Máximo de tickets por periodo que atendió sin que su cumplimiento bajara de la meta. La flecha compara contra el cálculo sin el último periodo (verde = sube, roja = baja)">Umbral de volumen</th>
               <th class="r">Cruces</th>
               <th class="r">Último periodo</th>
@@ -1538,8 +1525,8 @@
         </table>
       </div>
       <div class="empty-detail hidden" id="svEmpty">No hay tickets cerrados en este rango para analizar.</div>
-      <div id="svDetail" class="hidden" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
-        <strong id="svDetailTitle" style="font-family:'Space Grotesk', sans-serif; font-size:14px;"></strong>
+      <div id="svDetail" class="hidden card-detail">
+        <strong class="card-detail-title" id="svDetailTitle"></strong>
         <div class="vc-umbral" id="svUmbralCard"></div>
         <div class="chart-box" id="svChartBox" style="height:280px; margin-top:8px;"><canvas id="svCanvas"></canvas></div>
         <ul class="vc-insights" id="svInsights"></ul>
@@ -1729,6 +1716,9 @@
     tiempo: 'Tiempo'
   };
   const META = 95;
+  // La meta se escribe una sola vez (arriba); los textos y el marcador del medidor la leen de aquí.
+  document.querySelectorAll('.js-meta').forEach(el => { el.textContent = META; });
+  document.querySelectorAll('.gauge-target').forEach(el => { el.style.left = META + '%'; });
 
   const HEADERS_TASK = {
     tarea: 'Tarea',
@@ -2089,17 +2079,38 @@
       renderTeamTrend(allRows);
     }
     if (taskMap.size){ renderTasks(); }
-    renderEspecialistaCard();
-    try { renderServicios(); } catch(err){ console.error('Error en análisis de servicios:', err); }
-    renderExtraRankings();
-    try { renderAutorOrigen(); } catch(err){ console.error('Error en origen de tickets:', err); }
+    renderVolumenTickets();
+    refreshTabContent();
     renderRegistro();
-    renderTendencias();
 
     const parts = [];
     if (allRowsRaw.length) parts.push(`${allRows.length} de ${allRowsRaw.length} tickets`);
     if (taskMap.size) parts.push(`${inRangeTasks.length} de ${taskMap.size} tareas`);
     $('dateRangeNote').textContent = parts.length ? `${parts.join(' · ')} en el rango seleccionado` : '';
+  }
+
+  // Dibujado por pestaña: al cambiar filtros solo se redibuja la pestaña que se está viendo; las demás se
+  // marcan como pendientes y se dibujan al entrar a ellas (con el contenedor ya visible, que además evita
+  // gráficos de tamaño 0). "Tickets Tareas & KPI" y "Auditoría de tickets vencidos" no pasan por aquí.
+  const staleTabs = new Set();
+  function activePage(){
+    const cl = document.body.classList;
+    return ['dashboardExtra', 'tendencias', 'servicios', 'registro'].find(pg => cl.contains('page-view-' + pg)) || 'general';
+  }
+  const TAB_RENDERERS = {
+    dashboardExtra(){ renderEspecialistaCard(); },
+    servicios(){ try { renderTendencias(); renderServicios(); } catch(err){ console.error('Error en análisis de servicios:', err); } },
+    tendencias(){
+      renderExtraRankings();
+      try { renderAutorOrigen(); } catch(err){ console.error('Error en origen de tickets:', err); }
+    }
+  };
+  function refreshTabContent(){
+    const act = activePage();
+    Object.keys(TAB_RENDERERS).forEach(pg => {
+      if (pg === act){ staleTabs.delete(pg); TAB_RENDERERS[pg](); }
+      else staleTabs.add(pg);
+    });
   }
 
   // Guarda el rango Desde/Hasta en el servidor para que se mantenga igual sin
@@ -2768,18 +2779,10 @@
     };
   }
 
+  // Tickets cerrados por periodo (mes o semana ISO, según la granularidad elegida), con su cumplimiento.
+  let teamGran = 'mes';
   function buildTeamMonthly(rows){
-    const map = new Map();
-    rows.forEach(r => {
-      const d = toDateSafe(r.fechaCierre);
-      if (!d) return;
-      const mk = monthKeyFromDate(d);
-      if (!map.has(mk)) map.set(mk, { total: 0, cumplen: 0 });
-      const b = map.get(mk);
-      b.total++;
-      if (r.cumple) b.cumplen++;
-    });
-    return Array.from(map.keys()).sort().map(mk => ({ mk, ...map.get(mk) }));
+    return vcBuildPeriods(rows, teamGran).map(pr => ({ mk: pr.key, label: pr.label, total: pr.vol, cumplen: pr.ok }));
   }
 
   function renderTeamTrend(rows){
@@ -2798,8 +2801,8 @@
 
     if (typeof Chart === 'undefined'){
       box.classList.add('hidden'); fallback.classList.remove('hidden');
-      fallback.innerHTML = '<div class="table-scroll"><table><thead><tr><th>Mes</th><th>Tickets cerrados</th><th>% Cumplimiento</th></tr></thead><tbody>' +
-        monthly.map(m => `<tr><td class="mono">${monthLabelFromKey(m.mk)}</td><td class="mono">${m.total}</td><td class="mono">${(m.cumplen / m.total * 100).toFixed(0)}%</td></tr>`).join('') +
+      fallback.innerHTML = '<div class="table-scroll"><table><thead><tr><th>Periodo</th><th>Tickets cerrados</th><th>% Cumplimiento</th></tr></thead><tbody>' +
+        monthly.map(m => `<tr><td class="mono">${m.label}</td><td class="mono">${m.total}</td><td class="mono">${(m.cumplen / m.total * 100).toFixed(0)}%</td></tr>`).join('') +
         '</tbody></table></div>';
       return;
     }
@@ -2814,7 +2817,7 @@
       const dangerColor = styles.getPropertyValue('--danger').trim();
       const successColor = styles.getPropertyValue('--success').trim();
 
-      const labels = monthly.map(m => monthLabelFromKey(m.mk));
+      const labels = monthly.map(m => m.label);
       const volData = monthly.map(m => m.total);
       const pctData = monthly.map(m => Number((m.cumplen / m.total * 100).toFixed(1)));
 
@@ -2824,7 +2827,7 @@
           datasets: [
             { type: 'bar', label: 'Tickets cerrados', data: volData, backgroundColor: 'rgba(44,95,111,0.16)', borderRadius: 3, yAxisID: 'y1', order: 3 },
             { type: 'line', label: '% Cumplimiento', data: pctData, borderColor: accent, backgroundColor: accent, tension: 0.25, pointRadius: 3, borderWidth: 2.5, yAxisID: 'y', order: 1 },
-            { type: 'line', label: 'Meta 95%', data: labels.map(() => META), borderColor: dangerColor, borderDash: [5, 5], pointRadius: 0, borderWidth: 1.3, yAxisID: 'y', order: 2 }
+            { type: 'line', label: `Meta ${META}%`, data: labels.map(() => META), borderColor: dangerColor, borderDash: [5, 5], pointRadius: 0, borderWidth: 1.3, yAxisID: 'y', order: 2 }
           ]
         },
         plugins: [monthlyBarLabelsPlugin(monthly, successColor, dangerColor)],
@@ -2856,16 +2859,27 @@
     }catch(err){
       console.error('Error dibujando la tendencia del equipo:', err);
       box.classList.add('hidden'); fallback.classList.remove('hidden');
-      fallback.innerHTML = '<div class="table-scroll"><table><thead><tr><th>Mes</th><th>Tickets cerrados</th><th>% Cumplimiento</th></tr></thead><tbody>' +
-        monthly.map(m => `<tr><td class="mono">${monthLabelFromKey(m.mk)}</td><td class="mono">${m.total}</td><td class="mono">${(m.cumplen / m.total * 100).toFixed(0)}%</td></tr>`).join('') +
+      fallback.innerHTML = '<div class="table-scroll"><table><thead><tr><th>Periodo</th><th>Tickets cerrados</th><th>% Cumplimiento</th></tr></thead><tbody>' +
+        monthly.map(m => `<tr><td class="mono">${m.label}</td><td class="mono">${m.total}</td><td class="mono">${(m.cumplen / m.total * 100).toFixed(0)}%</td></tr>`).join('') +
         '</tbody></table></div>';
     }
   }
 
+  (function wireTeamGran(){
+    const c = $('teamGranToggle');
+    if (!c) return;
+    c.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        c.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+        teamGran = btn.dataset.g;
+        if (allRowsRaw.length) renderTeamTrend(allRows);
+      });
+    });
+  })();
+
   // ---------------- Cumplimiento por especialista (todos, con abiertos y histórico) ----------------
   let espSel = null;
   let espHistOn = false;
-  let vcSel = null, vcGran = 'mes', vcChart = null;
 
   function buildEspecialistas(){
     const map = new Map();
@@ -3054,50 +3068,8 @@
     return res;
   }
 
-  function vcBuildAll(){
-    const closed = allRows.filter(r => r.fechaCierre != null && toDateSafe(r.fechaCierre));
-    const byEsp = new Map();
-    closed.forEach(r => {
-      const n = r.especialista;
-      if (!n || n === '—') return;
-      if (!byEsp.has(n)) byEsp.set(n, []);
-      byEsp.get(n).push(r);
-    });
-    const list = Array.from(byEsp.entries()).map(([name, rows]) => ({ name, a: vcAnalyze(vcBuildPeriods(rows, vcGran)) }));
-    list.sort((x, y) =>
-      (VC_ORDEN[x.a.diag] - VC_ORDEN[y.a.diag]) ||
-      ((y.a.cp ? y.a.cp.drop : 0) - (x.a.cp ? x.a.cp.drop : 0)) ||
-      x.name.localeCompare(y.name, 'es'));
-    const team = { name: VC_EQUIPO, label: 'Equipo TI (todos)', a: vcAnalyze(vcBuildPeriods(closed, vcGran)) };
-    return { team, list };
-  }
-
-  function vcUnit(){ return vcGran === 'sem' ? 'semana' : 'mes'; }
-
-  function vcRowHtml(item, isTeam){
-    const a = item.a, name = isTeam ? item.label : item.name;
-    const last = a.periods[a.periods.length - 1];
-    const overCp = last && a.cp && last.vol >= a.cp.thr;
-    const rTxt = a.r == null ? '—' : vcFmt(a.r, 2);
-    const slopeTxt = a.slope == null ? '—' : (a.slope > 0 ? '+' : '') + vcFmt(a.slope, 1);
-    return `<tr class="vc-row${isTeam ? ' vc-team' : ''}${item.name === vcSel ? ' sel' : ''}" data-name="${escapeHtml(item.name)}">
-      <td title="${escapeHtml(name)}">${escapeHtml(name)}</td>
-      <td class="r mono">${a.n}</td>
-      <td class="r mono">${vcFmt(a.avgVol)}</td>
-      <td class="r mono">${vcFmt(a.maxVol, 0)}</td>
-      <td class="r mono" style="${a.r != null && a.r <= -0.3 ? 'color:var(--danger); font-weight:600;' : ''}">${rTxt}</td>
-      <td class="r mono">${slopeTxt}</td>
-      <td class="r mono">${a.cp ? '≥ ' + a.cp.thr : '—'}</td>
-      <td class="r mono">${a.cp ? vcFmt(a.cp.before, 0) + '% → <span class="vc-warn">' + vcFmt(a.cp.after, 0) + '%</span>' : '—'}</td>
-      <td class="r mono" style="font-weight:700;">${vcUmbralTxt(a.um, a.n)}${vcArrowHtml(vcUmbralTrend(a))}</td>
-      <td class="r mono">${a.n >= 2 ? a.cruces.length : '—'}</td>
-      <td class="r mono${overCp ? ' vc-warn' : ''}" title="${last ? escapeHtml(last.label) : ''}">${last ? last.vol + ' tk · ' + vcFmt(last.pct, 0) + '%' + (overCp ? ' ⚠' : '') : '—'}</td>
-      <td><span class="vc-badge ${a.diag}">${VC_LABEL[a.diag]}</span></td>
-    </tr>`;
-  }
-
-  function vcInsightsHtml(name, a){
-    const u = vcUnit(), items = [];
+  function vcInsightsHtml(name, a, u){
+    const items = [];
     if (a.diag === 'insuf'){
       items.push(`Se necesitan al menos ${VC_MIN_PERIODOS} periodos con tickets cerrados para detectar un punto de quiebre (hay ${a.n}).`);
     } else {
@@ -3124,432 +3096,179 @@
     return items.map(t => `<li>${t}</li>`).join('');
   }
 
-  function vcRenderUmbralCard(name, a){
-    const el = $('vcUmbralCard'), u = vcUnit();
-    const um = a.um, tr = vcUmbralTrend(a);
-    let txt;
-    if (a.n < 3) txt = `Se necesitan al menos 3 periodos con tickets cerrados para estimar el umbral (hay ${a.n}).`;
-    else if (um.val == null) txt = `Ya incumplía la meta con su volumen más bajo (${um.failVol} tickets por ${u}, ${vcFmt(um.failPct, 0)}%): la caída no parece depender del volumen.`;
-    else if (um.sinTope) txt = `Cumplió la meta en todos los niveles de volumen observados, hasta ${um.val} tickets por ${u}. Aún no se detecta un tope: el umbral es al menos ${um.val}.`;
-    else txt = `Hasta ${um.val} tickets por ${u} mantuvo la meta de ${META}%. El primer nivel que la incumplió fue ${um.failVol} tickets (${um.failLabels.join(', ')}; ${vcFmt(um.failPct, 0)}%).`;
-    if (tr){
-      const f = v => v == null ? 'sin umbral' : v;
-      txt += tr.dir === 'flat' ? ' Tendencia: sin cambio al sumar el último periodo.' : ` Tendencia: ${tr.dir === 'up' ? 'sube' : 'baja'} (de ${f(tr.from)} a ${f(tr.to)} al sumar el último periodo).`;
-    } else if (a.n >= 3) txt += ` La flecha de tendencia requiere al menos ${VC_MIN_PERIODOS} periodos.`;
-    el.innerHTML = `<div><div class="vu-lbl">Umbral de volumen · tickets por ${u} sin bajar de la meta</div><div class="vu-num">${vcUmbralTxt(um, a.n)}${vcArrowHtml(tr)}</div></div><div class="vu-txt">${txt}</div>`;
-  }
 
-  function vcDrawChart(name, a){
-    if (vcChart){ vcChart.destroy(); vcChart = null; }
-    if (typeof Chart === 'undefined' || !a.n) return;
-    const styles = getComputedStyle(document.documentElement);
-    const inkSoft = styles.getPropertyValue('--ink-soft').trim();
-    const inkColor = styles.getPropertyValue('--ink').trim();
-    const border = styles.getPropertyValue('--border').trim();
-    const labels = a.periods.map(p => p.label);
-    const maxV = Math.max(1, a.maxVol);
-    const datasets = [
-      { label: '% Cumplimiento', data: a.periods.map(p => Number(p.pct.toFixed(1))), yAxisID: 'y', borderColor: '#C1432D', backgroundColor: '#C1432D', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 1 },
-      { label: 'Volumen (tickets)', data: a.periods.map(p => p.vol), yAxisID: 'y1', borderColor: '#2C5F6F', backgroundColor: '#2C5F6F', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 2 },
-      { label: `Meta ${META}%`, data: a.periods.map(() => META), yAxisID: 'y', borderColor: '#1F8A5F', borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0, order: 3 }
-    ];
-    if (a.um && a.n >= 3 && a.um.val != null) datasets.push({ label: `Umbral (${a.um.sinTope ? '≥ ' : ''}${a.um.val})`, data: a.periods.map(() => a.um.val), yAxisID: 'y1', borderColor: '#7B4FA6', borderDash: [8, 4], borderWidth: 1.8, pointRadius: 0, order: 4 });
-    if (a.cp) datasets.push({ label: `Vol. de quiebre (${a.cp.thr})`, data: a.periods.map(() => a.cp.thr), yAxisID: 'y1', borderColor: '#B87A1E', borderDash: [2, 4], borderWidth: 1.5, pointRadius: 0, order: 4 });
+  // Fábrica del panel "Volumen vs % cumplimiento". Especialistas y Servicios usan exactamente el mismo
+  // análisis; solo cambia por qué se agrupan los tickets (keyFn), los textos y los ids del HTML (prefijo).
+  function createVolCumplPanel(cfg){
+    const p = cfg.prefix;            // 'vc' (especialistas) o 'sv' (servicios): prefijo de los ids del HTML
+    let sel = null, gran = 'mes', chart = null;
 
-    const crossPlugin = {
-      id: 'vcCruces',
-      afterDatasetsDraw(chart){
-        const xs = chart.scales.x, ys = chart.scales.y, ctx = chart.ctx;
-        ctx.save();
-        a.cruces.forEach(c => {
-          const px = xs.getPixelForValue(c.x), py = ys.getPixelForValue(c.y);
-          ctx.beginPath();
-          ctx.moveTo(px, py - 8); ctx.lineTo(px + 8, py); ctx.lineTo(px, py + 8); ctx.lineTo(px - 8, py); ctx.closePath();
-          ctx.fillStyle = '#FFFFFF'; ctx.fill();
-          ctx.lineWidth = 2.5; ctx.strokeStyle = '#B87A1E'; ctx.stroke();
-        });
-        ctx.restore();
-      }
-    };
-    const tick = { color: inkSoft, font: { family: "'IBM Plex Mono', monospace", size: 11 } };
-    vcChart = new Chart($('vcCanvas').getContext('2d'), {
-      type: 'line',
-      data: { labels, datasets },
-      plugins: [crossPlugin],
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        layout: { padding: { top: 12, right: 8 } },
-        scales: {
-          y: { min: 0, max: 100, position: 'left', grid: { color: border }, ticks: { ...tick, callback: v => v + '%' }, title: { display: true, text: '% Cumplimiento', color: inkSoft, font: { size: 11 } } },
-          y1: { min: 0, max: maxV, position: 'right', grid: { drawOnChartArea: false }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Volumen (tickets)', color: inkSoft, font: { size: 11 } } },
-          x: { grid: { display: false }, ticks: tick }
-        },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 }, boxWidth: 10, boxHeight: 10 } },
-          tooltip: {
-            backgroundColor: '#16202B', padding: 10,
-            callbacks: {
-              label: ctx => {
-                if (ctx.dataset.yAxisID === 'y1') return `${ctx.dataset.label}: ${ctx.formattedValue}`;
-                return `${ctx.dataset.label}: ${ctx.formattedValue}%`;
-              }
-            }
-          }
-        }
-      }
-    });
-  }
-
-  function renderVolCumpl(){
-    const sec = $('vcSection');
-    if (!sec) return;
-    const { team, list } = vcBuildAll();
-    const hasData = team.a.n > 0;
-    $('vcEmpty').classList.toggle('hidden', hasData);
-    $('vcTable').closest('.table-scroll').classList.toggle('hidden', !hasData);
-    $('vcDetail').classList.toggle('hidden', !hasData);
-    $('vcSub').textContent = hasData ? `· ${list.length} especialista${list.length === 1 ? '' : 's'} · análisis ${vcGran === 'sem' ? 'semanal' : 'mensual'}` : '';
-    if (!hasData){ $('vcBody').innerHTML = ''; if (vcChart){ vcChart.destroy(); vcChart = null; } return; }
-
-    const all = [{ ...team }, ...list];
-    if (!vcSel || !all.some(x => x.name === vcSel)) vcSel = (espSel && list.some(x => x.name === espSel)) ? espSel : VC_EQUIPO;
-
-    $('vcBody').innerHTML = vcRowHtml(team, true) + list.map(x => vcRowHtml(x, false)).join('');
-    $('vcBody').querySelectorAll('.vc-row').forEach(tr => {
-      tr.addEventListener('click', () => { vcSel = tr.dataset.name; renderVolCumpl(); });
-    });
-
-    const cur = all.find(x => x.name === vcSel);
-    const curName = cur.name === VC_EQUIPO ? cur.label : cur.name;
-    $('vcDetailTitle').textContent = `Volumen vs % cumplimiento: ${curName}`;
-    $('vcInsights').innerHTML = vcInsightsHtml(curName, cur.a);
-    vcRenderUmbralCard(curName, cur.a);
-    vcDrawChart(curName, cur.a);
-  }
-
-  (function wireVcGran(){
-    const c = $('vcGranToggle');
-    if (!c) return;
-    c.querySelectorAll('button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        c.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        vcGran = btn.dataset.g;
-        renderVolCumpl();
+    function buildAll(){
+      const closed = allRows.filter(r => r.fechaCierre != null && toDateSafe(r.fechaCierre));
+      const groups = new Map();
+      closed.forEach(r => {
+        const n = cfg.keyFn(r);
+        if (!n || n === '—') return;
+        if (!groups.has(n)) groups.set(n, []);
+        groups.get(n).push(r);
       });
-    });
-  })();
-
-  // ---------------- Análisis Volumen vs % Cumplimiento por servicio (copia del de especialistas, agrupada por Servicio) ----------------
-  let svSel = null, svGran = 'mes', svChart = null;
-  const SV_EQUIPO = '__equipo__';
-  const SV_MIN_PERIODOS = 4;
-  const SV_MIN_CAIDA = 5;
-  const SV_ORDEN = { sensible: 0, posible: 1, otros: 2, estable: 3, insuf: 4 };
-  const SV_LABEL = { sensible: 'Sensible al volumen', posible: 'Posible efecto del volumen', otros: 'Caída no ligada al volumen', estable: 'Estable sobre la meta', insuf: 'Datos insuficientes' };
-  const svFmt = (v, d = 1) => v == null ? '—' : Number(v).toLocaleString('es-PE', { maximumFractionDigits: d });
-
-  function svBuildPeriods(rows, gran){
-    const map = new Map();
-    rows.forEach(r => {
-      const d = toDateSafe(r.fechaCierre);
-      if (!d) return;
-      let key, label;
-      if (gran === 'sem'){ const w = anIsoWeek(d); key = w.key; label = w.label; }
-      else { key = monthKeyFromDate(d); label = monthLabelFromKey(key); }
-      let b = map.get(key);
-      if (!b){ b = { key, label, vol: 0, ok: 0 }; map.set(key, b); }
-      b.vol++; if (r.cumple) b.ok++;
-    });
-    return Array.from(map.values())
-      .sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
-      .map(b => ({ ...b, pct: b.ok / b.vol * 100 }));
-  }
-
-  function svWeighted(list){
-    const v = list.reduce((a, p) => a + p.vol, 0);
-    return v ? list.reduce((a, p) => a + p.ok, 0) / v * 100 : null;
-  }
-
-  // Umbral de volumen: mayor volumen (tickets por periodo) atendido sin que el cumplimiento bajara de la meta.
-  // Se recorren los niveles de volumen de menor a mayor (periodos con igual volumen se juntan y se pondera su %);
-  // el umbral es el último nivel que cumplió la meta antes del primer nivel que no la cumplió.
-  function svUmbral(periods){
-    const levels = new Map();
-    periods.forEach(p => {
-      let l = levels.get(p.vol);
-      if (!l){ l = { vol: p.vol, tot: 0, ok: 0, labels: [] }; levels.set(p.vol, l); }
-      l.tot += p.vol; l.ok += p.ok; l.labels.push(p.label);
-    });
-    const arr = Array.from(levels.values()).sort((a, b) => a.vol - b.vol);
-    let last = null;
-    for (const l of arr){
-      const pct = l.ok / l.tot * 100;
-      if (pct < META) return { val: last, sinTope: false, failVol: l.vol, failPct: pct, failLabels: l.labels };
-      last = l.vol;
-    }
-    return { val: last, sinTope: last != null, failVol: null, failPct: null, failLabels: [] };
-  }
-  function svUmbralTrend(a){
-    if (a.n < SV_MIN_PERIODOS || !a.um || !a.umPrev) return null;
-    const v = a.um.val == null ? 0 : a.um.val, pv = a.umPrev.val == null ? 0 : a.umPrev.val;
-    return { dir: v > pv ? 'up' : v < pv ? 'down' : 'flat', from: a.umPrev.val, to: a.um.val };
-  }
-  function svUmbralTxt(um, n){
-    if (!um || n < 3) return '—';
-    return um.val == null ? '—' : (um.sinTope ? '≥ ' : '') + um.val;
-  }
-  function svArrowHtml(tr){
-    if (!tr) return '';
-    const sym = tr.dir === 'up' ? '▲' : tr.dir === 'down' ? '▼' : '▬';
-    const fmt = v => v == null ? 'sin umbral' : v;
-    const t = tr.dir === 'flat' ? `Sin cambio (${fmt(tr.to)})` : `${tr.dir === 'up' ? 'Sube' : 'Baja'}: ${fmt(tr.from)} → ${fmt(tr.to)} (al sumar el último periodo)`;
-    return `<span class="vc-arrow ${tr.dir}" title="${t}">${sym}</span>`;
-  }
-
-  function svAnalyze(periods){
-    const n = periods.length;
-    const res = { n, periods, avgVol: null, maxVol: null, r: null, slope: null, cp: null, um: null, umPrev: null, bajo: 0, cruces: [], diag: 'insuf' };
-    if (!n) return res;
-    const vols = periods.map(p => p.vol), pcts = periods.map(p => p.pct);
-    res.avgVol = vols.reduce((a, b) => a + b, 0) / n;
-    res.maxVol = Math.max(...vols);
-    res.bajo = periods.filter(p => p.pct < META).length;
-    res.um = svUmbral(periods);
-    res.umPrev = n >= SV_MIN_PERIODOS ? svUmbral(periods.slice(0, -1)) : null;
-
-    const mv = res.avgVol, mp = pcts.reduce((a, b) => a + b, 0) / n;
-    let sxy = 0, sxx = 0, syy = 0;
-    for (let i = 0; i < n; i++){ const dx = vols[i] - mv, dy = pcts[i] - mp; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; }
-    if (n >= 3 && sxx > 0){
-      res.slope = sxy / sxx * 10;
-      if (syy > 0) res.r = sxy / Math.sqrt(sxx * syy);
+      const list = Array.from(groups.entries()).map(([name, rows]) => ({ name, a: vcAnalyze(vcBuildPeriods(rows, gran)) }));
+      list.sort((x, y) =>
+        (VC_ORDEN[x.a.diag] - VC_ORDEN[y.a.diag]) ||
+        ((y.a.cp ? y.a.cp.drop : 0) - (x.a.cp ? x.a.cp.drop : 0)) ||
+        x.name.localeCompare(y.name, 'es'));
+      const team = { name: VC_EQUIPO, label: cfg.teamLabel, a: vcAnalyze(vcBuildPeriods(closed, gran)) };
+      return { team, list };
     }
 
-    if (n >= SV_MIN_PERIODOS){
-      const sorted = periods.slice().sort((a, b) => a.vol - b.vol);
-      let best = null;
-      for (let k = 2; k <= n - 2; k++){
-        if (sorted[k - 1].vol === sorted[k].vol) continue;
-        const lo = sorted.slice(0, k), hi = sorted.slice(k);
-        const before = svWeighted(lo), after = svWeighted(hi);
-        const drop = before - after;
-        if (!best || drop > best.drop) best = { thr: sorted[k].vol, before, after, drop, nLo: k, nHi: n - k };
-      }
-      if (best && best.drop >= SV_MIN_CAIDA) res.cp = best;
+    function unit(){ return gran === 'sem' ? 'semana' : 'mes'; }
+
+    function rowHtml(item, isTeam){
+      const a = item.a, name = isTeam ? item.label : item.name;
+      const last = a.periods[a.periods.length - 1];
+      const overCp = last && a.cp && last.vol >= a.cp.thr;
+      const rTxt = a.r == null ? '—' : vcFmt(a.r, 2);
+      const slopeTxt = a.slope == null ? '—' : (a.slope > 0 ? '+' : '') + vcFmt(a.slope, 1);
+      return `<tr class="vc-row${isTeam ? ' vc-team' : ''}${item.name === sel ? ' sel' : ''}" data-name="${escapeHtml(item.name)}">
+        <td title="${escapeHtml(name)}">${escapeHtml(name)}</td>
+        <td class="r mono" title="${a.n} periodos">${vcFmt(a.avgVol)} / ${vcFmt(a.maxVol, 0)} <span class="vc-n">· ${a.n} per.</span></td>
+        <td class="r mono" style="${a.r != null && a.r <= -0.3 ? 'color:var(--danger); font-weight:600;' : ''}">${a.r == null && a.slope == null ? '—' : rTxt + ' · ' + slopeTxt}</td>
+        <td class="r mono">${a.cp ? '≥ ' + a.cp.thr + ' · ' + vcFmt(a.cp.before, 0) + '% → <span class="vc-warn">' + vcFmt(a.cp.after, 0) + '%</span>' : '—'}</td>
+        <td class="r mono" style="font-weight:700;">${vcUmbralTxt(a.um, a.n)}${vcArrowHtml(vcUmbralTrend(a))}</td>
+        <td class="r mono">${a.n >= 2 ? a.cruces.length : '—'}</td>
+        <td class="r mono${overCp ? ' vc-warn' : ''}" title="${last ? escapeHtml(last.label) : ''}">${last ? last.vol + ' tk · ' + vcFmt(last.pct, 0) + '%' + (overCp ? ' ⚠' : '') : '—'}</td>
+        <td><span class="vc-badge ${a.diag}">${VC_LABEL[a.diag]}</span></td>
+      </tr>`;
     }
 
-    if (n >= 2 && res.maxVol > 0){
-      const d = periods.map(p => p.vol / res.maxVol * 100 - p.pct);
-      for (let i = 0; i < n - 1; i++){
-        const a = d[i], b = d[i + 1];
-        if ((a < 0 && b > 0) || (a > 0 && b < 0)){
-          const t = a / (a - b);
-          res.cruces.push({
-            x: i + t,
-            y: periods[i].pct + (periods[i + 1].pct - periods[i].pct) * t,
-            dir: b > 0 ? 'up' : 'down',
-            from: periods[i].label, to: periods[i + 1].label
+    function renderUmbralCard(a){
+      const el = $(p + 'UmbralCard'), u = unit();
+      const um = a.um, tr = vcUmbralTrend(a);
+      let txt;
+      if (a.n < 3) txt = `Se necesitan al menos 3 periodos con tickets cerrados para estimar el umbral (hay ${a.n}).`;
+      else if (um.val == null) txt = `Ya incumplía la meta con su volumen más bajo (${um.failVol} tickets por ${u}, ${vcFmt(um.failPct, 0)}%): la caída no parece depender del volumen.`;
+      else if (um.sinTope) txt = `Cumplió la meta en todos los niveles de volumen observados, hasta ${um.val} tickets por ${u}. Aún no se detecta un tope: el umbral es al menos ${um.val}.`;
+      else txt = `Hasta ${um.val} tickets por ${u} mantuvo la meta de ${META}%. El primer nivel que la incumplió fue ${um.failVol} tickets (${um.failLabels.join(', ')}; ${vcFmt(um.failPct, 0)}%).`;
+      if (tr){
+        const f = v => v == null ? 'sin umbral' : v;
+        txt += tr.dir === 'flat' ? ' Tendencia: sin cambio al sumar el último periodo.' : ` Tendencia: ${tr.dir === 'up' ? 'sube' : 'baja'} (de ${f(tr.from)} a ${f(tr.to)} al sumar el último periodo).`;
+      } else if (a.n >= 3) txt += ` La flecha de tendencia requiere al menos ${VC_MIN_PERIODOS} periodos.`;
+      el.innerHTML = `<div><div class="vu-lbl">Umbral de volumen · tickets por ${u} sin bajar de la meta</div><div class="vu-num">${vcUmbralTxt(um, a.n)}${vcArrowHtml(tr)}</div></div><div class="vu-txt">${txt}</div>`;
+    }
+
+    function drawChart(a){
+      if (chart){ chart.destroy(); chart = null; }
+      if (typeof Chart === 'undefined' || !a.n) return;
+      const styles = getComputedStyle(document.documentElement);
+      const inkSoft = styles.getPropertyValue('--ink-soft').trim();
+      const inkColor = styles.getPropertyValue('--ink').trim();
+      const border = styles.getPropertyValue('--border').trim();
+      const labels = a.periods.map(p => p.label);
+      const maxV = Math.max(1, a.maxVol);
+      const datasets = [
+        { label: '% Cumplimiento', data: a.periods.map(p => Number(p.pct.toFixed(1))), yAxisID: 'y', borderColor: '#C1432D', backgroundColor: '#C1432D', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 1 },
+        { label: 'Volumen (tickets)', data: a.periods.map(p => p.vol), yAxisID: 'y1', borderColor: '#2C5F6F', backgroundColor: '#2C5F6F', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 2 },
+        { label: `Meta ${META}%`, data: a.periods.map(() => META), yAxisID: 'y', borderColor: '#1F8A5F', borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0, order: 3 }
+      ];
+      if (a.um && a.n >= 3 && a.um.val != null) datasets.push({ label: `Umbral (${a.um.sinTope ? '≥ ' : ''}${a.um.val})`, data: a.periods.map(() => a.um.val), yAxisID: 'y1', borderColor: '#7B4FA6', borderDash: [8, 4], borderWidth: 1.8, pointRadius: 0, order: 4 });
+      if (a.cp) datasets.push({ label: `Vol. de quiebre (${a.cp.thr})`, data: a.periods.map(() => a.cp.thr), yAxisID: 'y1', borderColor: '#B87A1E', borderDash: [2, 4], borderWidth: 1.5, pointRadius: 0, order: 4 });
+
+      const crossPlugin = {
+        id: 'vcCruces',
+        afterDatasetsDraw(chart){
+          const xs = chart.scales.x, ys = chart.scales.y, ctx = chart.ctx;
+          ctx.save();
+          a.cruces.forEach(c => {
+            const px = xs.getPixelForValue(c.x), py = ys.getPixelForValue(c.y);
+            ctx.beginPath();
+            ctx.moveTo(px, py - 8); ctx.lineTo(px + 8, py); ctx.lineTo(px, py + 8); ctx.lineTo(px - 8, py); ctx.closePath();
+            ctx.fillStyle = '#FFFFFF'; ctx.fill();
+            ctx.lineWidth = 2.5; ctx.strokeStyle = '#B87A1E'; ctx.stroke();
           });
+          ctx.restore();
         }
-      }
-    }
-
-    if (n < SV_MIN_PERIODOS) res.diag = 'insuf';
-    else if (res.bajo === 0) res.diag = 'estable';
-    else if (res.cp) res.diag = (res.r != null && res.r <= -0.3) ? 'sensible' : 'posible';
-    else res.diag = 'otros';
-    return res;
-  }
-
-  function svBuildAll(){
-    const closed = allRows.filter(r => r.fechaCierre != null && toDateSafe(r.fechaCierre));
-    const byEsp = new Map();
-    closed.forEach(r => {
-      const n = r.servicio;
-      if (!n || n === '—') return;
-      if (!byEsp.has(n)) byEsp.set(n, []);
-      byEsp.get(n).push(r);
-    });
-    const list = Array.from(byEsp.entries()).map(([name, rows]) => ({ name, a: svAnalyze(svBuildPeriods(rows, svGran)) }));
-    list.sort((x, y) =>
-      (SV_ORDEN[x.a.diag] - SV_ORDEN[y.a.diag]) ||
-      ((y.a.cp ? y.a.cp.drop : 0) - (x.a.cp ? x.a.cp.drop : 0)) ||
-      x.name.localeCompare(y.name, 'es'));
-    const team = { name: SV_EQUIPO, label: 'Todos los servicios', a: svAnalyze(svBuildPeriods(closed, svGran)) };
-    return { team, list };
-  }
-
-  function svUnit(){ return svGran === 'sem' ? 'semana' : 'mes'; }
-
-  function svRowHtml(item, isTeam){
-    const a = item.a, name = isTeam ? item.label : item.name;
-    const last = a.periods[a.periods.length - 1];
-    const overCp = last && a.cp && last.vol >= a.cp.thr;
-    const rTxt = a.r == null ? '—' : svFmt(a.r, 2);
-    const slopeTxt = a.slope == null ? '—' : (a.slope > 0 ? '+' : '') + svFmt(a.slope, 1);
-    return `<tr class="vc-row${isTeam ? ' vc-team' : ''}${item.name === svSel ? ' sel' : ''}" data-name="${escapeHtml(item.name)}">
-      <td title="${escapeHtml(name)}">${escapeHtml(name)}</td>
-      <td class="r mono">${a.n}</td>
-      <td class="r mono">${svFmt(a.avgVol)}</td>
-      <td class="r mono">${svFmt(a.maxVol, 0)}</td>
-      <td class="r mono" style="${a.r != null && a.r <= -0.3 ? 'color:var(--danger); font-weight:600;' : ''}">${rTxt}</td>
-      <td class="r mono">${slopeTxt}</td>
-      <td class="r mono">${a.cp ? '≥ ' + a.cp.thr : '—'}</td>
-      <td class="r mono">${a.cp ? svFmt(a.cp.before, 0) + '% → <span class="vc-warn">' + svFmt(a.cp.after, 0) + '%</span>' : '—'}</td>
-      <td class="r mono" style="font-weight:700;">${svUmbralTxt(a.um, a.n)}${svArrowHtml(svUmbralTrend(a))}</td>
-      <td class="r mono">${a.n >= 2 ? a.cruces.length : '—'}</td>
-      <td class="r mono${overCp ? ' vc-warn' : ''}" title="${last ? escapeHtml(last.label) : ''}">${last ? last.vol + ' tk · ' + svFmt(last.pct, 0) + '%' + (overCp ? ' ⚠' : '') : '—'}</td>
-      <td><span class="vc-badge ${a.diag}">${SV_LABEL[a.diag]}</span></td>
-    </tr>`;
-  }
-
-  function svInsightsHtml(name, a){
-    const u = svUnit(), items = [];
-    if (a.diag === 'insuf'){
-      items.push(`Se necesitan al menos ${SV_MIN_PERIODOS} periodos con tickets cerrados para detectar un punto de quiebre (hay ${a.n}).`);
-    } else {
-      if (a.cp){
-        items.push(`<b>Quiebre:</b> desde ${a.cp.thr} tickets por ${u} el cumplimiento promedio baja de ${svFmt(a.cp.before)}% a ${svFmt(a.cp.after)}% (−${svFmt(a.cp.drop)} pts). ${a.cp.nHi} de ${a.n} periodos estuvieron en ese rango.`);
-      } else if (a.bajo === 0){
-        items.push(`Se mantuvo sobre la meta de ${META}% en los ${a.n} periodos, incluso con su mayor volumen (${a.maxVol} tickets).`);
-      } else {
-        items.push(`Estuvo bajo la meta en ${a.bajo} de ${a.n} periodos, pero la caída no se concentra en los de mayor volumen (diferencia menor a ${SV_MIN_CAIDA} pts).`);
-      }
-      if (a.r != null){
-        const dir = a.r <= -0.3 ? 'a más volumen, menos cumplimiento' : (a.r >= 0.3 ? 'a más volumen, más cumplimiento' : 'sin relación clara con el volumen');
-        items.push(`<b>Correlación:</b> r = ${svFmt(a.r, 2)} (${dir}). Por cada +10 tickets el cumplimiento cambia ≈ ${a.slope > 0 ? '+' : ''}${svFmt(a.slope, 1)} pts.`);
-      }
-      const worst = a.periods.reduce((w, p) => (!w || p.pct < w.pct) ? p : w, null);
-      const busiest = a.periods.reduce((w, p) => (!w || p.vol > w.vol) ? p : w, null);
-      if (worst) items.push(`<b>Peor periodo:</b> ${worst.label} con ${svFmt(worst.pct, 0)}% (${worst.vol} tickets). <b>Mayor carga:</b> ${busiest.label} con ${busiest.vol} tickets y ${svFmt(busiest.pct, 0)}%.`);
-    }
-    if (a.n >= 2){
-      items.push(a.cruces.length
-        ? `<b>Cruces (${a.cruces.length}):</b> ` + a.cruces.map(c => `${c.from} → ${c.to} (${c.dir === 'up' ? 'el volumen sobrepasa al cumplimiento' : 'el cumplimiento vuelve a superar al volumen'})`).join('; ') + '.'
-        : '<b>Cruces:</b> las líneas de volumen y cumplimiento no se cruzan en este rango.');
-    }
-    return items.map(t => `<li>${t}</li>`).join('');
-  }
-
-  function svRenderUmbralCard(name, a){
-    const el = $('svUmbralCard'), u = svUnit();
-    const um = a.um, tr = svUmbralTrend(a);
-    let txt;
-    if (a.n < 3) txt = `Se necesitan al menos 3 periodos con tickets cerrados para estimar el umbral (hay ${a.n}).`;
-    else if (um.val == null) txt = `Ya incumplía la meta con su volumen más bajo (${um.failVol} tickets por ${u}, ${svFmt(um.failPct, 0)}%): la caída no parece depender del volumen.`;
-    else if (um.sinTope) txt = `Cumplió la meta en todos los niveles de volumen observados, hasta ${um.val} tickets por ${u}. Aún no se detecta un tope: el umbral es al menos ${um.val}.`;
-    else txt = `Hasta ${um.val} tickets por ${u} mantuvo la meta de ${META}%. El primer nivel que la incumplió fue ${um.failVol} tickets (${um.failLabels.join(', ')}; ${svFmt(um.failPct, 0)}%).`;
-    if (tr){
-      const f = v => v == null ? 'sin umbral' : v;
-      txt += tr.dir === 'flat' ? ' Tendencia: sin cambio al sumar el último periodo.' : ` Tendencia: ${tr.dir === 'up' ? 'sube' : 'baja'} (de ${f(tr.from)} a ${f(tr.to)} al sumar el último periodo).`;
-    } else if (a.n >= 3) txt += ` La flecha de tendencia requiere al menos ${SV_MIN_PERIODOS} periodos.`;
-    el.innerHTML = `<div><div class="vu-lbl">Umbral de volumen · tickets por ${u} sin bajar de la meta</div><div class="vu-num">${svUmbralTxt(um, a.n)}${svArrowHtml(tr)}</div></div><div class="vu-txt">${txt}</div>`;
-  }
-
-  function svDrawChart(name, a){
-    if (svChart){ svChart.destroy(); svChart = null; }
-    if (typeof Chart === 'undefined' || !a.n) return;
-    const styles = getComputedStyle(document.documentElement);
-    const inkSoft = styles.getPropertyValue('--ink-soft').trim();
-    const inkColor = styles.getPropertyValue('--ink').trim();
-    const border = styles.getPropertyValue('--border').trim();
-    const labels = a.periods.map(p => p.label);
-    const maxV = Math.max(1, a.maxVol);
-    const datasets = [
-      { label: '% Cumplimiento', data: a.periods.map(p => Number(p.pct.toFixed(1))), yAxisID: 'y', borderColor: '#C1432D', backgroundColor: '#C1432D', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 1 },
-      { label: 'Volumen (tickets)', data: a.periods.map(p => p.vol), yAxisID: 'y1', borderColor: '#2C5F6F', backgroundColor: '#2C5F6F', tension: 0.25, pointRadius: 4, borderWidth: 3, order: 2 },
-      { label: `Meta ${META}%`, data: a.periods.map(() => META), yAxisID: 'y', borderColor: '#1F8A5F', borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0, order: 3 }
-    ];
-    if (a.um && a.n >= 3 && a.um.val != null) datasets.push({ label: `Umbral (${a.um.sinTope ? '≥ ' : ''}${a.um.val})`, data: a.periods.map(() => a.um.val), yAxisID: 'y1', borderColor: '#7B4FA6', borderDash: [8, 4], borderWidth: 1.8, pointRadius: 0, order: 4 });
-    if (a.cp) datasets.push({ label: `Vol. de quiebre (${a.cp.thr})`, data: a.periods.map(() => a.cp.thr), yAxisID: 'y1', borderColor: '#B87A1E', borderDash: [2, 4], borderWidth: 1.5, pointRadius: 0, order: 4 });
-
-    const crossPlugin = {
-      id: 'svCruces',
-      afterDatasetsDraw(chart){
-        const xs = chart.scales.x, ys = chart.scales.y, ctx = chart.ctx;
-        ctx.save();
-        a.cruces.forEach(c => {
-          const px = xs.getPixelForValue(c.x), py = ys.getPixelForValue(c.y);
-          ctx.beginPath();
-          ctx.moveTo(px, py - 8); ctx.lineTo(px + 8, py); ctx.lineTo(px, py + 8); ctx.lineTo(px - 8, py); ctx.closePath();
-          ctx.fillStyle = '#FFFFFF'; ctx.fill();
-          ctx.lineWidth = 2.5; ctx.strokeStyle = '#B87A1E'; ctx.stroke();
-        });
-        ctx.restore();
-      }
-    };
-    const tick = { color: inkSoft, font: { family: "'IBM Plex Mono', monospace", size: 11 } };
-    svChart = new Chart($('svCanvas').getContext('2d'), {
-      type: 'line',
-      data: { labels, datasets },
-      plugins: [crossPlugin],
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        layout: { padding: { top: 12, right: 8 } },
-        scales: {
-          y: { min: 0, max: 100, position: 'left', grid: { color: border }, ticks: { ...tick, callback: v => v + '%' }, title: { display: true, text: '% Cumplimiento', color: inkSoft, font: { size: 11 } } },
-          y1: { min: 0, max: maxV, position: 'right', grid: { drawOnChartArea: false }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Volumen (tickets)', color: inkSoft, font: { size: 11 } } },
-          x: { grid: { display: false }, ticks: tick }
-        },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 }, boxWidth: 10, boxHeight: 10 } },
-          tooltip: {
-            backgroundColor: '#16202B', padding: 10,
-            callbacks: {
-              label: ctx => {
-                if (ctx.dataset.yAxisID === 'y1') return `${ctx.dataset.label}: ${ctx.formattedValue}`;
-                return `${ctx.dataset.label}: ${ctx.formattedValue}%`;
+      };
+      const tick = { color: inkSoft, font: { family: "'IBM Plex Mono', monospace", size: 11 } };
+      chart = new Chart($(p + 'Canvas').getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets },
+        plugins: [crossPlugin],
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          layout: { padding: { top: 12, right: 8 } },
+          scales: {
+            y: { min: 0, max: 100, position: 'left', grid: { color: border }, ticks: { ...tick, callback: v => v + '%' }, title: { display: true, text: '% Cumplimiento', color: inkSoft, font: { size: 11 } } },
+            y1: { min: 0, max: maxV, position: 'right', grid: { drawOnChartArea: false }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Volumen (tickets)', color: inkSoft, font: { size: 11 } } },
+            x: { grid: { display: false }, ticks: tick }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 }, boxWidth: 10, boxHeight: 10 } },
+            tooltip: {
+              backgroundColor: '#16202B', padding: 10,
+              callbacks: {
+                label: ctx => {
+                  if (ctx.dataset.yAxisID === 'y1') return `${ctx.dataset.label}: ${ctx.formattedValue}`;
+                  return `${ctx.dataset.label}: ${ctx.formattedValue}%`;
+                }
               }
             }
           }
         }
-      }
-    });
-  }
-
-  function renderSvVolCumpl(){
-    const sec = $('svSection');
-    if (!sec) return;
-    const { team, list } = svBuildAll();
-    const hasData = team.a.n > 0;
-    $('svEmpty').classList.toggle('hidden', hasData);
-    $('svTable').closest('.table-scroll').classList.toggle('hidden', !hasData);
-    $('svDetail').classList.toggle('hidden', !hasData);
-    $('svSub').textContent = hasData ? `· ${list.length} servicio${list.length === 1 ? '' : 's'} · análisis ${svGran === 'sem' ? 'semanal' : 'mensual'}` : '';
-    if (!hasData){ $('svBody').innerHTML = ''; if (svChart){ svChart.destroy(); svChart = null; } return; }
-
-    const all = [{ ...team }, ...list];
-    if (!svSel || !all.some(x => x.name === svSel)) svSel = SV_EQUIPO;
-
-    $('svBody').innerHTML = svRowHtml(team, true) + list.map(x => svRowHtml(x, false)).join('');
-    $('svBody').querySelectorAll('.vc-row').forEach(tr => {
-      tr.addEventListener('click', () => { svSel = tr.dataset.name; renderSvVolCumpl(); });
-    });
-
-    const cur = all.find(x => x.name === svSel);
-    const curName = cur.name === SV_EQUIPO ? cur.label : cur.name;
-    $('svDetailTitle').textContent = `Volumen vs % cumplimiento: ${curName}`;
-    $('svInsights').innerHTML = svInsightsHtml(curName, cur.a);
-    svRenderUmbralCard(curName, cur.a);
-    svDrawChart(curName, cur.a);
-  }
-
-  (function wireVcGran(){
-    const c = $('svGranToggle');
-    if (!c) return;
-    c.querySelectorAll('button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        c.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        svGran = btn.dataset.g;
-        renderSvVolCumpl();
       });
-    });
-  })();
+    }
 
+    function render(){
+      const sec = $(p + 'Section');
+      if (!sec) return;
+      const { team, list } = buildAll();
+      const hasData = team.a.n > 0;
+      $(p + 'Empty').classList.toggle('hidden', hasData);
+      $(p + 'Table').closest('.table-scroll').classList.toggle('hidden', !hasData);
+      $(p + 'Detail').classList.toggle('hidden', !hasData);
+      $(p + 'Sub').textContent = hasData ? `· ${list.length} ${cfg.noun}${list.length === 1 ? '' : 's'} · análisis ${gran === 'sem' ? 'semanal' : 'mensual'}` : '';
+      if (!hasData){ $(p + 'Body').innerHTML = ''; if (chart){ chart.destroy(); chart = null; } return; }
+
+      const all = [{ ...team }, ...list];
+      if (!sel || !all.some(x => x.name === sel)) sel = cfg.preselect(list);
+
+      $(p + 'Body').innerHTML = rowHtml(team, true) + list.map(x => rowHtml(x, false)).join('');
+      $(p + 'Body').querySelectorAll('.vc-row').forEach(tr => {
+        tr.addEventListener('click', () => { sel = tr.dataset.name; render(); });
+      });
+
+      const cur = all.find(x => x.name === sel);
+      const curName = cur.name === VC_EQUIPO ? cur.label : cur.name;
+      $(p + 'DetailTitle').textContent = `Volumen vs % cumplimiento: ${curName}`;
+      $(p + 'Insights').innerHTML = vcInsightsHtml(curName, cur.a, unit());
+      renderUmbralCard(cur.a);
+      drawChart(cur.a);
+    }
+
+    const toggle = $(p + 'GranToggle');
+    if (toggle){
+      toggle.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          toggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          gran = btn.dataset.g;
+          render();
+        });
+      });
+    }
+    return { render };
+  }
+
+  const vcPanel = createVolCumplPanel({
+    prefix: 'vc', keyFn: r => r.especialista, noun: 'especialista', teamLabel: 'Equipo TI (todos)',
+    preselect: list => (espSel && list.some(x => x.name === espSel)) ? espSel : VC_EQUIPO
+  });
+  const svPanel = createVolCumplPanel({
+    prefix: 'sv', keyFn: r => r.servicio, noun: 'servicio', teamLabel: 'Todos los servicios',
+    preselect: () => VC_EQUIPO
+  });
+  function renderVolCumpl(){ vcPanel.render(); }
+  function renderSvVolCumpl(){ svPanel.render(); }
 
   // ---------------- Pestaña "Análisis de servicios" (análoga a "Análisis de especialistas") ----------------
   let srvSel = null, srvHistOn = false;
@@ -3627,14 +3346,19 @@
   // sin distinguir mayúsculas, tildes ni espacios de más. Los tickets sin Autor Ticket no cuentan.
   let autorOrigenChart = null;
   const aoNorm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  // Nombres (normalizados) de quienes figuran como especialista: son "Equipo TI" cuando aparecen como autor de un ticket.
+  function equipoSet(){
+    const eq = new Set();
+    allRowsRaw.forEach(r => { if (r.especialista && r.especialista !== '—') eq.add(aoNorm(r.especialista)); });
+    return eq;
+  }
   function renderAutorOrigen(){
     const card = $('autorOrigenCard'); if (!card) return;
     if (autorOrigenChart){ autorOrigenChart.destroy(); autorOrigenChart = null; }
     const bars = $('autorOrigenBars'), sub = $('autorOrigenSub'), note = $('autorOrigenNote'), cbox = $('autorOrigenChartBox');
     cbox.classList.add('hidden'); note.textContent = ''; sub.textContent = '';
 
-    const equipo = new Set();
-    allRowsRaw.forEach(r => { if (r.especialista && r.especialista !== '—') equipo.add(aoNorm(r.especialista)); });
+    const equipo = equipoSet();
     const filas = allRows.filter(r => r.autorTicket && r.autorTicket !== '—');
     if (!filas.length){
       bars.innerHTML = `<div class="empty-detail">${allRows.length
@@ -3729,7 +3453,7 @@
     }));
   }
 
-  function renderSimpleRankingTable(rows, sortState, tableId, bodyId, subId, emptyId, unitLabel){
+  function renderSimpleRankingTable(rows, sortState, tableId, bodyId, subId, emptyId, unitLabel, nameHtml){
     const { key, dir } = sortState;
     rows = rows.slice().sort((a, b) => {
       let av = a[key], bv = b[key];
@@ -3740,13 +3464,13 @@
       if (av > bv) return dir === 'asc' ? 1 : -1;
       return 0;
     });
-    $(subId).textContent = `${rows.length} ${unitLabel}${rows.length === 1 ? '' : 's'}`;
+    $(subId).textContent = `${rows.length} ${unitLabel}${rows.length === 1 ? '' : (/[rlnz]$/.test(unitLabel) ? 'es' : 's')}`;
     $(tableId).classList.toggle('hidden', rows.length === 0);
     $(emptyId).classList.toggle('hidden', rows.length !== 0);
     updateSortArrow('#' + tableId, key, dir);
     $(bodyId).innerHTML = rows.map(r => `
       <tr>
-        <td>${escapeHtml(r.name)}</td>
+        <td>${nameHtml ? nameHtml(r.name) : escapeHtml(r.name)}</td>
         <td class="mono">${r.ticketsTotal}</td>
         <td>${r.pct == null ? '—' : `<span class="pct-badge ${r.pct >= META ? 'ok' : ''}">${r.pct.toFixed(1)}%</span>`}</td>
         <td class="mono">${r.avgDias == null ? '—' : formatDuration(Math.round(r.avgDias * 1440))}</td>
@@ -3757,10 +3481,19 @@
   let rankingClienteSortState = { key: 'ticketsTotal', dir: 'desc' };
   let rankingAutorSortState = { key: 'ticketsTotal', dir: 'desc' };
 
+  // Volumen por Prioridad / Impacto / Urgencia (pestaña "Tickets Tareas & KPI"): se dibuja siempre.
+  function renderVolumenTickets(){
+    const hasData = allRows.length > 0;
+    $('volumenSection').classList.toggle('hidden', !hasData);
+    if (!hasData) return;
+    try { renderCountBreakdown('byPrioridad', groupCount(allRows.filter(r => r.prioridad != null), r => r.prioridad)); } catch(err){ console.error('Error en volumen por Prioridad:', err); }
+    try { renderImpactoUrgencia(); } catch(err){ console.error('Error en matriz Impacto × Urgencia:', err); }
+  }
+
+  // Rankings de Cliente final y Autor (pestaña "Análisis de usuarios").
   function renderExtraRankings(){
     const hasData = allRows.length > 0;
     $('extraRankingSection').classList.toggle('hidden', !hasData);
-    $('volumenSection').classList.toggle('hidden', !hasData);
     if (!hasData) return;
 
     renderSimpleRankingTable(
@@ -3769,16 +3502,29 @@
     );
     renderSimpleRankingTable(
       buildSimpleTicketRanking(r => r.autorTicket),
-      rankingAutorSortState, 'rankingAutorTable', 'rankingAutorBody', 'rankingAutorSub', 'emptyRankingAutor', 'autor'
+      rankingAutorSortState, 'rankingAutorTable', 'rankingAutorBody', 'rankingAutorSub', 'emptyRankingAutor', 'autor',
+      (() => { const eq = equipoSet(); return n => escapeHtml(n) + (eq.has(aoNorm(n)) ? ' <span class="team-tag">Equipo TI</span>' : ''); })()
     );
-
-    try { renderCountBreakdown('byPrioridad', groupCount(allRows.filter(r => r.prioridad != null), r => r.prioridad)); } catch(err){ console.error('Error en volumen por Prioridad:', err); }
-    try { renderCountBreakdown('byImpacto', groupCount(allRows.filter(r => r.impacto != null), r => r.impacto)); } catch(err){ console.error('Error en volumen por Impacto:', err); }
-    try { renderCountBreakdown('byUrgencia', groupCount(allRows.filter(r => r.urgencia != null), r => r.urgencia)); } catch(err){ console.error('Error en volumen por Urgencia:', err); }
   }
 
   wireSortableHeaders('#rankingClienteTable thead th', rankingClienteSortState, renderExtraRankings, key => key === 'name' ? 'asc' : 'desc');
   wireSortableHeaders('#rankingAutorTable thead th', rankingAutorSortState, renderExtraRankings, key => key === 'name' ? 'asc' : 'desc');
+
+  // Selector del ranking de usuarios: ambas tablas se dibujan siempre; el selector solo muestra una.
+  (function wireRankingMode(){
+    const c = $('rankingModeToggle');
+    if (!c) return;
+    c.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const autor = btn.dataset.mode === 'autor';
+        c.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+        $('rankingClienteWrap').classList.toggle('hidden', autor);
+        $('rankingAutorWrap').classList.toggle('hidden', !autor);
+        $('rankingClienteSub').classList.toggle('hidden', autor);
+        $('rankingAutorSub').classList.toggle('hidden', !autor);
+      });
+    });
+  })();
 
   // ---------------- Tareas ----------------
 
@@ -3973,6 +3719,34 @@
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
+  }
+
+  // Matriz Impacto × Urgencia: reemplaza las tarjetas por Impacto y por Urgencia (los totales por fila/columna
+  // dan esas mismas cifras) y muestra además cómo se combinan.
+  function renderImpactoUrgencia(){
+    const el = $('impUrgMatrix');
+    const rows = allRows.filter(r => r.impacto != null && r.urgencia != null);
+    if (!rows.length){ el.innerHTML = '<tr><td>Sin datos</td></tr>'; return; }
+    const rank = n => /cr[ií]tic|muy\s*alt/i.test(n) ? 0 : /alt/i.test(n) ? 1 : /medi/i.test(n) ? 2 : /baj/i.test(n) ? 3 : n === '—' ? 10 : 5;
+    const cnt = new Map(), rt = {}, ct = {};
+    rows.forEach(r => {
+      const i = r.impacto || '—', u = r.urgencia || '—', k = i + '\u0001' + u;
+      cnt.set(k, (cnt.get(k) || 0) + 1);
+      rt[i] = (rt[i] || 0) + 1; ct[u] = (ct[u] || 0) + 1;
+    });
+    const order = t => Object.keys(t).sort((a, b) => (rank(a) - rank(b)) || (t[b] - t[a]) || a.localeCompare(b, 'es')).slice(0, 8);
+    const imps = order(rt), urgs = order(ct);
+    const max = Math.max(...cnt.values(), 1);
+    const total = rows.length;
+    el.innerHTML = '<thead><tr><th class="rowh">Impacto ↓ / Urgencia →</th>' +
+      urgs.map(u => `<th title="${escapeHtml(u)}">${escapeHtml(u)}</th>`).join('') + '<th class="tot">Total</th></tr></thead><tbody>' +
+      imps.map(i => '<tr><th class="rowh" title="' + escapeHtml(i) + '">' + escapeHtml(i) + '</th>' +
+        urgs.map(u => {
+          const c = cnt.get(i + '\u0001' + u) || 0;
+          const bg = c ? ` style="background:color-mix(in srgb, var(--accent) ${Math.round(8 + c / max * 40)}%, transparent)"` : '';
+          return `<td class="cell"${bg}>${c || '·'}</td>`;
+        }).join('') + `<td class="tot">${rt[i]}</td></tr>`).join('') +
+      '</tbody><tfoot><tr><th class="rowh tot">Total</th>' + urgs.map(u => `<td class="tot">${ct[u]}</td>`).join('') + `<td class="tot">${total}</td></tr></tfoot>`;
   }
 
   function renderCountBreakdown(elId, data){
@@ -4265,13 +4039,12 @@
     $('statCumplen').textContent = cumplenCount;
     $('statVencidos').textContent = noCumplen;
     $('statCancelados').textContent = countCancelled();
-    $('statBrecha').textContent = meetsGoal ? '0' : (META - pct).toFixed(1);
 
     $('bigPct').textContent = pct.toFixed(1) + '%';
     $('bigPct').className = 'big-num ' + (meetsGoal ? 'ok' : 'bad');
-    $('statusPill').textContent = meetsGoal ? 'Cumple la meta' : 'Bajo la meta';
+    $('statusPill').textContent = meetsGoal ? 'Cumple la meta' : `Bajo la meta · −${(META - pct).toFixed(1)} pts`;
     $('statusPill').className = 'status-pill ' + (meetsGoal ? 'ok' : 'bad');
-    $('metaLine').textContent = `${cumplenCount} de ${total} tickets evaluados cumplieron el SLA · meta 95%`;
+    $('metaLine').textContent = `Meta de cumplimiento: ${META}%`;
 
     const gauge = $('gaugeFill');
     gauge.style.width = Math.min(pct, 100) + '%';
@@ -4307,7 +4080,7 @@
       setBig('metaBig', '—'); $('metaText').textContent = 'Sin tickets evaluados en el rango seleccionado.';
     } else {
       const permitidos = Math.floor(N * (1 - m) + eps);
-      const resumen = `Vencidos: ${V} de ${N} evaluados · máximo permitido para el ${META}%: ${permitidos}.`;
+      const resumen = `Vencidos hoy: ${V} · máximo permitido para el ${META}%: ${permitidos}.`;
       if (pct >= META){
         const margen = Math.floor(C - m * N + eps);
         setBig('metaBig', `Margen: ${margen}`, 'ok');
@@ -4471,23 +4244,27 @@
       // Un canvas creado con tamaño 0 puede quedar en blanco, así que al entrar a
       // "Dashboard" se vuelven a dibujar con el tamaño real ya visible. Los rankings/tablas
       // no lo necesitan porque no dependen del tamaño del contenedor al crearse.
+      const wasStale = staleTabs.delete(page);   // ¿cambiaron los filtros mientras estaba en otra pestaña?
+      let rendered = false;
       if (page === 'general' && allRowsRaw.length){
         renderTeamTrend(allRows);
       }
       if (page === 'dashboardExtra' && allRowsRaw.length){
         if (espHistOn) trendEspecialista.redraw();
         renderEspecialistaCard();
+        rendered = true;
       }
       // "Tendencias y mejoras": sus gráficos y tablas necesitan el tamaño real del contenedor,
       // así que se vuelven a dibujar cada vez que se entra a la pestaña.
       if (page === 'tendencias'){
         if (typeof anRenderAll === 'function') anRenderAll();
-        if (allRowsRaw.length && typeof renderTendencias === 'function') renderTendencias();
       }
       // "Análisis de servicios": se vuelve a dibujar con el contenedor ya visible.
       if (page === 'servicios'){
-        try { if (allRowsRaw.length) renderTendencias(); renderServicios(); if (srvHistOn) trendServicio.redraw(); } catch(err){ console.error('Error en análisis de servicios:', err); }
+        try { if (allRowsRaw.length) renderTendencias(); renderServicios(); if (srvHistOn) trendServicio.redraw(); rendered = true; } catch(err){ console.error('Error en análisis de servicios:', err); }
       }
+      // Si esta pestaña quedó pendiente y lo anterior no la dibujó, se dibuja ahora.
+      if (wasStale && !rendered && TAB_RENDERERS[page]) TAB_RENDERERS[page]();
       // Igual para la gráfica de brecha del historial de sustentos (Registro de vencidos).
       if (page === 'registro' && typeof renderHistorial === 'function') renderHistorial();
     });
@@ -4908,7 +4685,6 @@
 
   let anWeekMode = 'actual';
   let anSelectedWeekKey = null;
-  let anTrendWindow = 12;
   let anRecurCache = null;         // se recalcula cuando cambian los tickets
 
   function anIsoWeek(d){
@@ -4998,7 +4774,6 @@
     const focused = anResolveFocusedInfo(buckets);
     const weekRows = anGetWeekRows(buckets, focused.key);
     anPopulateWeekSelect(buckets, focused.key);
-    anRenderTrendChart(buckets, focused);
     anRenderRecurring(focused, weekRows);
   }
 
@@ -5013,67 +4788,6 @@
     if (keys.includes(anSelectedWeekKey)) sel.value = anSelectedWeekKey;
     else if (keys.includes(prevValue)) sel.value = prevValue;
     sel.classList.toggle('hidden', anWeekMode !== 'select');
-  }
-
-  function anWeekMetrics(rows){
-    const total = rows.length;
-    const cumplen = rows.filter(r => r.cumple).length;
-    const vencidos = total - cumplen;
-    const pct = total ? (cumplen / total * 100) : null;
-    const abiertos = rows.filter(r => !r.fechaCierre).length;
-    const vencidosAbiertos = rows.filter(r => !r.cumple && !r.fechaCierre).length;
-    const cerrados = rows.filter(r => r.fechaCierre && r.fechaRegistro);
-    const resolMedDias = median(cerrados.map(r => (r.fechaCierre - r.fechaRegistro) / 86400000));
-    const vencidosArr = rows.filter(r => !r.cumple && r.estado === 'Cerrado'); // vencido "confirmado": igual criterio que la tabla Vencidos del resto de la app
-    const excesoProm = vencidosArr.length ? (vencidosArr.reduce((s,r) => s + (r.pct - 100), 0) / vencidosArr.length) : null;
-    let mayorExceso = null;
-    vencidosArr.forEach(r => { const e = r.pct - 100; if (!mayorExceso || e > mayorExceso.exceso) mayorExceso = { exceso: e, ticket: r.ticket }; });
-    return { total, cumplen, vencidos, pct, abiertos, vencidosAbiertos, resolMedDias, excesoProm, mayorExceso };
-  }
-
-  // ---------------- Evolución semanal ----------------
-  let anTrendChartInstance = null;
-  function anRenderTrendChart(buckets, focused){
-    const n = anTrendWindow;
-    const weeks = [];
-    for (let i = n - 1; i >= 0; i--) weeks.push(anStepWeek(focused, -i));
-    const labels = weeks.map(w => w.label);
-    const pctData = weeks.map(w => { const m = anWeekMetrics(anGetWeekRows(buckets, w.key)); return m.pct; });
-    const evalData = weeks.map(w => anGetWeekRows(buckets, w.key).length);
-    const vencData = weeks.map(w => anGetWeekRows(buckets, w.key).filter(r => !r.cumple && r.estado === 'Cerrado').length);
-
-    const canvas = $('anTrendChart');
-    if (!canvas) return;
-    if (anTrendChartInstance) anTrendChartInstance.destroy();
-    anTrendChartInstance = new Chart(canvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: '% cumplimiento SLA', data: pctData, borderColor: '#2C5F6F', backgroundColor: 'rgba(44,95,111,.12)', fill: true, tension: .25, spanGaps: true, yAxisID: 'y' },
-          { label: `Meta ${META}%`, data: labels.map(() => META), borderColor: '#D9433D', borderDash: [5,5], pointRadius: 0, borderWidth: 1.3, yAxisID: 'y' },
-          { label: 'Vencidos', data: vencData, type: 'bar', backgroundColor: 'rgba(217,67,61,.35)', yAxisID: 'y1' }
-        ]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-          y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, position: 'left' },
-          y1: { min: 0, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Tickets vencidos' } }
-        },
-        plugins: {
-          tooltip: {
-            callbacks: {
-              afterBody: (items) => {
-                const i = items[0].dataIndex;
-                return [`Evaluados: ${evalData[i]}`, `Vencidos: ${vencData[i]}`];
-              }
-            }
-          }
-        }
-      }
-    });
   }
 
   // ---------------- Problemas recurrentes ----------------
@@ -5169,7 +4883,6 @@
   // ---------------- Wiring ----------------
   $('anWeekMode').addEventListener('change', (e) => { anWeekMode = e.target.value; anRecurCache = null; anRenderAll(); });
   $('anWeekSelect').addEventListener('change', (e) => { anSelectedWeekKey = e.target.value; anRecurCache = null; anRenderAll(); });
-  $('anTrendWindow').addEventListener('change', (e) => { anTrendWindow = Number(e.target.value); anRenderAll(); });
 
   // ---------------- Registro de tickets vencidos ----------------
   // Lista los tickets de la pestaña "Vencidos" del Resumen (cerrados con >100% de progreso,
