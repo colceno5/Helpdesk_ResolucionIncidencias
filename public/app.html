@@ -434,6 +434,29 @@
   .vc-help{ font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 12px; }
   .vc-table th.r, .vc-table td.r{ text-align:right; }
   .vc-table td{ font-size:13px; white-space:nowrap; }
+  .rk-chips{ display:flex; flex-wrap:wrap; gap:10px; margin:6px 0 12px; }
+  .rk-chip{ flex:1 1 150px; border:1px solid var(--border); border-radius:var(--radius-m); padding:10px 12px; background:var(--surface); }
+  .rk-chip .n{ font-family:'IBM Plex Mono', monospace; font-size:24px; font-weight:700; line-height:1.1; }
+  .rk-chip .l{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
+  .rk-chip.venc{ background:var(--danger-bg); border-color:var(--danger); } .rk-chip.venc .n{ color:var(--danger); }
+  .rk-chip.crit{ background:var(--warning-bg); border-color:var(--warning); } .rk-chip.crit .n{ color:var(--warning); }
+  .rk-conc{ font-size:12.5px; color:var(--ink-soft); margin:0 0 10px; }
+  .rk-conc b{ color:var(--ink); }
+  .rk-pct{ display:inline-block; font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:12px; padding:2px 8px; border-radius:100px; background:var(--warning-bg); color:var(--warning); }
+  .rk-pct.venc{ background:var(--danger-bg); color:var(--danger); }
+  .pareto-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .pareto-table th{ text-align:left; font-size:12px; color:var(--ink-soft); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--border); }
+  .pareto-table td{ padding:6px 8px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .pareto-table th.r, .pareto-table td.r{ text-align:right; }
+  .pareto-table td.nm{ max-width:240px; overflow:hidden; text-overflow:ellipsis; }
+  .pareto-table tr.vital td.nm{ font-weight:600; }
+  .pareto-table tr.rest td{ color:var(--ink-faint); }
+  .pareto-bar{ display:inline-block; vertical-align:middle; height:10px; border-radius:3px; background:var(--danger); margin-right:8px; min-width:2px; }
+  .flow-in, .flow-out{ display:inline-block; vertical-align:middle; height:10px; border-radius:3px; margin-right:8px; min-width:2px; }
+  .flow-in{ background:var(--accent); } .flow-out{ background:var(--success); }
+  .flow-up{ color:var(--danger); font-weight:600; } .flow-down{ color:var(--success); font-weight:600; }
+  .flow-now td{ color:var(--ink-faint); font-style:italic; }
+  .pareto-note{ font-size:12.5px; color:var(--ink-soft); margin:10px 0 0; }
   .iu-matrix{ width:100%; border-collapse:collapse; font-size:13px; }
   .iu-matrix th, .iu-matrix td{ padding:7px 9px; text-align:center; border:1px solid var(--border); }
   .iu-matrix th{ font-weight:600; color:var(--ink-soft); background:var(--surface-sunken); }
@@ -605,6 +628,7 @@
   body.tv-mode #ticketSection > section.alerts-row,
   body.tv-mode #ticketSection > section.card,
   body.tv-mode #ticketSection > #volumenSection,
+  body.tv-mode #ticketSection > #riesgoSection,
   body.tv-mode #taskSection > h2.section-title,
   body.tv-mode #taskSection > section.hero,
   body.tv-mode #taskSection > section.breakdown,
@@ -1193,6 +1217,71 @@
       <div id="teamTrendFallback" class="hidden"></div>
       <div class="empty-detail hidden" id="teamTrendEmpty">No hay suficientes tickets cerrados para trazar una tendencia.</div>
     </section>
+
+    <div id="riesgoSection" class="hidden">
+    <h2 class="section-title">Dónde actuar primero</h2>
+    <section class="card" style="margin-bottom:14px;">
+      <h3 class="card-head-flex">
+        <span>Abiertos en riesgo de vencer <span class="sub card-head-sub" id="riesgoSub"></span></span>
+        <span class="metric-toggle"><button id="riesgoVerTodos" title="Abre la tabla de tickets abiertos, ordenable por % de SLA">Ver todos los abiertos</button></span>
+      </h3>
+      <div class="rk-chips" id="riesgoChips"></div>
+      <p class="rk-conc" id="riesgoConc"></p>
+      <div class="table-scroll" style="max-height:420px;">
+        <table id="riesgoTable">
+          <thead><tr><th>Ticket</th><th>Servicio</th><th>Especialista</th><th>Prioridad</th><th class="r">Abierto hace</th><th class="r">% del SLA</th></tr></thead>
+          <tbody id="riesgoBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-detail hidden" id="riesgoEmpty"></div>
+    </section>
+
+    <section class="card" style="margin-bottom:14px;">
+      <h3 class="card-head-flex">
+        <span>¿Dónde se pierde el cumplimiento? <span class="sub card-head-sub" id="paretoSub"></span></span>
+        <span class="metric-toggle" id="paretoDimToggle">
+          <button class="active" data-dim="servicio">Servicio</button>
+          <button data-dim="categoria">Categoría</button>
+          <button data-dim="tipoRegistro">Canal</button>
+          <button data-dim="prioridad">Prioridad</button>
+          <button data-dim="especialista">Especialista</button>
+        </span>
+      </h3>
+      <div class="table-scroll" style="max-height:480px;">
+        <table class="pareto-table">
+          <thead><tr><th id="paretoColName">Servicio</th><th>Tickets incumplidos</th><th class="r" title="Parte del total de incumplidos que aporta este grupo">% del total</th><th class="r" title="Suma acumulada del % del total, de mayor a menor">Acumulado</th><th class="r" title="% de cumplimiento del propio grupo, contra la meta">Cumple</th><th class="r">Tickets</th></tr></thead>
+          <tbody id="paretoBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-detail hidden" id="paretoEmpty"></div>
+      <p class="pareto-note" id="paretoNote"></p>
+    </section>
+
+    <h2 class="section-title">Flujo y backlog</h2>
+    <section class="card" style="margin-bottom:14px;">
+      <h3 class="card-head-flex">
+        <span>Ingresados vs cerrados por semana <span class="sub card-head-sub" id="flujoSub"></span></span>
+      </h3>
+      <p class="rk-conc" id="flujoResumen"></p>
+      <div class="table-scroll" style="max-height:460px;">
+        <table class="pareto-table">
+          <thead><tr><th>Semana</th><th>Ingresados</th><th>Cerrados</th><th class="r" title="Ingresados menos cerrados de la semana. Positivo = el backlog crece">Neto</th><th class="r" title="Tickets registrados hasta esa semana que seguían sin cerrar al terminarla">Abiertos al cierre</th></tr></thead>
+          <tbody id="flujoBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-detail hidden" id="flujoEmpty">No hay tickets con fecha de registro en el rango seleccionado.</div>
+      <p class="pareto-note" id="flujoNote"></p>
+    </section>
+
+    <section class="card" style="margin-bottom:14px;">
+      <h3>Antigüedad de los tickets abiertos <span class="sub card-head-sub" id="antigSub"></span></h3>
+      <table class="pareto-table">
+        <thead><tr><th>Antigüedad</th><th>Tickets abiertos</th><th class="r">% del total</th><th class="r" title="De esos tickets, cuántos ya superaron el 100 % del SLA">Ya vencidos</th></tr></thead>
+        <tbody id="antigBody"></tbody>
+      </table>
+      <p class="pareto-note" id="antigNote"></p>
+    </section>
+    </div>
 
     <div id="volumenSection" class="hidden">
     <h2 class="section-title">Volumen del total de tickets</h2>
@@ -2080,6 +2169,7 @@
     }
     if (taskMap.size){ renderTasks(); }
     renderVolumenTickets();
+    try { renderRiesgo(); } catch(err){ console.error('Error en "Dónde actuar primero":', err); }
     refreshTabContent();
     renderRegistro();
 
@@ -3721,13 +3811,219 @@
       .slice(0, 8);
   }
 
+  // ---------------- Dónde actuar primero (pestaña KPI) ----------------
+  // % del SLA desde el cual un ticket abierto se considera "en riesgo". Entre este valor y 90 = en riesgo;
+  // de 90 a 100 = crítico; sobre 100 = ya vencido pero todavía abierto.
+  const RIESGO_PCT = 80;
+
+  function renderRiesgo(){
+    const sec = $('riesgoSection');
+    const hasData = allRows.length > 0;
+    sec.classList.toggle('hidden', !hasData);
+    if (!hasData) return;
+    try { renderRiesgoAbiertos(); } catch(err){ console.error('Error en abiertos en riesgo:', err); }
+    try { renderPareto(); } catch(err){ console.error('Error en Pareto de incumplidos:', err); }
+    try { renderFlujo(); } catch(err){ console.error('Error en flujo semanal:', err); }
+    try { renderAntiguedad(); } catch(err){ console.error('Error en antigüedad de abiertos:', err); }
+  }
+
+  function renderRiesgoAbiertos(){
+    const open = abiertos.filter(r => r.pct != null);
+    const venc = open.filter(r => r.pct > 100);
+    const crit = open.filter(r => r.pct >= 90 && r.pct <= 100);
+    const risk = open.filter(r => r.pct >= RIESGO_PCT && r.pct < 90);
+    const focus = venc.concat(crit, risk);
+    $('riesgoSub').textContent = `${open.length} abiertos en el rango de fechas seleccionado`;
+    $('riesgoChips').innerHTML =
+      `<div class="rk-chip venc"><div class="n">${venc.length}</div><div class="l">Ya vencidos y aún abiertos (&gt; 100 %)</div></div>` +
+      `<div class="rk-chip crit"><div class="n">${crit.length}</div><div class="l">Críticos (90–100 % del SLA)</div></div>` +
+      `<div class="rk-chip"><div class="n">${risk.length}</div><div class="l">En riesgo (${RIESGO_PCT}–90 %)</div></div>` +
+      `<div class="rk-chip"><div class="n">${open.length - focus.length}</div><div class="l">Con holgura (&lt; ${RIESGO_PCT} %)</div></div>`;
+
+    // concentración por especialista (vencidos + críticos + en riesgo)
+    const by = {};
+    focus.forEach(r => { const n = r.especialista || '—'; by[n] = (by[n] || 0) + 1; });
+    const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    $('riesgoConc').innerHTML = top.length
+      ? 'Más tickets por atender primero: ' + top.map(([n, c]) => `<b>${escapeHtml(n)}</b> (${c})`).join(' · ')
+      : '';
+
+    const shown = focus.slice().sort((a, b) => b.pct - a.pct).slice(0, 15);
+    $('riesgoTable').classList.toggle('hidden', !shown.length);
+    $('riesgoEmpty').classList.toggle('hidden', !!shown.length);
+    $('riesgoEmpty').textContent = `No hay tickets abiertos sobre el ${RIESGO_PCT} % del SLA.`;
+    $('riesgoBody').innerHTML = shown.map(r => `
+      <tr>
+        <td class="mono ticket-id">${escapeHtml(r.ticket)}</td>
+        <td class="cell-servicio" title="${escapeHtml(r.servicio)}">${escapeHtml(r.servicio)}</td>
+        <td>${escapeHtml(r.especialista)}</td>
+        <td>${escapeHtml(r.prioridad == null ? '—' : r.prioridad)}</td>
+        <td class="mono r">${r.minutosAbierto == null ? '—' : formatDuration(r.minutosAbierto)}</td>
+        <td class="r"><span class="rk-pct${r.pct > 100 ? ' venc' : ''}">${r.pct}%</span></td>
+      </tr>`).join('') +
+      (focus.length > shown.length ? `<tr><td colspan="6" class="pareto-note">Se muestran los 15 más avanzados de ${focus.length}. El resto está en la tabla de abiertos.</td></tr>` : '');
+  }
+
+  // Flujo semanal: ingresados (por semana de registro) vs cerrados (por semana de cierre) y abiertos al cierre de
+  // cada semana. Solo cuenta los tickets del rango de fechas seleccionado (que filtra por fecha de registro), así
+  // que los cerrados no incluyen tickets registrados antes del rango y el backlog arranca desde cero en él.
+  const FLUJO_SEMANAS = 12;
+  function renderFlujo(){
+    const items = [];
+    allRows.forEach(r => {
+      const fr = toDateSafe(r.fechaRegistro);
+      if (!fr) return;
+      const fc = toDateSafe(r.fechaCierre);
+      items.push({ rw: anIsoWeek(fr).key, cw: fc ? anIsoWeek(fc).key : null });
+    });
+    const body = $('flujoBody');
+    $('flujoEmpty').classList.toggle('hidden', items.length > 0);
+    if (!items.length){ body.innerHTML = ''; $('flujoSub').textContent = ''; $('flujoResumen').textContent = ''; $('flujoNote').textContent = ''; return; }
+
+    const curKey = anIsoWeek(new Date()).key;
+    let minKey = items.reduce((m, it) => it.rw < m ? it.rw : m, items[0].rw);
+    let maxKey = items.reduce((m, it) => { const k = it.cw && it.cw > it.rw ? it.cw : it.rw; return k > m ? k : m; }, items[0].rw);
+    if (curKey > maxKey) maxKey = curKey;
+    const weeks = [];
+    // Se avanza desde el mediodía del lunes: anIsoWeek convierte a hora de Perú (UTC−5), y a medianoche UTC
+    // la fecha retrocedería al domingo anterior y la semana no avanzaría.
+    const noon = 12 * 3600000;
+    let info = anIsoWeek(new Date(Date.UTC(+minKey.slice(0, 4), 0, 4) + noon));   // 4 de enero siempre cae en la semana 1
+    for (let g = 0; g < 400 && info.key <= maxKey; g++){ weeks.push(info); info = anIsoWeek(new Date(info.start.getTime() + 7 * 86400000 + noon)); }
+    const shown = weeks.slice(-FLUJO_SEMANAS).map(w => {
+      let ing = 0, cer = 0, ab = 0;
+      items.forEach(it => {
+        if (it.rw === w.key) ing++;
+        if (it.cw === w.key) cer++;
+        if (it.rw <= w.key && (it.cw == null || it.cw > w.key)) ab++;
+      });
+      return { w, ing, cer, ab, net: ing - cer, now: w.key === curKey };
+    });
+    const max = Math.max(...shown.map(x => Math.max(x.ing, x.cer)), 1);
+    body.innerHTML = shown.map(x => `<tr class="${x.now ? 'flow-now' : ''}">
+        <td title="${anFmtRange(x.w)}">${x.w.label}${x.now ? ' (en curso)' : ''}</td>
+        <td><span class="flow-in" style="width:${(x.ing / max * 110).toFixed(0)}px"></span><span class="mono">${x.ing}</span></td>
+        <td><span class="flow-out" style="width:${(x.cer / max * 110).toFixed(0)}px"></span><span class="mono">${x.cer}</span></td>
+        <td class="r mono ${x.net > 0 ? 'flow-up' : (x.net < 0 ? 'flow-down' : '')}">${x.net > 0 ? '+' : ''}${x.net}</td>
+        <td class="r mono">${x.ab}</td>
+      </tr>`).join('');
+    $('flujoSub').textContent = `últimas ${shown.length} semanas`;
+
+    const done = shown.filter(x => !x.now).slice(-4);
+    if (done.length){
+      const ing = done.reduce((a, x) => a + x.ing, 0), cer = done.reduce((a, x) => a + x.cer, 0), net = ing - cer;
+      const ratio = ing ? Math.round(cer / ing * 100) : null;
+      $('flujoResumen').innerHTML = `En las últimas ${done.length} semanas completas entraron <b>${ing}</b> tickets y se cerraron <b>${cer}</b>` +
+        (ratio == null ? '' : ` (se cerró el ${ratio} % de lo que entró)`) + ': ' +
+        (net > 0 ? `el backlog <b class="flow-up">creció en ${net}</b>.` : net < 0 ? `el backlog <b class="flow-down">bajó en ${-net}</b>.` : 'el backlog se mantuvo estable.');
+    } else $('flujoResumen').textContent = '';
+    $('flujoNote').textContent = 'Ingresados cuenta por semana de registro y cerrados por semana de cierre (lunes a domingo). Con un rango de fechas acotado, los cerrados no incluyen tickets registrados antes del rango.';
+  }
+
+  // Antigüedad de los abiertos: cuánto llevan sin cerrarse y cuántos de ellos ya pasaron el 100 % del SLA.
+  function renderAntiguedad(){
+    const open = abiertos.filter(r => r.diasAbierto != null);
+    const B = [['0–7 días', 0, 7], ['8–15 días', 7, 15], ['16–30 días', 15, 30], ['Más de 30 días', 30, Infinity]];
+    const rows = B.map(([label, lo, hi]) => {
+      const list = open.filter(r => r.diasAbierto > lo && r.diasAbierto <= hi || (lo === 0 && r.diasAbierto <= 0));
+      return { label, n: list.length, venc: list.filter(r => r.pct != null && r.pct > 100).length };
+    });
+    const total = open.length, max = Math.max(...rows.map(r => r.n), 1);
+    $('antigSub').textContent = `${total} abiertos en el rango seleccionado`;
+    $('antigBody').innerHTML = rows.map(r => `<tr>
+        <td>${r.label}</td>
+        <td><span class="pareto-bar" style="width:${(r.n / max * 120).toFixed(0)}px"></span><span class="mono">${r.n}</span></td>
+        <td class="r mono">${total ? (r.n / total * 100).toFixed(0) : 0}%</td>
+        <td class="r mono">${r.venc ? `<span class="flow-up">${r.venc}</span>` : r.venc}</td>
+      </tr>`).join('');
+    const oldest = open.slice().sort((a, b) => b.diasAbierto - a.diasAbierto)[0];
+    $('antigNote').innerHTML = oldest
+      ? `El más antiguo es <b>${escapeHtml(oldest.ticket)}</b> (${escapeHtml(oldest.especialista)}), abierto hace ${Math.floor(oldest.diasAbierto)} días.`
+      : 'No hay tickets abiertos en el rango seleccionado.';
+  }
+
+  const PARETO_DIMS = {
+    servicio:     { label: 'Servicio',     fn: r => r.servicio },
+    categoria:    { label: 'Categoría',    fn: r => r.categoria },
+    tipoRegistro: { label: 'Canal',        fn: r => r.tipoRegistro },
+    prioridad:    { label: 'Prioridad',    fn: r => r.prioridad },
+    especialista: { label: 'Especialista', fn: r => r.especialista }
+  };
+  let paretoDim = 'servicio';
+
+  // Pareto de incumplidos: qué grupos aportan más tickets fuera de SLA (cerrados fuera de meta + abiertos ya
+  // pasados del 100 %), junto con el cumplimiento propio de cada grupo para separar "mucho volumen" de "mal cumple".
+  function renderPareto(){
+    const dim = PARETO_DIMS[paretoDim];
+    $('paretoColName').textContent = dim.label;
+    const map = new Map();
+    let totalInc = 0, withKey = 0;
+    allRows.forEach(r => {
+      if (r.cumple == null) return;
+      const v = dim.fn(r);
+      if (v == null) return;
+      withKey++;
+      const k = v || '—';
+      if (!map.has(k)) map.set(k, { name: k, tot: 0, inc: 0 });
+      const b = map.get(k);
+      b.tot++;
+      if (!r.cumple){ b.inc++; totalInc++; }
+    });
+    const body = $('paretoBody');
+    const msg = txt => { $('paretoEmpty').textContent = txt; $('paretoEmpty').classList.remove('hidden'); body.innerHTML = ''; $('paretoNote').textContent = ''; $('paretoSub').textContent = ''; };
+    if (!withKey) return msg(`El archivo cargado no trae la columna de ${dim.label.toLowerCase()}.`);
+    if (!totalInc) return msg('No hay tickets incumplidos en el rango seleccionado.');
+    $('paretoEmpty').classList.add('hidden');
+
+    const all = Array.from(map.values()).filter(b => b.inc > 0)
+      .sort((a, b) => (b.inc - a.inc) || (b.tot - a.tot) || String(a.name).localeCompare(String(b.name), 'es'));
+    const TOP = 10;
+    const head = all.slice(0, TOP), tail = all.slice(TOP);
+    const rows = head.slice();
+    if (tail.length) rows.push({ name: `Otros (${tail.length})`, tot: tail.reduce((s, b) => s + b.tot, 0), inc: tail.reduce((s, b) => s + b.inc, 0), rest: true });
+    const max = Math.max(...rows.map(b => b.inc), 1);
+    let cum = 0, vital = 0;
+    body.innerHTML = rows.map(b => {
+      const prev = cum;
+      cum += b.inc;
+      const isVital = !b.rest && prev < totalInc * 0.8;
+      if (isVital) vital++;
+      const own = b.tot ? (b.tot - b.inc) / b.tot * 100 : null;
+      return `<tr class="${isVital ? 'vital' : (b.rest ? 'rest' : '')}">
+        <td class="nm" title="${escapeHtml(b.name)}">${escapeHtml(b.name)}</td>
+        <td><span class="pareto-bar" style="width:${(b.inc / max * 120).toFixed(0)}px"></span><span class="mono">${b.inc}</span></td>
+        <td class="r mono">${(b.inc / totalInc * 100).toFixed(1)}%</td>
+        <td class="r mono">${(cum / totalInc * 100).toFixed(0)}%</td>
+        <td class="r">${own == null ? '—' : `<span class="pct-badge ${own >= META ? 'ok' : ''}">${own.toFixed(1)}%</span>`}</td>
+        <td class="r mono">${b.tot}</td>
+      </tr>`;
+    }).join('');
+    $('paretoSub').textContent = `${totalInc} incumplidos en ${all.length} ${all.length === 1 ? 'grupo' : 'grupos'}`;
+    $('paretoNote').textContent = `${vital} de ${all.length} ${vital === 1 ? 'grupo concentra' : 'grupos concentran'} el 80 % de los incumplidos (en negrita). Incluye abiertos que ya pasaron el 100 % del SLA. Compara "% del total" con "Cumple": un grupo con mucho volumen pero buen cumplimiento propio pesa menos que uno que incumple por sí mismo.`;
+  }
+
+  (function wireParetoDim(){
+    const c = $('paretoDimToggle');
+    if (!c) return;
+    c.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      paretoDim = btn.dataset.dim;
+      c.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      try { renderPareto(); } catch(err){ console.error('Error en Pareto de incumplidos:', err); }
+    }));
+    const v = $('riesgoVerTodos');
+    if (v) v.addEventListener('click', () => {
+      $('tabAbiertos').click();
+      $('ticketTableBlock').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  })();
+
   // Matriz Impacto × Urgencia: reemplaza las tarjetas por Impacto y por Urgencia (los totales por fila/columna
   // dan esas mismas cifras) y muestra además cómo se combinan.
   function renderImpactoUrgencia(){
     const el = $('impUrgMatrix');
     const rows = allRows.filter(r => r.impacto != null && r.urgencia != null);
     if (!rows.length){ el.innerHTML = '<tr><td>Sin datos</td></tr>'; return; }
-    const rank = n => /cr[ií]tic|muy\s*alt/i.test(n) ? 0 : /alt/i.test(n) ? 1 : /medi/i.test(n) ? 2 : /baj/i.test(n) ? 3 : n === '—' ? 10 : 5;
+    const rank = n => /cr[ií]tic|muy\s*alt|critical|urgent|very\s*high/i.test(n) ? 0 : /alt|high/i.test(n) ? 1 : /medi/i.test(n) ? 2 : /baj|low/i.test(n) ? 3 : n === '—' ? 10 : 5;
     const cnt = new Map(), rt = {}, ct = {};
     rows.forEach(r => {
       const i = r.impacto || '—', u = r.urgencia || '—', k = i + '\u0001' + u;
