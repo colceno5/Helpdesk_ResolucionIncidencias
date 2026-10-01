@@ -976,6 +976,19 @@
   .cn-tbl td.n, .cn-tbl th.n{ text-align:right; white-space:nowrap; }
   .cn-chip{ display:inline-block; font-size:11.5px; padding:1px 8px; margin:2px 4px 2px 0; border-radius:100px; background:var(--surface-sunken); border:1px solid var(--border); }
   .cn-note{ font-size:11.5px; color:var(--ink-soft); margin-top:8px; line-height:1.4; }
+  .cn-wide{ margin:0 0 14px; }
+  .cn-scroll{ overflow-x:auto; }
+  .cn-causas{ min-width:900px; }
+  .cn-causas td{ vertical-align:top; line-height:1.4; }
+  .cn-causas td.c-nombre{ min-width:170px; }
+  .cn-ext{ margin:0 0 5px; } .cn-ext:last-child{ margin-bottom:0; }
+  .cn-ext small, .cn-acc small{ color:var(--ink-soft); font-size:11.5px; }
+  .cn-prop{ display:inline-block; font-size:10.5px; font-weight:600; padding:0 7px; margin-right:5px; border-radius:100px; background:var(--accent); color:#fff; }
+  .cn-tag{ display:block; font-size:11.5px; margin-top:4px; color:var(--ink-soft); }
+  .cn-tag.warn{ color:var(--warning); font-weight:600; } .cn-tag.ok{ color:var(--success); font-weight:600; }
+  .cn-acc{ margin:0; padding-left:18px; font-size:13px; line-height:1.5; }
+  .cn-acc li{ margin-bottom:5px; }
+  .cn-box details{ margin-top:6px; } .cn-box summary{ cursor:pointer; font-size:12.5px; color:var(--accent); }
   /* Gráfica de brecha (antes vs. después) del historial de sustentos */
   .hs-chart-card{ border:1px solid var(--border); border-radius:var(--radius-m); background:var(--surface); padding:12px 14px 10px; margin:0 0 14px; }
   .hs-chart-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px; margin-bottom:6px; }
@@ -6356,6 +6369,58 @@
     return [...m.entries()].filter(e => e[1] >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es')).slice(0, max);
   }
 
+  // Causas frecuentes en los sustentos de tickets/tareas vencidos y la acción estándar que se propone
+  // para cada una. La detección es por palabras clave sobre el texto (sin tildes ni mayúsculas): un
+  // sustento puede caer en más de una causa y los que no coinciden con ninguna quedan "sin clasificar".
+  const CN_TEMAS = [
+    { id:'usuario', nombre:'Demora o falta de respuesta del usuario',
+      re:/sin respuesta|no (respond|contest|se pudo contactar|se logro contactar|se pudo ubicar|fue ubicad)|(usuario|cliente|solicitante)[^.]{0,40}(ausente|no dispon|no atend|no brind|no entreg|no confirm|no habilit|no se encontr)|espera de (respuesta|confirmacion|usuario|cliente)|a la espera d(e|el) (usuario|cliente|solicitante)|reprogram|a (pedido|solicitud) d(e|el) (usuario|cliente)/,
+      propuesta:'Definir un plazo máximo de espera de respuesta del usuario, con contactos registrados y escalamiento al jefe del usuario o cierre por falta de respuesta, para que el caso no venza esperando.' },
+    { id:'cierre', nombre:'Cierre o registro tardío en la herramienta',
+      re:/no se (cerro|registro|actualizo)|cierre (tardio|posterior|fuera|no registrado|despues)|cerro (despues|tarde|luego)|olvid|omision|omiti|registro (tardio|posterior|fuera)|falta de (cierre|registro|actualizacion)|sin (cerrar|actualizar)|(ya )?(estaba|fue) (resuelto|atendido|solucionado)|regulariz|fecha real/,
+      propuesta:'Cerrar el caso en la herramienta en el momento en que se resuelve y revisar a diario los casos resueltos que siguen abiertos; registrar siempre la fecha real de solución.' },
+    { id:'terceros', nombre:'Dependencia de proveedor o tercero',
+      re:/proveedor|tercero|externo|fabricante|garantia|contratista|distribuidor|\boperador\b|\brma\b/,
+      propuesta:'Registrar cada seguimiento al proveedor con fecha compromiso y escalar al gestor del contrato cuando no cumpla; evaluar si el ANS del proveedor es compatible con el SLA interno.' },
+    { id:'derivacion', nombre:'Derivación o escalamiento a otra área',
+      re:/deriv|escalad|escalo|escalamiento|otra (area|gerencia|oficina|sede)|area (responsable|encargada|competente)|reasign|mal asignad|asignacion (incorrecta|errada)|transferid|segundo nivel|nivel 2|\bn2\b/,
+      propuesta:'Revisar los criterios de asignación y derivación para evitar reasignaciones y designar un responsable de seguimiento de los casos que salen del área.' },
+    { id:'aprobacion', nombre:'Aprobaciones o autorizaciones pendientes',
+      re:/aprobaci|autorizaci|visto bueno|\bvb\b|jefatura|gerencia|firma|conformidad|presupuesto/,
+      propuesta:'Solicitar las aprobaciones al registrar el caso, con un responsable y un plazo definidos, y hacer seguimiento a las que no llegan.' },
+    { id:'materiales', nombre:'Falta de equipos, repuestos o licencias',
+      re:/repuesto|stock|compra|adquisici|logistica|insumo|almacen|importaci|sin licencia|licencia (nueva|de software)|orden de compra|\boc\b|toner|cartucho|equipo (nuevo|de reemplazo|no disponible)/,
+      propuesta:'Anticipar la compra o el stock de los insumos y licencias que más se piden y registrar el estado de cada solicitud de adquisición.' },
+    { id:'tecnica', nombre:'Falla técnica o complejidad del caso',
+      re:/falla|error|caida|intermiten|lentitud|conectividad|servidor|complej|\bbug\b|defecto|corrupt|inestabil|no funcion|desarrollo|parche|base de datos|\bvpn\b|\bred\b|causa raiz|analisis tecnico/,
+      propuesta:'Escalar a nivel especializado cuando el caso supere el tiempo previsto y abrir un registro de problema (causa raíz) para las fallas recurrentes.' },
+    { id:'carga', nombre:'Carga de trabajo o disponibilidad del personal',
+      re:/carga (de trabajo|laboral|operativa|alta)|saturad|sobrecarg|alta demanda|volumen|falta de personal|poco personal|sin personal|descanso|licencia medica|vacaciones|permiso (medico|personal)|\bturno\b|ausencia|incapacidad|otras prioridades|atendiendo (otros|otras)|incidentes (criticos|masivos)/,
+      propuesta:'Redistribuir la carga entre el equipo y definir un responsable de cobertura para ausencias y picos de demanda.' },
+    { id:'info', nombre:'Información insuficiente o requerimiento poco claro',
+      re:/informacion (incompleta|insuficiente|faltante|erronea)|falta de (informacion|datos|detalle|evidencia|especificacion)|no (especific|detall|indic|adjunt|precis)|requerimiento (incompleto|poco claro|ambiguo|no claro)|aclaraci|categoriz|datos (incompletos|erroneos)|sin (evidencia|detalle)/,
+      propuesta:'Definir la información mínima que debe traer el caso al registrarse (plantilla o formulario) y validarla al asignar, antes de que empiece a correr el tiempo.' },
+    { id:'ventana', nombre:'Ventana de mantenimiento o programación',
+      re:/ventana|mantenimiento|programad|programaci|fin de semana|feriado|fuera de horario|pase a produccion|paso a produccion|despliegue|planificad|cronograma/,
+      propuesta:'Comunicar la fecha comprometida al usuario cuando el trabajo depende de una ventana y documentar la pausa del SLA correspondiente.' }
+  ];
+  const cnSinTilde = t => cnNorm(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const cnTemasDe = texto => { const t = cnSinTilde(texto); return t ? CN_TEMAS.filter(x => x.re.test(t)) : []; };
+  const cnCorta = (t, n) => { t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t; };
+  // Textos distintos (por contenido normalizado) de una lista de casos, con cuántos casos comparten cada uno.
+  function cnAgrupar(casos, fn){
+    const m = new Map();
+    casos.forEach(i => {
+      const txt = fn(i); if (!txt) return;
+      const k = cnSinTilde(txt).replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim() || txt;
+      if (!m.has(k)) m.set(k, { texto: txt, casos: [] });
+      m.get(k).casos.push(i);
+    });
+    return [...m.values()].sort((a, b) => b.casos.length - a.casos.length || b.texto.length - a.texto.length);
+  }
+  const cnChipId = i => `<span class="cn-chip" title="${escapeHtml(i.kind === 'tarea' ? 'Tarea del ticket ' + i.ticket : 'Ticket')}">${i.kind === 'tarea' ? 'T ' : ''}${escapeHtml(i.id)}</span>`;
+  const cnChipIds = (a, max) => a.slice(0, max).map(cnChipId).join('') + (a.length > max ? `<span class="rg-sub"> +${a.length - max} más</span>` : '');
+
   function renderConclusion(){
     const body = $('conclusionBody'); if (!body) return;
     const items = rgItems();
@@ -6416,8 +6481,26 @@
     const tSust = cnTerminos(sust.map(textoSust), 8);
     const tAcc = cnTerminos(conAccion.map(i => (rgRecOf(i) || {}).accion), 8);
 
+    // Análisis del contenido: TODOS los sustentos y planes de acción escritos para los vencidos del
+    // rango (también los incompletos), agrupados por causa, con las acciones registradas y la propuesta.
+    const textoAcc = i => String((rgRecOf(i) || {}).accion || '').trim();
+    const conSustTxt = items.filter(i => textoSust(i));
+    const conAccTxt = items.filter(i => textoAcc(i));
+    const conTexto = items.filter(i => textoSust(i) || textoAcc(i));
+    const temaMap = new Map(CN_TEMAS.map(t => [t.id, { t, casos: [] }]));
+    const sinClasificar = [];
+    conTexto.forEach(i => {
+      const ts = cnTemasDe(textoSust(i) || textoAcc(i));   // la causa sale del sustento; sin sustento, de la acción
+      if (!ts.length) sinClasificar.push(i); else ts.forEach(t => temaMap.get(t.id).casos.push(i));
+    });
+    const temas = [...temaMap.values()].filter(x => x.casos.length).map(x => {
+      const conA = x.casos.filter(i => textoAcc(i));
+      return Object.assign(x, { conA, sinA: x.casos.length - conA.length });
+    }).sort((a, b) => b.casos.length - a.casos.length || a.t.nombre.localeCompare(b.t.nombre, 'es'));
+    const accGrupos = cnAgrupar(conAccTxt, textoAcc);
+
     const pSust = cnPct(sust.length, items.length), pAcc = cnPct(conAccion.length, items.length);
-    sub.textContent = `${items.length} vencido${items.length === 1 ? '' : 's'} en el periodo · ${pSust}% sustentado · ${pAcc}% con acción inmediata`;
+    sub.textContent = `${items.length} vencido${items.length === 1 ? '' : 's'} en el periodo · ${pSust}% sustentado · ${pAcc}% con acción inmediata${temas.length ? ` · ${cnPl(temas.length, 'causa identificada', 'causas identificadas')}` : ''}`;
 
     // Conclusiones en texto (solo lo que los datos permiten afirmar)
     const L = [];
@@ -6428,13 +6511,40 @@
     if (pasan + siguen){
       L.push(`Si se aplican los sustentos de tickets, ${cnPl(pasan, 'ticket pasaría', 'tickets pasarían')} a cumplir SLA y ${siguen} seguirían vencidos${evalRows.length ? `; el cumplimiento del periodo pasaría de ${pctAntes}% a ${pctDesp}%` : ''}.`);
     }
+    if (conTexto.length){
+      const top = temas.slice(0, 3);
+      const resto = sinClasificar.length ? `${cnPl(sinClasificar.length, 'caso no coincide', 'casos no coinciden')} con ninguna causa conocida y requiere${sinClasificar.length === 1 ? '' : 'n'} lectura directa` : '';
+      L.push(`Del análisis de ${cnPl(conSustTxt.length, 'sustento', 'sustentos')} y ${cnPl(conAccTxt.length, 'plan de acción', 'planes de acción')} del periodo, ` +
+        (top.length ? `las causas que más se repiten son: ${top.map(x => `${x.t.nombre.toLowerCase()} (${x.casos.length})`).join('; ')}${resto ? '; ' + resto : ''}.`
+                    : `no se identificó una causa repetida por palabras clave${resto ? ': ' + resto : ''}.`));
+    }
+    if (accGrupos.length){
+      const principales = accGrupos.slice(0, 3).map(g => `«${cnCorta(g.texto, 90)}»${g.casos.length > 1 ? ` (${g.casos.length} casos)` : ''}`).join('; ');
+      L.push(`Acciones registradas: ${cnPl(accGrupos.length, 'acción distinta', 'acciones distintas')} en ${cnPl(conAccTxt.length, 'caso', 'casos')}. ${accGrupos.length > 3 ? 'Las más repetidas o detalladas' : 'Las registradas'}: ${principales}.`);
+    }
+    const propuestas = temas.filter(x => x.sinA > 0).sort((a, b) => b.sinA - a.sinA || b.casos.length - a.casos.length).slice(0, 4);
+    if (temas.length){
+      if (propuestas.length){
+        L.push('Acciones propuestas a partir de las causas detectadas (por validar con el equipo):');
+        propuestas.forEach(x => L.push(`→ ${x.t.nombre}: ${x.sinA} de ${cnPl(x.casos.length, 'caso', 'casos')} sin acción registrada. ${x.t.propuesta}`));
+      } else {
+        L.push('Todas las causas identificadas tienen al menos una acción registrada; conviene validar que cada acción ataque la causa y tenga responsable y fecha.');
+      }
+    }
     if (pend.length + incomp.length){
       L.push(`Quedan ${pend.length + incomp.length} sin sustento completo${masViejo != null ? `; el más antiguo se registró hace ${Math.round(masViejo)} días` : ''}${esp.length && (esp[0].pend + esp[0].inc) ? `, y la mayor carga está en ${esp[0].n} (${esp[0].pend + esp[0].inc})` : ''}.`);
     }
     if (cortos.length) L.push(`Calidad: ${cnPl(cortos.length, 'sustento tiene', 'sustentos tienen')} menos de 25 caracteres, probablemente sin evidencia suficiente.`);
     if (repetidos.length) L.push(`Calidad: ${nRepetidos} sustentos repiten el mismo texto (${repetidos.length} grupo${repetidos.length === 1 ? '' : 's'}); conviene verificar que no sean copiados sin detalle del caso.`);
     if (!sust.length) L.push('Aún no hay sustentos completos, por lo que no se puede concluir sobre sus causas ni su impacto.');
-    cnTexto = 'CONCLUSIÓN DE SUSTENTOS Y PLANES DE ACCIÓN\n' + L.map(x => '- ' + x).join('\n');
+    cnTexto = 'CONCLUSIÓN DE SUSTENTOS Y PLANES DE ACCIÓN\n' + L.map(x => (x.startsWith('→') ? '    ' : '- ') + x).join('\n');
+    if (temas.length || sinClasificar.length){
+      const ids = a => a.slice(0, 20).map(i => i.id).join(', ') + (a.length > 20 ? '…' : '');
+      cnTexto += '\n\nCAUSAS, ACCIONES REGISTRADAS Y PROPUESTAS\n' + temas.map(x => {
+        const reg = cnAgrupar(x.conA, textoAcc).map(g => `«${cnCorta(g.texto, 120)}»${g.casos.length > 1 ? ` (${g.casos.length})` : ''}`).join('; ');
+        return `- ${x.t.nombre} — ${cnPl(x.casos.length, 'caso', 'casos')} (${ids(x.casos)})\n    Registradas: ${reg || 'ninguna'}\n    Propuesta: ${x.t.propuesta}`;
+      }).concat(sinClasificar.length ? [`- Sin clasificar — ${cnPl(sinClasificar.length, 'caso', 'casos')} (${ids(sinClasificar)})`] : []).join('\n');
+    }
 
     const kpi = (k, v, s, c) => `<div class="cn-kpi ${c || ''}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || ''}</div></div>`;
     const lista = a => a.length ? '<ul>' + a.map(x => `<li>${x}</li>`).join('') + '</ul>' : '';
@@ -6458,6 +6568,31 @@
         ${evalRows.length && (pasan + siguen) ? kpi('Cumplimiento del periodo', pctAntes + '% → ' + pctDesp + '%', 'antes → con sustentos aplicados') : ''}
       </div>
       <div class="cn-resumen">${L.map(x => `<p>${escapeHtml(x)}</p>`).join('')}</div>
+      ${conTexto.length ? `
+      <div class="cn-box cn-wide">
+        <h4>Causas en los sustentos, acciones registradas y acciones propuestas</h4>
+        <div class="cn-scroll"><table class="cn-tbl cn-causas">
+          <thead><tr><th>Causa detectada</th><th>Casos</th><th>Extracto del sustento</th><th>Acciones registradas (extracto)</th><th>Acción propuesta</th></tr></thead>
+          <tbody>${temas.concat(sinClasificar.length ? [{ t: null, casos: sinClasificar, conA: sinClasificar.filter(i => textoAcc(i)), sinA: sinClasificar.filter(i => !textoAcc(i)).length }] : []).map(x => {
+            const ext = cnAgrupar(x.casos, i => textoSust(i) || textoAcc(i)).slice(0, 2);
+            const reg = cnAgrupar(x.conA, textoAcc);
+            const tag = !x.t ? '' : (x.sinA === 0 ? `<span class="cn-tag ok">Todos los casos tienen acción registrada</span>` : `<span class="cn-tag warn">${x.sinA} de ${x.casos.length} sin acción registrada</span>`);
+            return `<tr>
+              <td class="c-nombre"><b>${x.t ? escapeHtml(x.t.nombre) : 'Sin clasificar'}</b><div class="rg-sub">${cnPl(x.casos.length, 'caso', 'casos')} · ${cnPct(x.casos.length, conTexto.length)}%</div></td>
+              <td>${cnChipIds(x.casos, 6)}</td>
+              <td>${ext.map(g => `<div class="cn-ext" title="${escapeHtml(g.texto)}">«${escapeHtml(cnCorta(g.texto, 150))}»${g.casos.length > 1 ? ` <small>(${g.casos.length} casos)</small>` : ''}</div>`).join('')}</td>
+              <td>${reg.length ? reg.slice(0, 2).map(g => `<div class="cn-ext" title="${escapeHtml(g.texto)}">«${escapeHtml(cnCorta(g.texto, 150))}»${g.casos.length > 1 ? ` <small>(${g.casos.length} casos)</small>` : ''}</div>`).join('') + (reg.length > 2 ? `<small>+${reg.length - 2} acción${reg.length - 2 === 1 ? '' : 'es'} más (ver abajo)</small>` : '') : '<span class="rg-sub">Ninguna registrada</span>'}</td>
+              <td>${x.t ? `<span class="cn-prop">Propuesta</span>${escapeHtml(x.t.propuesta)}${tag}` : '<span class="rg-sub">Leer estos sustentos directamente; si se repite un patrón, conviene agregarlo a la clasificación.</span>'}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table></div>
+      </div>
+      <div class="cn-box cn-wide">
+        <h4>Acciones registradas en el periodo (${accGrupos.length})</h4>
+        ${accGrupos.length ? `<ul class="cn-acc">${accGrupos.slice(0, 8).map(g => `<li title="${escapeHtml(g.texto)}">${escapeHtml(cnCorta(g.texto, 220))} <small>· ${cnPl(g.casos.length, 'caso', 'casos')}</small><div>${cnChipIds(g.casos, 6)}</div></li>`).join('')}</ul>
+          ${accGrupos.length > 8 ? `<details><summary>Ver las ${accGrupos.length - 8} restantes</summary><ul class="cn-acc">${accGrupos.slice(8).map(g => `<li title="${escapeHtml(g.texto)}">${escapeHtml(cnCorta(g.texto, 220))} <small>· ${cnPl(g.casos.length, 'caso', 'casos')}</small><div>${cnChipIds(g.casos, 6)}</div></li>`).join('')}</ul></details>` : ''}`
+          : '<div class="rg-sub">Ningún caso del periodo tiene acción inmediata registrada.</div>'}
+      </div>` : ''}
       <div class="cn-cols">
         <div class="cn-box">
           <h4>Por especialista / responsable</h4>
@@ -6474,7 +6609,7 @@
           <div class="rg-sub" style="margin:6px 0 3px;">En acciones inmediatas</div><div>${chips(tAcc)}</div>
         </div>
       </div>
-      <div class="cn-note">Calculado solo con lo registrado en esta pestaña para el rango de fechas activo. Los términos son un conteo de palabras (en cuántos registros aparece cada una), no una clasificación de causas: sirven para orientar la lectura de los sustentos. El impacto sobre el cumplimiento usa el mismo cálculo del candado y es una proyección para los sustentos aún sin aplicar.</div>`;
+      <div class="cn-note">Calculado solo con lo registrado en esta pestaña para el rango de fechas activo. El análisis de causas incluye todos los sustentos y acciones escritos, aunque el caso esté incompleto. La clasificación por causa se detecta por palabras clave (un caso puede caer en más de una) y las acciones propuestas son sugerencias estándar por causa, no acciones registradas por el equipo: deben validarse. Los términos son un conteo de palabras (en cuántos registros aparece cada una), no una clasificación de causas: sirven para orientar la lectura de los sustentos. El impacto sobre el cumplimiento usa el mismo cálculo del candado y es una proyección para los sustentos aún sin aplicar.</div>`;
   }
   $('btnCopyConclusion').addEventListener('click', async () => {
     if (!cnTexto) return;
