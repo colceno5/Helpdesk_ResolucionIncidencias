@@ -954,6 +954,28 @@
   #historialTable td.hs-fecha{ white-space:normal; }
   #historialTable tr.rg-ajustado td{ background:var(--adj-bg); }
   #historialTable tr.rg-ajustado td:first-child{ box-shadow:inset 3px 0 0 var(--adj); }
+
+  /* Conclusión de sustentos y planes de acción (Auditoría de tickets vencidos) */
+  #conclusionBlock{ margin-top:16px; }
+  .cn-kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:0 0 14px; }
+  .cn-kpi{ border:1px solid var(--border); border-radius:var(--radius-m); background:var(--surface); padding:10px 12px; }
+  .cn-kpi .k{ font-size:11.5px; color:var(--ink-soft); }
+  .cn-kpi .v{ font-family:'Space Grotesk', sans-serif; font-size:22px; font-weight:600; line-height:1.2; margin-top:2px; }
+  .cn-kpi .s{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .cn-kpi.ok .v{ color:var(--success); } .cn-kpi.warn .v{ color:var(--warning); } .cn-kpi.bad .v{ color:var(--danger); }
+  .cn-resumen{ border-left:3px solid var(--accent); background:var(--surface-sunken); border-radius:var(--radius-s); padding:10px 14px; font-size:13.5px; line-height:1.55; margin:0 0 14px; }
+  .cn-resumen p{ margin:0 0 6px; } .cn-resumen p:last-child{ margin:0; }
+  .cn-cols{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px; }
+  .cn-box{ border:1px solid var(--border); border-radius:var(--radius-m); background:var(--surface); padding:10px 14px 12px; }
+  .cn-box h4{ font-family:'Space Grotesk', sans-serif; font-size:14px; margin:0 0 8px; }
+  .cn-box ul{ margin:0; padding-left:18px; font-size:13px; line-height:1.5; }
+  .cn-box li{ margin-bottom:4px; }
+  .cn-tbl{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .cn-tbl th{ text-align:left; font-weight:600; color:var(--ink-soft); padding:4px 6px; border-bottom:1px solid var(--border); }
+  .cn-tbl td{ padding:5px 6px; border-bottom:1px solid var(--border); }
+  .cn-tbl td.n, .cn-tbl th.n{ text-align:right; white-space:nowrap; }
+  .cn-chip{ display:inline-block; font-size:11.5px; padding:1px 8px; margin:2px 4px 2px 0; border-radius:100px; background:var(--surface-sunken); border:1px solid var(--border); }
+  .cn-note{ font-size:11.5px; color:var(--ink-soft); margin-top:8px; line-height:1.4; }
   /* Gráfica de brecha (antes vs. después) del historial de sustentos */
   .hs-chart-card{ border:1px solid var(--border); border-radius:var(--radius-m); background:var(--surface); padding:12px 14px 10px; margin:0 0 14px; }
   .hs-chart-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px; margin-bottom:6px; }
@@ -1802,6 +1824,19 @@
         </table>
       </div>
       <div class="empty-detail hidden" id="historialEmpty">Aún no hay registros sustentados.</div>
+    </section>
+
+    <section class="table-section" id="conclusionBlock">
+      <div class="table-head">
+        <div>
+          <h3>Conclusión de sustentos y planes de acción</h3>
+          <div class="sub" id="conclusionSub">Sin datos</div>
+        </div>
+        <div class="table-actions">
+          <button id="btnCopyConclusion" title="Copia la conclusión como texto para pegarla en un informe o correo">Copiar conclusión</button>
+        </div>
+      </div>
+      <div id="conclusionBody"></div>
     </section>
    </div>
 
@@ -6297,7 +6332,158 @@
       </tr>`;
     }).join('');
     hsRenderChart(list);
+    try { renderConclusion(); } catch(err){ console.error('Error en conclusión de sustentos:', err); }
   }
+
+  // ---------------- Conclusión de sustentos y planes de acción ----------------
+  // Todo se calcula de lo registrado (nada se inventa): cobertura de sustentos, cobertura de
+  // acciones inmediatas (plan de acción), calidad del texto, impacto de aplicar los sustentos sobre
+  // el cumplimiento, detalle por especialista y los términos más repetidos en sustentos y acciones.
+  // Universo: los tickets/tareas vencidos del rango de fechas activo (los mismos del registro).
+  let cnTexto = '';
+  const CN_STOP = new Set(('de la el en y a los las del se por con para un una al lo que su sus es no sin como mas más ya fue ser son esta este esto ' +
+    'se le les o u e ha han hay muy también tambien pero sobre entre desde hasta cuando donde porque ticket tickets tarea tareas caso casos ' +
+    'usuario usuarios se realizo realizó realizaron realizar atencion atención se envio envió favor').split(/\s+/));
+  const cnPct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const cnPl = (n, s, p) => n + ' ' + (n === 1 ? s : p);
+  function cnNorm(t){ return String(t || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function cnTerminos(textos, max){
+    const m = new Map();
+    textos.forEach(t => {
+      const vistos = new Set(cnNorm(t).replace(/[^a-záéíóúñü0-9\s]/g, ' ').split(' ').filter(w => w.length >= 4 && !CN_STOP.has(w) && !/^\d+$/.test(w)));
+      vistos.forEach(w => m.set(w, (m.get(w) || 0) + 1));   // en cuántos registros aparece (no cuenta repeticiones dentro del mismo)
+    });
+    return [...m.entries()].filter(e => e[1] >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es')).slice(0, max);
+  }
+
+  function renderConclusion(){
+    const body = $('conclusionBody'); if (!body) return;
+    const items = rgItems();
+    const sub = $('conclusionSub');
+    if (!items.length){
+      sub.textContent = 'Sin datos';
+      body.innerHTML = '<div class="empty-detail">No hay tickets ni tareas vencidos en este periodo para concluir.</div>';
+      cnTexto = ''; return;
+    }
+    const tickets = items.filter(i => i.kind === 'ticket'), tareas = items.filter(i => i.kind === 'tarea');
+    const estado = it => rgEstado(rgRecOf(it));
+    const tieneAccion = it => { const r = rgRecOf(it); return !!(r && r.accion && r.accion.trim()); };
+    const sust = items.filter(i => estado(i) === 'sustentado');
+    const incomp = items.filter(i => estado(i) === 'incompleto');
+    const pend = items.filter(i => estado(i) === 'pendiente');
+    const conAccion = items.filter(tieneAccion);
+    const sustSinAccion = sust.filter(i => !tieneAccion(i));
+    const aplicados = sust.filter(i => rgAplicado(rgRecOf(i)));
+
+    // Calidad del texto del sustento
+    const textoSust = i => String((rgRecOf(i) || {}).sustento || '').trim();
+    const cortos = sust.filter(i => textoSust(i).length < 25);
+    const dup = new Map();
+    sust.forEach(i => { const k = cnNorm(textoSust(i)); if (k.length >= 25){ if (!dup.has(k)) dup.set(k, []); dup.get(k).push(i); } });
+    const repetidos = [...dup.values()].filter(a => a.length >= 2);
+    const nRepetidos = repetidos.reduce((n, a) => n + a.length, 0);
+
+    // Impacto sobre tickets: usa el mismo cálculo del candado (proyectado si aún no se aplica)
+    const baseTk = new Map(rgBase().map(r => [String(r.ticket), r]));
+    let pasan = 0, siguen = 0, sinCalculo = 0;
+    tickets.filter(i => estado(i) === 'sustentado').forEach(i => {
+      const r = baseTk.get(i.key), c = r && rgCalcTicket(r, rgRecOf(i));
+      if (!c) sinCalculo++; else if (c.pct <= 100) pasan++; else siguen++;
+    });
+    // Cumplimiento del periodo (tickets evaluables cerrados) antes vs. proyectado con todos los sustentos
+    const range = getDateRange();
+    const evalRows = allRowsRaw.filter(r => r.estado === 'Cerrado' && dateInRange(toDateSafe(r.fechaRegistro), range));
+    const cumpleAntes = evalRows.filter(r => r.cumple).length;
+    const cumpleDesp = cumpleAntes + pasan;
+    const pctAntes = cnPct(cumpleAntes, evalRows.length), pctDesp = cnPct(cumpleDesp, evalRows.length);
+
+    // Por especialista
+    const por = new Map();
+    items.forEach(i => {
+      const n = rgEspNombre(i);
+      if (!por.has(n)) por.set(n, { n, total: 0, sust: 0, inc: 0, pend: 0, acc: 0 });
+      const e = por.get(n); e.total++; e.acc += tieneAccion(i) ? 1 : 0;
+      const st = estado(i); if (st === 'sustentado') e.sust++; else if (st === 'incompleto') e.inc++; else e.pend++;
+    });
+    const esp = [...por.values()].sort((a, b) => (b.pend + b.inc) - (a.pend + a.inc) || b.total - a.total);
+
+    // Antigüedad de lo pendiente (días desde el registro)
+    const ahora = Date.now();
+    const edades = pend.concat(incomp).map(i => i.fechaRegistro ? (ahora - new Date(i.fechaRegistro).getTime()) / 86400000 : null).filter(v => v != null);
+    const masViejo = edades.length ? Math.max.apply(null, edades) : null;
+
+    // Términos repetidos
+    const tSust = cnTerminos(sust.map(textoSust), 8);
+    const tAcc = cnTerminos(conAccion.map(i => (rgRecOf(i) || {}).accion), 8);
+
+    const pSust = cnPct(sust.length, items.length), pAcc = cnPct(conAccion.length, items.length);
+    sub.textContent = `${items.length} vencido${items.length === 1 ? '' : 's'} en el periodo · ${pSust}% sustentado · ${pAcc}% con acción inmediata`;
+
+    // Conclusiones en texto (solo lo que los datos permiten afirmar)
+    const L = [];
+    L.push(`De ${cnPl(items.length, 'caso vencido', 'casos vencidos')} (${cnPl(tickets.length, 'ticket', 'tickets')} y ${cnPl(tareas.length, 'tarea', 'tareas')}), ${sust.length} (${pSust}%) tienen sustento completo, ${incomp.length} están incompletos y ${pend.length} siguen pendientes.`);
+    if (aplicados.length) L.push(`${cnPl(aplicados.length, 'sustento tiene', 'sustentos tienen')} el candado activo y ${aplicados.length === 1 ? 'ya ajusta' : 'ya ajustan'} el cierre y el progreso en todo el aplicativo.`);
+    if (conAccion.length) L.push(`${cnPl(conAccion.length, 'caso tiene', 'casos tienen')} acción inmediata registrada (${pAcc}%)${sustSinAccion.length ? `; ${cnPl(sustSinAccion.length, 'caso sustentado no define', 'casos sustentados no definen')} acción, por lo que no hay un plan para evitar que se repita` : ''}.`);
+    else L.push('Ningún caso tiene acción inmediata registrada: los sustentos explican lo ocurrido pero no definen un plan de acción.');
+    if (pasan + siguen){
+      L.push(`Si se aplican los sustentos de tickets, ${cnPl(pasan, 'ticket pasaría', 'tickets pasarían')} a cumplir SLA y ${siguen} seguirían vencidos${evalRows.length ? `; el cumplimiento del periodo pasaría de ${pctAntes}% a ${pctDesp}%` : ''}.`);
+    }
+    if (pend.length + incomp.length){
+      L.push(`Quedan ${pend.length + incomp.length} sin sustento completo${masViejo != null ? `; el más antiguo se registró hace ${Math.round(masViejo)} días` : ''}${esp.length && (esp[0].pend + esp[0].inc) ? `, y la mayor carga está en ${esp[0].n} (${esp[0].pend + esp[0].inc})` : ''}.`);
+    }
+    if (cortos.length) L.push(`Calidad: ${cnPl(cortos.length, 'sustento tiene', 'sustentos tienen')} menos de 25 caracteres, probablemente sin evidencia suficiente.`);
+    if (repetidos.length) L.push(`Calidad: ${nRepetidos} sustentos repiten el mismo texto (${repetidos.length} grupo${repetidos.length === 1 ? '' : 's'}); conviene verificar que no sean copiados sin detalle del caso.`);
+    if (!sust.length) L.push('Aún no hay sustentos completos, por lo que no se puede concluir sobre sus causas ni su impacto.');
+    cnTexto = 'CONCLUSIÓN DE SUSTENTOS Y PLANES DE ACCIÓN\n' + L.map(x => '- ' + x).join('\n');
+
+    const kpi = (k, v, s, c) => `<div class="cn-kpi ${c || ''}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || ''}</div></div>`;
+    const lista = a => a.length ? '<ul>' + a.map(x => `<li>${x}</li>`).join('') + '</ul>' : '';
+    const chips = a => a.length ? a.map(([w, n]) => `<span class="cn-chip" title="Aparece en ${n} registros">${escapeHtml(w)} · ${n}</span>`).join('') : '<span class="rg-sub">No hay términos que se repitan en 2 o más registros.</span>';
+
+    const alertas = [];
+    if (pend.length) alertas.push(`<b>${pend.length}</b> pendiente${pend.length === 1 ? '' : 's'} de sustentar.`);
+    if (incomp.length) alertas.push(`<b>${incomp.length}</b> incompleto${incomp.length === 1 ? '' : 's'} (falta fecha real o sustento).`);
+    if (sustSinAccion.length) alertas.push(`<b>${sustSinAccion.length}</b> sustentado${sustSinAccion.length === 1 ? '' : 's'} sin acción inmediata.`);
+    if (cortos.length) alertas.push(`<b>${cortos.length}</b> sustento${cortos.length === 1 ? '' : 's'} muy corto${cortos.length === 1 ? '' : 's'} (&lt; 25 caracteres).`);
+    if (repetidos.length) alertas.push(`<b>${nRepetidos}</b> sustentos con texto repetido.`);
+    if (sinCalculo) alertas.push(`<b>${sinCalculo}</b> ticket${sinCalculo === 1 ? '' : 's'} sustentado${sinCalculo === 1 ? '' : 's'} sin datos para recalcular el progreso.`);
+
+    body.innerHTML = `
+      <div class="cn-kpis">
+        ${kpi('Sustentados', pSust + '%', `${sust.length} de ${items.length}`, pSust >= 80 ? 'ok' : (pSust >= 50 ? 'warn' : 'bad'))}
+        ${kpi('Con acción inmediata', pAcc + '%', `${conAccion.length} de ${items.length}`, pAcc >= 80 ? 'ok' : (pAcc >= 50 ? 'warn' : 'bad'))}
+        ${kpi('Sin sustento completo', pend.length + incomp.length, `${pend.length} pendientes · ${incomp.length} incompletos`, (pend.length + incomp.length) ? 'warn' : 'ok')}
+        ${kpi('Candado aplicado', aplicados.length, `${sust.length - aplicados.length} sustentados sin aplicar`)}
+        ${pasan + siguen ? kpi('Pasan a cumplir SLA', pasan, `${siguen} seguirían vencidos`, pasan ? 'ok' : '') : ''}
+        ${evalRows.length && (pasan + siguen) ? kpi('Cumplimiento del periodo', pctAntes + '% → ' + pctDesp + '%', 'antes → con sustentos aplicados') : ''}
+      </div>
+      <div class="cn-resumen">${L.map(x => `<p>${escapeHtml(x)}</p>`).join('')}</div>
+      <div class="cn-cols">
+        <div class="cn-box">
+          <h4>Por especialista / responsable</h4>
+          <table class="cn-tbl">
+            <thead><tr><th>Especialista</th><th class="n">Vencidos</th><th class="n">Sustentados</th><th class="n">Pend./incompl.</th><th class="n">Con acción</th></tr></thead>
+            <tbody>${esp.map(e => `<tr><td>${escapeHtml(e.n)}</td><td class="n">${e.total}</td><td class="n">${e.sust} (${cnPct(e.sust, e.total)}%)</td><td class="n">${e.pend + e.inc}</td><td class="n">${e.acc} (${cnPct(e.acc, e.total)}%)</td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+        <div class="cn-box">
+          <h4>Puntos de atención</h4>
+          ${alertas.length ? lista(alertas) : '<div class="rg-sub">Sin observaciones: todos los casos están sustentados y con acción.</div>'}
+          <h4 style="margin-top:12px;">Términos más repetidos</h4>
+          <div class="rg-sub" style="margin:0 0 3px;">En sustentos</div><div>${chips(tSust)}</div>
+          <div class="rg-sub" style="margin:6px 0 3px;">En acciones inmediatas</div><div>${chips(tAcc)}</div>
+        </div>
+      </div>
+      <div class="cn-note">Calculado solo con lo registrado en esta pestaña para el rango de fechas activo. Los términos son un conteo de palabras (en cuántos registros aparece cada una), no una clasificación de causas: sirven para orientar la lectura de los sustentos. El impacto sobre el cumplimiento usa el mismo cálculo del candado y es una proyección para los sustentos aún sin aplicar.</div>`;
+  }
+  $('btnCopyConclusion').addEventListener('click', async () => {
+    if (!cnTexto) return;
+    const btn = $('btnCopyConclusion'), prev = btn.textContent;
+    try { await navigator.clipboard.writeText(cnTexto); btn.textContent = 'Copiado'; }
+    catch(err){ btn.textContent = 'No se pudo copiar'; }
+    setTimeout(() => { btn.textContent = prev; }, 1600);
+  });
+
   $('historialFilter').addEventListener('change', renderHistorial);
   $('btnExportHistorial').addEventListener('click', () => {
     const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
