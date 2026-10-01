@@ -503,6 +503,51 @@
   .esp-row .mono{ font-family:'IBM Plex Mono', monospace; }
   .esp-row .cero{ color:var(--ink-faint); }
   @media (max-width: 820px){ .esp-head{ display:none; } .esp-row{ grid-template-columns:1fr 1fr 1fr; } .esp-row .bar-cell, .esp-row .name{ grid-column:1 / -1; } }
+  /* ---------- seguimiento de desempeño de especialistas ---------- */
+  .esp-row .name.with-seg{ display:flex; align-items:center; gap:8px; }
+  .esp-row .name.with-seg .nm{ overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .seg-pill{ flex-shrink:0; font-size:10.5px; font-weight:600; padding:1px 7px; border-radius:100px; background:var(--surface-sunken); color:var(--ink-soft); }
+  .seg-pill.warn{ background:var(--warning-bg); color:var(--warning); }
+  .seg-pill.venc{ background:var(--danger-bg); color:var(--danger); }
+  .seg-pill.ok{ background:#E3F3EB; color:var(--success); }
+  .seg-head{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin:14px 0 4px; padding-top:14px; border-top:1px solid var(--border); }
+  .seg-name{ font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:600; color:var(--ink); }
+  .seg-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; line-height:1.5; }
+  .seg-head-right{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .seg-estado{ font-size:12px; font-weight:600; padding:3px 10px; border-radius:100px; white-space:nowrap; }
+  .seg-estado.bad{ background:var(--danger-bg); color:var(--danger); }
+  .seg-estado.ok{ background:#E3F3EB; color:var(--success); }
+  .seg-estado.na{ background:var(--surface-sunken); color:var(--ink-soft); }
+  .seg-note{ font-size:12.5px; color:var(--warning); background:var(--warning-bg); border-radius:var(--radius-s); padding:8px 12px; margin:10px 0; }
+  .seg-err{ color:var(--danger); font-size:12.5px; margin-top:8px; min-height:1em; }
+  .seg-form{ background:var(--surface-sunken); border:1px solid var(--border); border-radius:var(--radius-m); padding:14px 16px; margin:12px 0; }
+  .seg-form-title{ font-family:'Space Grotesk', sans-serif; font-size:14px; font-weight:600; margin-bottom:10px; }
+  .seg-card{ border:1px solid var(--border); border-radius:var(--radius-m); background:var(--surface); padding:14px 16px; margin-top:12px; }
+  .seg-card.cerrado{ opacity:.82; }
+  .seg-card-top{ display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px 12px; }
+  .seg-card-date{ font-size:12px; color:var(--ink-faint); }
+  .seg-card-tools{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .seg-card-tools button{ font-size:11.5px; padding:4px 9px; }
+  .seg-card-tools select{ font-family:'IBM Plex Sans', sans-serif; font-size:12px; border:1px solid var(--border); border-radius:var(--radius-s); padding:3px 5px; background:var(--surface); color:var(--ink); }
+  .seg-badge{ display:inline-block; font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:100px; background:var(--surface-sunken); color:var(--ink-soft); white-space:nowrap; }
+  .seg-badge.prox{ background:var(--warning-bg); color:var(--warning); }
+  .seg-badge.venc{ background:var(--danger-bg); color:var(--danger); }
+  .seg-snap{ font-size:12.5px; color:var(--ink-soft); margin:8px 0 2px; }
+  .seg-snap b{ color:var(--ink); }
+  .seg-cols{ display:grid; grid-template-columns:1fr 1fr; gap:12px 18px; margin-top:10px; }
+  @media (max-width:760px){ .seg-cols{ grid-template-columns:1fr; } }
+  .seg-lbl{ font-size:11px; font-weight:600; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin-bottom:3px; }
+  .seg-txt{ font-size:13px; line-height:1.55; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+  .seg-coms{ margin-top:12px; border-top:1px dashed var(--border); padding-top:10px; }
+  .seg-com{ display:flex; gap:8px; justify-content:space-between; align-items:flex-start; padding:7px 10px; border-radius:8px; background:var(--surface-sunken); margin-top:6px; }
+  .seg-com-who{ font-size:11.5px; color:var(--ink-faint); margin-bottom:2px; }
+  .seg-com-del{ border:none; background:none; color:var(--ink-faint); font-size:15px; line-height:1; padding:0 4px; cursor:pointer; }
+  .seg-com-del:hover{ color:var(--danger); }
+  .seg-com-new{ display:grid; grid-template-columns:1fr; gap:6px; margin-top:10px; }
+  .seg-com-new textarea, .seg-com-new input{ width:100%; font-family:'IBM Plex Sans', sans-serif; font-size:13px; border:1px solid var(--border); border-radius:var(--radius-s); padding:6px 8px; background:var(--surface); color:var(--ink); }
+  .seg-com-new textarea{ resize:vertical; min-height:48px; }
+  .seg-com-row{ display:flex; gap:8px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+  .seg-com-row input{ max-width:220px; }
   .metric-toggle{
     display:inline-flex; border:1px solid var(--border); border-radius:100px; overflow:hidden;
     font-size:12px;
@@ -1420,6 +1465,14 @@
         <div id="trendEspecialistaFallback" class="hidden"></div>
         <div class="empty-detail hidden" id="trendEspecialistaEmpty">No hay suficientes tickets cerrados para trazar una tendencia mensual.</div>
       </div>
+    </section>
+
+    <section class="card" id="segEspCard" style="margin-bottom:14px;">
+      <h3 class="card-head-flex">
+        <span>Seguimiento de desempeño <span class="sub card-head-sub" id="segSub">· selecciona un especialista en la tabla de arriba</span></span>
+      </h3>
+      <div class="an-grid" id="segResumen"></div>
+      <div id="segBody"></div>
     </section>
 
     <section class="card" id="vcSection" style="margin-bottom:14px;">
@@ -3001,7 +3054,7 @@
       const pct = r.pct == null ? 0 : Math.min(r.pct, 100);
       const bad = r.pct != null && r.pct < META;
       return `<div class="esp-row${r.name === espSel ? ' sel' : ''}" data-name="${escapeHtml(r.name)}">
-        <span class="name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
+        <span class="name with-seg" title="${escapeHtml(r.name)}"><span class="nm">${escapeHtml(r.name)}</span><span class="seg-pillslot"></span></span>
         <span class="bar-cell"><span class="esp-bar">
           <span class="fill ${bad ? 'bad' : ''}" style="width:${pct}%"></span>
           <span class="meta" style="left:${META}%"></span>
@@ -3019,6 +3072,7 @@
     else if (!espSel || !rows.some(r => r.name === espSel)) espSel = rows[0].name;
     // marcar seleccionado (por si se acaba de fijar el valor por defecto)
     $('espRows').querySelectorAll('.esp-row').forEach(el => el.classList.toggle('sel', el.dataset.name === espSel));
+    try { renderSeguimiento(rows); } catch(err){ console.error('Error en seguimiento de desempeño:', err); }
     renderEspHist();
     try { renderVolCumpl(); } catch(err){ console.error('Error en análisis volumen vs cumplimiento:', err); }
   }
@@ -3031,6 +3085,327 @@
   }
 
   $('espHistSwitch').addEventListener('change', (e) => { espHistOn = e.target.checked; renderEspHist(); });
+
+  // ---------------- Seguimiento de desempeño de especialistas ----------------
+  // Para cada especialista por debajo de la meta: análisis de su desempeño, plan de acción, fecha de
+  // reevaluación y una línea de comentarios de feedback. Se guarda en la base de datos (/api/seguimiento),
+  // compartido entre equipos. Al registrar un análisis se guarda una "foto" del cumplimiento de ese
+  // momento para compararla después con el valor actual.
+  const SEG_ESTADOS = ['En seguimiento', 'Reevaluado', 'Cerrado'];
+  let segData = [];          // análisis con sus comentarios
+  let segServerOk = null;    // null = aún no se probó · true = hay base de datos · false = sin conexión
+  let segForm = null;        // { esp, id } mientras el formulario está abierto (id = null si es nuevo)
+  let segDrafts = {};        // borradores de comentario por id de análisis
+  let segBusy = false;
+
+  function segHoy(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function segDias(f){   // días desde hoy hasta la fecha 'YYYY-MM-DD' (negativo = ya pasó)
+    const [y, m, d] = String(f).slice(0, 10).split('-').map(Number);
+    const [hy, hm, hd] = segHoy().split('-').map(Number);
+    return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(hy, hm - 1, hd)) / 86400000);
+  }
+  function segFmtDia(s){
+    if (!s) return '—';
+    const [y, m, d] = String(s).slice(0, 10).split('-');
+    return `${d}/${m}/${y}`;
+  }
+  function segFmtStamp(iso){
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    return d.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  function segAutorGuardado(){ try{ return localStorage.getItem('segAutor') || ''; }catch(err){ return ''; } }
+  function segGuardarAutor(v){ try{ if (v) localStorage.setItem('segAutor', v); }catch(err){} }
+  const segVencida = (a) => a.estado === 'En seguimiento' && a.fechaReevaluacion && segDias(a.fechaReevaluacion) < 0;
+
+  async function segApi(method, body, query){
+    const res = await fetch('/api/seguimiento' + (query || ''), {
+      method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + res.status));
+    return j;
+  }
+
+  async function segLoad(){
+    try{
+      const res = await fetch('/api/seguimiento', { cache: 'no-store' });
+      const j = await res.json().catch(() => null);
+      if (!res.ok || !j || !j.ok || !Array.isArray(j.analisis)) throw new Error('sin respuesta');
+      segData = j.analisis; segServerOk = true;
+    }catch(err){
+      segServerOk = false;
+    }
+    if (activePage() === 'dashboardExtra') renderSeguimiento(); else staleTabs.add('dashboardExtra');
+  }
+
+  // Marca por especialista en la tabla de cumplimiento (Sin análisis / En seguimiento / Reevaluar).
+  function segPillFor(name, bad){
+    if (segServerOk !== true) return '';
+    const act = segData.filter(a => a.especialista === name && a.estado !== 'Cerrado');
+    if (act.some(segVencida)) return '<span class="seg-pill venc" title="Hay una reevaluación vencida">Reevaluar</span>';
+    if (act.length) return '<span class="seg-pill ok" title="Tiene un análisis de desempeño en seguimiento">En seguimiento</span>';
+    if (bad) return '<span class="seg-pill warn" title="Está por debajo de la meta y no tiene análisis registrado">Sin análisis</span>';
+    return '';
+  }
+
+  function segBadgeReev(a){
+    if (a.estado === 'Cerrado' || !a.fechaReevaluacion) return '';
+    const n = segDias(a.fechaReevaluacion);
+    if (a.estado === 'En seguimiento'){
+      if (n < 0) return `<span class="seg-badge venc">Reevaluación vencida hace ${-n} d</span>`;
+      if (n === 0) return '<span class="seg-badge prox">Reevaluar hoy</span>';
+      if (n <= 7) return `<span class="seg-badge prox">Reevaluar en ${n} d</span>`;
+    }
+    return `<span class="seg-badge">Reevaluación: ${segFmtDia(a.fechaReevaluacion)}</span>`;
+  }
+
+  function segSnapHtml(a, r){
+    if (a.pctRegistro == null) return '';
+    let txt = `Al registrar: <b>${a.pctRegistro.toFixed(1)}%</b>${a.totalRegistro != null ? ` (${a.cumplenRegistro}/${a.totalRegistro})` : ''}`;
+    if (a.periodoDesde || a.periodoHasta) txt += ` · periodo ${segFmtDia(a.periodoDesde)} – ${segFmtDia(a.periodoHasta)}`;
+    if (r && r.pct != null){
+      const d = r.pct - a.pctRegistro;
+      const cls = Math.abs(d) < 0.05 ? 'flat' : (d > 0 ? 'up' : 'down');
+      const flecha = cls === 'flat' ? '■' : (d > 0 ? '▲' : '▼');
+      txt += ` · Hoy (rango actual): <b>${r.pct.toFixed(1)}%</b> <span class="vc-arrow ${cls}">${flecha} ${d > 0 ? '+' : ''}${d.toFixed(1)} pts</span>`;
+    }
+    return `<div class="seg-snap">${txt}</div>`;
+  }
+
+  function segCardHtml(a, r){
+    const coms = (a.comentarios || []).map(c => `
+      <div class="seg-com">
+        <div><div class="seg-com-who">${escapeHtml(c.autor || 'Sin nombre')} · ${segFmtStamp(c.createdAt)}</div>
+        <div class="seg-txt">${escapeHtml(c.comentario)}</div></div>
+        <button class="seg-com-del" data-act="com-del" data-id="${c.id}" title="Eliminar comentario">×</button>
+      </div>`).join('');
+    return `<div class="seg-card${a.estado === 'Cerrado' ? ' cerrado' : ''}" data-aid="${a.id}">
+      <div class="seg-card-top">
+        <div>
+          <div class="seg-card-date">Registrado el ${segFmtStamp(a.createdAt)}${a.autor ? ' por ' + escapeHtml(a.autor) : ''}</div>
+          <div style="margin-top:4px;">${segBadgeReev(a)}</div>
+        </div>
+        <div class="seg-card-tools">
+          <select data-act="estado" data-id="${a.id}" title="Estado del seguimiento">
+            ${SEG_ESTADOS.map(e => `<option${e === a.estado ? ' selected' : ''}>${e}</option>`).join('')}
+          </select>
+          <button data-act="editar" data-id="${a.id}">Editar</button>
+          <button data-act="borrar" data-id="${a.id}">Eliminar</button>
+        </div>
+      </div>
+      ${segSnapHtml(a, r)}
+      <div class="seg-cols">
+        <div><div class="seg-lbl">Análisis del desempeño</div><div class="seg-txt">${escapeHtml(a.analisis || '')}</div></div>
+        <div><div class="seg-lbl">Plan de acción</div><div class="seg-txt">${escapeHtml(a.planAccion || '')}</div></div>
+      </div>
+      <div class="seg-coms">
+        <div class="seg-lbl">Feedback (${(a.comentarios || []).length})</div>
+        ${coms}
+        <div class="seg-com-new">
+          <textarea id="segC-${a.id}" data-draft="${a.id}" placeholder="Agregar un comentario de feedback…">${escapeHtml(segDrafts[a.id] || '')}</textarea>
+          <div class="seg-com-row">
+            <input type="text" id="segCA-${a.id}" placeholder="Tu nombre (opcional)" value="${escapeHtml(segAutorGuardado())}">
+            <button class="btn-primary" data-act="com-add" data-id="${a.id}">Agregar comentario</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function segFormHtml(r, a){
+    return `<div class="seg-form">
+      <div class="seg-form-title">${a ? 'Editar análisis' : 'Nuevo análisis'} · ${escapeHtml(r.name)}</div>
+      <div class="an-form-grid">
+        <div class="full"><label for="segFAnalisis">Análisis del desempeño <span class="rg-req">*</span></label>
+          <textarea id="segFAnalisis" rows="4" placeholder="¿Qué está pasando? Causas observadas, patrones, servicios o tipos de ticket donde se incumple…">${escapeHtml(a ? a.analisis || '' : '')}</textarea></div>
+        <div class="full"><label for="segFPlan">Plan de acción <span class="rg-req">*</span></label>
+          <textarea id="segFPlan" rows="4" placeholder="Una acción por línea: qué se hará, cómo y con qué apoyo">${escapeHtml(a ? a.planAccion || '' : '')}</textarea></div>
+        <div><label for="segFFecha">Fecha de reevaluación <span class="rg-req">*</span></label>
+          <input type="date" id="segFFecha" value="${a ? a.fechaReevaluacion || '' : ''}"></div>
+        ${a
+          ? `<div><label for="segFEstado">Estado</label><select id="segFEstado">${SEG_ESTADOS.map(e => `<option${e === a.estado ? ' selected' : ''}>${e}</option>`).join('')}</select></div>`
+          : `<div><label for="segFAutor">Registrado por (opcional)</label><input type="text" id="segFAutor" value="${escapeHtml(segAutorGuardado())}"></div>`}
+      </div>
+      <div class="seg-err" id="segFErr"></div>
+      <div class="an-form-actions">
+        <button data-act="cancelar">Cancelar</button>
+        <button class="btn-primary" data-act="guardar">Guardar</button>
+      </div>
+    </div>`;
+  }
+
+  function renderSeguimiento(rows){
+    const body = $('segBody');
+    if (!body) return;
+    rows = rows || buildEspecialistas();
+
+    // Marcas en la tabla de especialistas
+    document.querySelectorAll('#espRows .esp-row').forEach(el => {
+      const r = rows.find(x => x.name === el.dataset.name);
+      const slot = el.querySelector('.seg-pillslot');
+      if (slot) slot.innerHTML = segPillFor(el.dataset.name, !!(r && r.pct != null && r.pct < META));
+    });
+
+    // Resumen general
+    const bajo = rows.filter(r => r.pct != null && r.pct < META);
+    const conAn = bajo.filter(r => segData.some(a => a.especialista === r.name && a.estado !== 'Cerrado')).length;
+    const venc = segData.filter(segVencida).length;
+    const prox = segData.filter(a => a.estado === 'En seguimiento' && a.fechaReevaluacion && segDias(a.fechaReevaluacion) >= 0 && segDias(a.fechaReevaluacion) <= 7).length;
+    const stat = (l, n, cls) => `<div class="an-stat"><div class="l">${l}</div><div class="n ${cls || ''}">${n}</div></div>`;
+    $('segResumen').innerHTML = segServerOk === true
+      ? stat(`Bajo la meta (${META}%)`, bajo.length, bajo.length ? 'bad' : 'ok')
+        + stat('Con análisis en seguimiento', `${conAn} de ${bajo.length}`)
+        + stat('Reevaluaciones vencidas', venc, venc ? 'bad' : 'ok')
+        + stat('Reevaluaciones en 7 días', prox)
+      : '';
+
+    // Cuerpo: especialista seleccionado
+    const r = rows.find(x => x.name === espSel);
+    if (segForm && (!r || segForm.esp !== espSel)) segForm = null;
+    if (!r){
+      $('segSub').textContent = '';
+      body.innerHTML = '<div class="empty-detail">No hay especialistas en este rango.</div>';
+      return;
+    }
+    $('segSub').textContent = '';
+    const bad = r.pct != null && r.pct < META;
+    const propios = segData.filter(a => a.especialista === r.name);
+    const puedeNuevo = segServerOk === true && bad && !segForm;
+
+    let html = `<div class="seg-head">
+      <div>
+        <div class="seg-name">${escapeHtml(r.name)}</div>
+        <div class="seg-meta">${r.pct == null ? 'Sin tickets evaluados en el rango' : `Cumplimiento <b>${r.pct.toFixed(1)}%</b> (${r.cumplen}/${r.total}) · meta ${META}%`}
+          · ${r.tickAbiertos} ticket${r.tickAbiertos === 1 ? '' : 's'} abierto${r.tickAbiertos === 1 ? '' : 's'}
+          · ${r.tareasAbiertas} tarea${r.tareasAbiertas === 1 ? '' : 's'} abierta${r.tareasAbiertas === 1 ? '' : 's'}
+          · ${r.tareasEstancadas} estancada${r.tareasEstancadas === 1 ? '' : 's'}</div>
+      </div>
+      <div class="seg-head-right">
+        <span class="seg-estado ${r.pct == null ? 'na' : bad ? 'bad' : 'ok'}">${r.pct == null ? 'Sin datos' : bad ? (META - r.pct).toFixed(1) + ' pts bajo la meta' : 'Cumple la meta'}</span>
+        <button class="btn-primary" data-act="nuevo"${puedeNuevo ? '' : ' disabled'} title="${bad ? '' : 'Solo se registran análisis para quienes están por debajo de la meta'}">+ Nuevo análisis</button>
+      </div>
+    </div>`;
+
+    if (segServerOk === false) html += '<div class="seg-note">No hay conexión con la base de datos: el seguimiento no se puede consultar ni guardar por ahora.</div>';
+    if (segForm && segForm.esp === r.name) html += segFormHtml(r, segForm.id ? segData.find(a => a.id === segForm.id) : null);
+
+    if (segServerOk === true){
+      if (propios.length) html += propios.map(a => segCardHtml(a, r)).join('');
+      else if (!segForm) html += `<div class="empty-detail" style="margin-top:10px;">${bad
+        ? 'Aún no hay análisis registrados para este especialista. Usa «Nuevo análisis» para registrar su desempeño y su plan de acción.'
+        : 'Este especialista cumple la meta; no requiere plan de acción.'}</div>`;
+    }
+    body.innerHTML = html;
+  }
+
+  async function segGuardar(){
+    if (segBusy || !segForm) return;
+    const err = $('segFErr');
+    const rows = buildEspecialistas();
+    const r = rows.find(x => x.name === segForm.esp);
+    const a = segForm.id ? segData.find(x => x.id === segForm.id) : null;
+    const analisis = $('segFAnalisis').value.trim();
+    const plan = $('segFPlan').value.trim();
+    const fecha = $('segFFecha').value;
+    if (!analisis || !plan || !fecha){ err.textContent = 'Completa el análisis, el plan de acción y la fecha de reevaluación.'; return; }
+    err.textContent = '';
+    segBusy = true;
+    try{
+      let j;
+      if (a){
+        j = await segApi('POST', { id: a.id, especialista: a.especialista, analisis, planAccion: plan, fechaReevaluacion: fecha, estado: $('segFEstado').value });
+        const idx = segData.findIndex(x => x.id === a.id);
+        segData[idx] = { ...j.analisis, comentarios: a.comentarios || [] };
+      } else {
+        const autor = $('segFAutor').value.trim();
+        segGuardarAutor(autor);
+        j = await segApi('POST', {
+          especialista: segForm.esp, analisis, planAccion: plan, fechaReevaluacion: fecha, autor,
+          pctRegistro: r ? r.pct : null, cumplenRegistro: r ? r.cumplen : null, totalRegistro: r ? r.total : null,
+          periodoDesde: $('dateFrom').value || null, periodoHasta: $('dateTo').value || null
+        });
+        segData.unshift(j.analisis);
+      }
+      segForm = null;
+      renderSeguimiento();
+    }catch(e){
+      err.textContent = 'No se pudo guardar: ' + e.message;
+    }finally{ segBusy = false; }
+  }
+
+  async function segAccion(act, id, el){
+    if (segBusy) return;
+    const a = segData.find(x => x.id === Number(id));
+    try{
+      if (act === 'nuevo'){ segForm = { esp: espSel, id: null }; renderSeguimiento(); const t = $('segFAnalisis'); if (t) t.focus(); }
+      else if (act === 'cancelar'){ segForm = null; renderSeguimiento(); }
+      else if (act === 'guardar'){ await segGuardar(); }
+      else if (act === 'editar' && a){ segForm = { esp: a.especialista, id: a.id }; renderSeguimiento(); const f = $('segFAnalisis'); if (f) f.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      else if (act === 'borrar' && a){
+        if (!confirm('¿Eliminar este análisis con su plan de acción y todos sus comentarios? No se puede deshacer.')) return;
+        segBusy = true;
+        await segApi('DELETE', null, '?id=' + a.id);
+        segData = segData.filter(x => x.id !== a.id);
+        delete segDrafts[a.id];
+        segBusy = false; renderSeguimiento();
+      }
+      else if (act === 'com-add' && a){
+        const ta = $('segC-' + a.id);
+        const txt = ta.value.trim();
+        if (!txt){ ta.focus(); return; }
+        const autor = $('segCA-' + a.id).value.trim();
+        segGuardarAutor(autor);
+        segBusy = true; el.disabled = true;
+        const j = await segApi('PUT', { analisisId: a.id, comentario: txt, autor });
+        a.comentarios = (a.comentarios || []).concat(j.comentario);
+        delete segDrafts[a.id];
+        segBusy = false; renderSeguimiento();
+      }
+      else if (act === 'com-del'){
+        if (!confirm('¿Eliminar este comentario?')) return;
+        segBusy = true;
+        await segApi('DELETE', null, '?comentarioId=' + id);
+        segData.forEach(x => { x.comentarios = (x.comentarios || []).filter(c => c.id !== Number(id)); });
+        segBusy = false; renderSeguimiento();
+      }
+    }catch(e){
+      segBusy = false;
+      if (el) el.disabled = false;
+      alert('No se pudo completar la acción: ' + e.message);
+    }
+  }
+
+  (function wireSeguimiento(){
+    const card = $('segEspCard');
+    card.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b || b.tagName === 'SELECT' || b.disabled) return;
+      segAccion(b.dataset.act, b.dataset.id, b);
+    });
+    card.addEventListener('change', async (e) => {
+      const s = e.target.closest('select[data-act="estado"]');
+      if (!s) return;
+      const a = segData.find(x => x.id === Number(s.dataset.id));
+      if (!a) return;
+      try{
+        const j = await segApi('POST', { id: a.id, especialista: a.especialista, analisis: a.analisis, planAccion: a.planAccion, fechaReevaluacion: a.fechaReevaluacion || '', estado: s.value });
+        Object.assign(a, j.analisis, { comentarios: a.comentarios || [] });
+        renderSeguimiento();
+      }catch(err){
+        alert('No se pudo cambiar el estado: ' + err.message);
+        renderSeguimiento();
+      }
+    });
+    card.addEventListener('input', (e) => {
+      const d = e.target.dataset && e.target.dataset.draft;
+      if (d) segDrafts[d] = e.target.value;
+    });
+  })();
+  segLoad();
 
   // ---------------- Análisis Volumen vs % Cumplimiento ----------------
   // Por especialista (y para todo el equipo) agrupa los tickets cerrados por mes o semana y calcula:
