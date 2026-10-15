@@ -1502,6 +1502,23 @@
       </div>
     </section>
 
+    <section class="card" id="espTTCard" style="margin-bottom:14px;">
+      <h3 class="card-head-flex">
+        <span>Cumplimiento por especialista: tickets vs tareas <span class="sub card-head-sub" id="espTTSub"></span></span>
+      </h3>
+      <p class="vc-help" style="margin-bottom:10px;">
+        <b>Tickets:</b> % que cumplió el SLA (meta <span class="js-meta">95</span>%). <b>Tareas:</b> % resuelto o en curso dentro de los <span id="espTTDias">15</span> días (el mismo criterio de "estancada"). Se cuentan las tareas dentro del rango de fechas activo.
+      </p>
+      <div class="rk-chips" id="espTTChips"></div>
+      <div class="empty-detail hidden" id="espTTEmpty">Carga tickets y tareas para comparar el cumplimiento por especialista.</div>
+      <div id="espTTBody">
+        <h4 class="card-detail-title" style="margin:10px 0 4px;">Resumen global (tickets + tareas)</h4>
+        <div class="chart-box" id="espTTSumBox" style="height:clamp(300px, 46vh, 400px);"><canvas id="espTTSumCanvas"></canvas></div>
+        <h4 class="card-detail-title" style="margin:18px 0 4px;">Detalle por especialista: tickets y tareas</h4>
+        <div class="chart-box" id="espTTBox" style="height:520px;"><canvas id="espTTCanvas"></canvas></div>
+      </div>
+    </section>
+
     <section class="card" id="segEspCard" style="margin-bottom:14px;">
       <h3 class="card-head-flex">
         <span>Seguimiento de desempeño <span class="sub card-head-sub" id="segSub">· selecciona un especialista en la tabla de arriba</span></span>
@@ -1540,7 +1557,7 @@
       <div id="vcDetail" class="hidden card-detail">
         <strong class="card-detail-title" id="vcDetailTitle"></strong>
         <div class="vc-umbral" id="vcUmbralCard"></div>
-        <div class="chart-box" id="vcChartBox" style="height:280px; margin-top:8px;"><canvas id="vcCanvas"></canvas></div>
+        <div class="chart-box" id="vcChartBox" style="height:clamp(380px, 56vh, 480px); margin-top:8px;"><canvas id="vcCanvas"></canvas></div>
         <ul class="vc-insights" id="vcInsights"></ul>
       </div>
     </section>
@@ -1705,7 +1722,7 @@
       <div id="svDetail" class="hidden card-detail">
         <strong class="card-detail-title" id="svDetailTitle"></strong>
         <div class="vc-umbral" id="svUmbralCard"></div>
-        <div class="chart-box" id="svChartBox" style="height:280px; margin-top:8px;"><canvas id="svCanvas"></canvas></div>
+        <div class="chart-box" id="svChartBox" style="height:clamp(380px, 56vh, 480px); margin-top:8px;"><canvas id="svCanvas"></canvas></div>
         <ul class="vc-insights" id="svInsights"></ul>
       </div>
     </section>
@@ -3122,7 +3139,141 @@
     $('espRows').querySelectorAll('.esp-row').forEach(el => el.classList.toggle('sel', el.dataset.name === espSel));
     try { renderSeguimiento(rows); } catch(err){ console.error('Error en seguimiento de desempeño:', err); }
     renderEspHist();
+    try { renderEspTT(); } catch(err){ console.error('Error en gráficas tickets vs tareas:', err); }
     try { renderVolCumpl(); } catch(err){ console.error('Error en análisis volumen vs cumplimiento:', err); }
+  }
+
+
+  // ---------------- Cumplimiento por especialista: tickets vs tareas (gráficas) ----------------
+  // Tickets: % que cumplió el SLA (r.cumple). Tareas: % resuelto o en curso dentro de STUCK_DAYS días.
+  let espTTChart = null, espTTSumChart = null;
+  function buildEspTT(){
+    const map = new Map();
+    const get = (n) => { if (!map.has(n)) map.set(n, { name:n, tTot:0, tOk:0, kTot:0, kOk:0 }); return map.get(n); };
+    allRows.forEach(r => {
+      if (!r.especialista || r.especialista === '—') return;
+      if (r.fechaCierre == null) return;               // solo tickets ya evaluados (cerrados), igual que el % de la tabla
+      const b = get(r.especialista); b.tTot++; if (r.cumple) b.tOk++;
+    });
+    taskAbiertas.concat(taskCerradas).forEach(t => {
+      if (!t.responsable || t.responsable === '—' || t.dias == null) return;
+      const b = get(t.responsable); b.kTot++; if (t.dias <= STUCK_DAYS) b.kOk++;
+    });
+    return Array.from(map.values()).map(b => ({
+      ...b,
+      pT: b.tTot ? b.tOk / b.tTot * 100 : null,
+      pK: b.kTot ? b.kOk / b.kTot * 100 : null,
+      pG: (b.tTot + b.kTot) ? (b.tOk + b.kOk) / (b.tTot + b.kTot) * 100 : null
+    }));
+  }
+
+  function renderEspTT(){
+    const card = $('espTTCard'); if (!card) return;
+    if (espTTChart){ espTTChart.destroy(); espTTChart = null; }
+    if (espTTSumChart){ espTTSumChart.destroy(); espTTSumChart = null; }
+    $('espTTDias').textContent = STUCK_DAYS;
+    const rows = buildEspTT().filter(r => r.tTot + r.kTot > 0);
+    $('espTTEmpty').classList.toggle('hidden', rows.length > 0);
+    $('espTTBody').classList.toggle('hidden', rows.length === 0);
+    $('espTTChips').innerHTML = '';
+    $('espTTSub').textContent = rows.length ? `· ${rows.length} especialista${rows.length === 1 ? '' : 's'}` : '';
+    if (!rows.length || typeof Chart === 'undefined') return;
+
+    // Totales del equipo
+    const sum = rows.reduce((a, r) => (a.tTot += r.tTot, a.tOk += r.tOk, a.kTot += r.kTot, a.kOk += r.kOk, a), { tTot:0, tOk:0, kTot:0, kOk:0 });
+    const pct = (ok, tot) => tot ? ok / tot * 100 : null;
+    const pT = pct(sum.tOk, sum.tTot), pK = pct(sum.kOk, sum.kTot), pG = pct(sum.tOk + sum.kOk, sum.tTot + sum.kTot);
+    const f1 = v => v == null ? '—' : v.toFixed(1) + '%';
+    const chip = (n, l, bad) => `<div class="rk-chip${bad ? ' venc' : ''}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+    $('espTTChips').innerHTML =
+      chip(f1(pT), `Tickets · ${sum.tOk}/${sum.tTot} cumplen`, pT != null && pT < META) +
+      chip(f1(pK), `Tareas · ${sum.kOk}/${sum.kTot} a tiempo`, pK != null && pK < META) +
+      chip(f1(pG), `Global · ${sum.tOk + sum.kOk}/${sum.tTot + sum.kTot}`, pG != null && pG < META);
+
+    const styles = getComputedStyle(document.documentElement);
+    const inkSoft = styles.getPropertyValue('--ink-soft').trim();
+    const inkColor = styles.getPropertyValue('--ink').trim();
+    const border = styles.getPropertyValue('--border').trim();
+    const mono = "'IBM Plex Mono', monospace";
+    const tick = { color: inkSoft, font: { family: mono, size: 11 } };
+    const metaLine = {
+      id: 'espTTMeta',
+      afterDatasetsDraw(ch){
+        const xs = ch.scales.x, a = ch.chartArea, ctx = ch.ctx, x = xs.getPixelForValue(META);
+        ctx.save(); ctx.setLineDash([6, 5]); ctx.strokeStyle = '#1F8A5F'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle = '#1F8A5F'; ctx.font = '600 11px ' + mono; ctx.textAlign = 'center';
+        ctx.fillText('Meta ' + META + '%', x, a.top - 6);
+        ctx.restore();
+      }
+    };
+    const legend = { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 } } };
+    const xScale = { min: 0, max: 100, grid: { color: border }, ticks: { ...tick, callback: v => v + '%' } };
+    const colorFor = v => v == null ? '#B8C4CC' : (v >= META ? '#1F8A5F' : '#D9433D');
+
+    // 1) Resumen global: equipo + cada especialista (tickets y tareas juntos), peor primero
+    const glob = rows.filter(r => r.pG != null).sort((a, b) => a.pG - b.pG);
+    const labelsG = ['EQUIPO'].concat(glob.map(r => r.name));
+    const dataG = [pG].concat(glob.map(r => Number(r.pG.toFixed(1))));
+    const extraG = [{ ok: sum.tOk + sum.kOk, tot: sum.tTot + sum.kTot, t: `${sum.tOk}/${sum.tTot}`, k: `${sum.kOk}/${sum.kTot}` }]
+      .concat(glob.map(r => ({ ok: r.tOk + r.kOk, tot: r.tTot + r.kTot, t: `${r.tOk}/${r.tTot}`, k: `${r.kOk}/${r.kTot}` })));
+    const hSum = Math.max(300, labelsG.length * 26 + 90);
+    $('espTTSumBox').style.height = hSum + 'px';
+    const valLabels = {
+      id: 'espTTVal',
+      afterDatasetsDraw(ch){
+        const m = ch.getDatasetMeta(0), ctx = ch.ctx; ctx.save();
+        ctx.fillStyle = inkColor; ctx.font = '600 11px ' + mono; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        m.data.forEach((bar, i) => { const v = ch.data.datasets[0].data[i]; if (v != null) ctx.fillText(v.toFixed(1) + '%', bar.x + 6, bar.y); });
+        ctx.restore();
+      }
+    };
+    espTTSumChart = new Chart($('espTTSumCanvas').getContext('2d'), {
+      type: 'bar',
+      data: { labels: labelsG, datasets: [{ label: '% cumplimiento global', data: dataG, borderRadius: 4, barPercentage: 0.8, categoryPercentage: 0.9,
+        backgroundColor: dataG.map((v, i) => i === 0 ? (v >= META ? '#14684A' : '#A82B26') : colorFor(v)) }] },
+      plugins: [metaLine, valLabels],
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 22, right: 46, left: 4, bottom: 4 } },
+        scales: { x: xScale, y: { grid: { display: false }, ticks: { ...tick, font: { family: mono, size: 11 } } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { backgroundColor: '#16202B', padding: 10, callbacks: {
+            label: c => { const e = extraG[c.dataIndex]; return `Global: ${c.formattedValue}% (${e.ok}/${e.tot})`; },
+            afterLabel: c => { const e = extraG[c.dataIndex]; return [`Tickets: ${e.t}`, `Tareas: ${e.k}`]; } } }
+        }
+      },
+    });
+
+    // 2) Detalle: barras agrupadas tickets / tareas por especialista (peor global primero)
+    const det = rows.slice().sort((a, b) => (a.pG == null ? 1 : b.pG == null ? -1 : a.pG - b.pG));
+    const hDet = Math.max(360, det.length * 46 + 100);
+    $('espTTBox').style.height = hDet + 'px';
+    espTTChart = new Chart($('espTTCanvas').getContext('2d'), {
+      type: 'bar',
+      data: { labels: det.map(r => r.name), datasets: [
+        { label: 'Tickets (SLA)', data: det.map(r => r.pT == null ? null : Number(r.pT.toFixed(1))), backgroundColor: '#2C5F6F', borderRadius: 3 },
+        { label: `Tareas (≤ ${STUCK_DAYS} días)`, data: det.map(r => r.pK == null ? null : Number(r.pK.toFixed(1))), backgroundColor: '#E0A030', borderRadius: 3 }
+      ] },
+      plugins: [metaLine, { id: 'espTTVal2', afterDatasetsDraw(ch){
+        const ctx = ch.ctx; ctx.save(); ctx.fillStyle = inkColor; ctx.font = '600 10.5px ' + mono; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ch.data.datasets.forEach((ds, di) => ch.getDatasetMeta(di).data.forEach((bar, i) => {
+          const v = ds.data[i], r = det[i];
+          if (v == null){ ctx.fillStyle = inkSoft; ctx.fillText('sin datos', ch.scales.x.getPixelForValue(0) + 6, bar.y); ctx.fillStyle = inkColor; return; }
+          const n = di === 0 ? `${r.tOk}/${r.tTot}` : `${r.kOk}/${r.kTot}`;
+          ctx.fillText(`${v.toFixed(1)}%  (${n})`, bar.x + 6, bar.y);
+        }));
+        ctx.restore();
+      } }],
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 22, right: 96, left: 4, bottom: 4 } },
+        scales: { x: xScale, y: { grid: { display: false }, ticks: tick } },
+        plugins: { legend, tooltip: { backgroundColor: '#16202B', padding: 10, callbacks: {
+          label: c => { const r = det[c.dataIndex]; const n = c.datasetIndex === 0 ? `${r.tOk}/${r.tTot}` : `${r.kOk}/${r.kTot}`; return `${c.dataset.label}: ${c.formattedValue}% (${n})`; } } } }
+      }
+    });
   }
 
   function renderEspHist(){
@@ -3686,6 +3837,7 @@
       if (a.um && a.n >= 3 && a.um.val != null) datasets.push({ label: `Umbral (${a.um.sinTope ? '≥ ' : ''}${a.um.val})`, data: a.periods.map(() => a.um.val), yAxisID: 'y1', borderColor: '#7B4FA6', borderDash: [8, 4], borderWidth: 1.8, pointRadius: 0, order: 4 });
       if (a.cp) datasets.push({ label: `Vol. de quiebre (${a.cp.thr})`, data: a.periods.map(() => a.cp.thr), yAxisID: 'y1', borderColor: '#B87A1E', borderDash: [2, 4], borderWidth: 1.5, pointRadius: 0, order: 4 });
 
+      datasets.forEach(d => { d.clip = false; });
       const crossPlugin = {
         id: 'vcCruces',
         afterDatasetsDraw(chart){
@@ -3709,14 +3861,14 @@
         options: {
           responsive: true, maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
-          layout: { padding: { top: 12, right: 8 } },
+          layout: { padding: { top: 22, right: 20, left: 8, bottom: 6 } },
           scales: {
             y: { min: 0, max: 100, position: 'left', grid: { color: border }, ticks: { ...tick, callback: v => v + '%' }, title: { display: true, text: '% Cumplimiento', color: inkSoft, font: { size: 11 } } },
-            y1: { min: 0, max: maxV, position: 'right', grid: { drawOnChartArea: false }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Volumen (tickets)', color: inkSoft, font: { size: 11 } } },
-            x: { grid: { display: false }, ticks: tick }
+            y1: { min: 0, suggestedMax: maxV, grace: '8%', position: 'right', grid: { drawOnChartArea: false }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Volumen (tickets)', color: inkSoft, font: { size: 11 } } },
+            x: { offset: true, grid: { display: false }, ticks: { ...tick, maxRotation: 0, autoSkipPadding: 14 } }
           },
           plugins: {
-            legend: { position: 'bottom', labels: { color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 }, boxWidth: 10, boxHeight: 10 } },
+            legend: { position: 'bottom', labels: { padding: 14, color: inkColor, font: { family: "'IBM Plex Sans', sans-serif", size: 11.5 }, boxWidth: 10, boxHeight: 10 } },
             tooltip: {
               backgroundColor: '#16202B', padding: 10,
               callbacks: {
