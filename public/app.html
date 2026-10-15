@@ -1519,6 +1519,41 @@
       </div>
     </section>
 
+    <section class="card" id="impCard" style="margin-bottom:14px;">
+      <h3 class="card-head-flex">
+        <span>Impacto de las tareas tardías en los tickets <span class="sub card-head-sub" id="impSub"></span></span>
+        <label style="font-size:13px; display:inline-flex; align-items:center; gap:6px;">Tarea tardía si dura más de
+          <select class="an-select-inline" id="impUmbral" style="padding:5px 8px; font-size:13px;">
+            <option value="8">8 horas (criterio del Registro de vencidos)</option>
+            <option value="24">24 horas</option>
+            <option value="72">3 días</option>
+            <option value="360" selected>15 días (estancada)</option>
+          </select>
+        </label>
+      </h3>
+      <p class="vc-help" style="margin-bottom:10px;">
+        Cruza cada tarea con su ticket (campo <b>Caso</b>) para ver si los tickets con tareas tardías incumplen más el SLA, <b>quién genera</b> esas tareas y <b>a qué especialistas</b> (dueños de los tickets) terminan afectando.
+        Es una <b>asociación</b>, no prueba de causa: una tarea tardía puede coincidir con un ticket vencido sin ser el motivo. Solo se cuentan tickets ya cerrados.
+      </p>
+      <div class="rk-chips" id="impChips"></div>
+      <div class="empty-detail hidden" id="impEmpty">Carga tickets y tareas para analizar cómo las tareas tardías afectan a los tickets.</div>
+      <div id="impBody">
+        <h4 class="card-detail-title" style="margin:10px 0 4px;">1 · ¿Cambia el cumplimiento del ticket según sus tareas?</h4>
+        <div class="chart-box" id="impGrpBox" style="height:300px;"><canvas id="impGrpCanvas"></canvas></div>
+
+        <h4 class="card-detail-title" style="margin:20px 0 4px;">2 · Quién genera las tareas tardías (responsables de tareas)</h4>
+        <div class="table-scroll" style="max-height:380px;"><table class="pareto-table" id="impOrigen"></table></div>
+
+        <h4 class="card-detail-title" style="margin:20px 0 4px;">3 · Quién recibe el impacto (dueños de los tickets vencidos)</h4>
+        <div class="chart-box" id="impRecBox" style="height:420px;"><canvas id="impRecCanvas"></canvas></div>
+        <div class="table-scroll" style="max-height:380px; margin-top:10px;"><table class="pareto-table" id="impReceptor"></table></div>
+
+        <h4 class="card-detail-title" style="margin:20px 0 4px;">4 · Cruces entre especialistas (tarea tardía de uno → ticket vencido de otro)</h4>
+        <div class="table-scroll" style="max-height:340px;"><table class="pareto-table" id="impPares"></table></div>
+        <p class="pareto-note" id="impNota"></p>
+      </div>
+    </section>
+
     <section class="card" id="segEspCard" style="margin-bottom:14px;">
       <h3 class="card-head-flex">
         <span>Seguimiento de desempeño <span class="sub card-head-sub" id="segSub">· selecciona un especialista en la tabla de arriba</span></span>
@@ -3140,6 +3175,7 @@
     try { renderSeguimiento(rows); } catch(err){ console.error('Error en seguimiento de desempeño:', err); }
     renderEspHist();
     try { renderEspTT(); } catch(err){ console.error('Error en gráficas tickets vs tareas:', err); }
+    try { renderImpacto(); } catch(err){ console.error('Error en impacto de tareas tardías:', err); }
     try { renderVolCumpl(); } catch(err){ console.error('Error en análisis volumen vs cumplimiento:', err); }
   }
 
@@ -3275,6 +3311,137 @@
       }
     });
   }
+
+
+  // ---------------- Impacto de las tareas tardías en los tickets ----------------
+  let impGrpChart = null, impRecChart = null;
+  function buildImpacto(umbralH){
+    const tickets = allRows.filter(r => r.fechaCierre != null);          // evaluados (cerrados)
+    const byId = new Map(tickets.map(r => [String(r.ticket), { r, tasks: [], late: [] }]));
+    taskMap.forEach(t => {
+      const e = byId.get(String(t.caso)); if (!e) return;
+      const dur = t.dias == null ? null : t.dias * 24;
+      const owner = (t.responsable && t.responsable !== '—') ? t.responsable : '(sin responsable)';
+      e.tasks.push({ t, owner, late: dur != null && dur > umbralH });
+      if (dur != null && dur > umbralH) e.late.push(owner);
+    });
+    const grp = { sin:{ tot:0, ok:0 }, aTiempo:{ tot:0, ok:0 }, tardia:{ tot:0, ok:0 } };
+    const origen = new Map(), receptor = new Map(), pares = new Map();
+    const gO = n => { if (!origen.has(n)) origen.set(n, { name:n, tareas:0, tickets:new Set(), venc:new Set(), ajenos:new Set(), afect:new Map() }); return origen.get(n); };
+    const gR = n => { if (!receptor.has(n)) receptor.set(n, { name:n, tot:0, ok:0, venc:0, ajena:0, propia:0, sin:0 }); return receptor.get(n); };
+    byId.forEach(e => {
+      const r = e.r, esp = (r.especialista && r.especialista !== '—') ? r.especialista : '(sin especialista)';
+      const g = !e.tasks.length ? grp.sin : (e.late.length ? grp.tardia : grp.aTiempo);
+      g.tot++; if (r.cumple) g.ok++;
+      const R = gR(esp); R.tot++; if (r.cumple) R.ok++;
+      if (!r.cumple){
+        R.venc++;
+        const otros = e.late.filter(o => o !== esp);
+        if (otros.length) R.ajena++; else if (e.late.length) R.propia++; else R.sin++;
+        new Set(otros).forEach(o => { const k = o + '\u0001' + esp; if (!pares.has(k)) pares.set(k, { de:o, a:esp, tickets:0, tareas:0 }); const p = pares.get(k); p.tickets++; p.tareas += e.late.filter(x => x === o).length; });
+      }
+      const owners = new Set(e.late);
+      owners.forEach(o => {
+        const O = gO(o); O.tickets.add(String(r.ticket)); if (!r.cumple){ O.venc.add(String(r.ticket)); if (o !== esp) O.afect.set(esp, (O.afect.get(esp) || 0) + 1); }
+        if (o !== esp) O.ajenos.add(String(r.ticket));
+      });
+      e.late.forEach(o => { gO(o).tareas++; });
+    });
+    return { grp, origen: Array.from(origen.values()), receptor: Array.from(receptor.values()), pares: Array.from(pares.values()), nTickets: tickets.length };
+  }
+
+  function renderImpacto(){
+    const card = $('impCard'); if (!card) return;
+    if (impGrpChart){ impGrpChart.destroy(); impGrpChart = null; }
+    if (impRecChart){ impRecChart.destroy(); impRecChart = null; }
+    const umbral = Number($('impUmbral').value) || 360;
+    const d = buildImpacto(umbral);
+    const conTareas = d.grp.aTiempo.tot + d.grp.tardia.tot;
+    $('impEmpty').classList.toggle('hidden', conTareas > 0);
+    $('impBody').classList.toggle('hidden', conTareas === 0);
+    $('impChips').innerHTML = '';
+    $('impSub').textContent = conTareas ? `· ${conTareas} tickets con tareas` : '';
+    if (!conTareas || typeof Chart === 'undefined') return;
+
+    const pc = g => g.tot ? g.ok / g.tot * 100 : null;
+    const f1 = v => v == null ? '—' : v.toFixed(1) + '%';
+    const vencTot = d.grp.sin.tot + d.grp.aTiempo.tot + d.grp.tardia.tot - (d.grp.sin.ok + d.grp.aTiempo.ok + d.grp.tardia.ok);
+    const vencConTardia = d.grp.tardia.tot - d.grp.tardia.ok;
+    const vencAjena = d.receptor.reduce((a, r) => a + r.ajena, 0);
+    const chip = (n, l, bad) => `<div class="rk-chip${bad ? ' venc' : ''}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+    const dif = (pc(d.grp.aTiempo) != null && pc(d.grp.tardia) != null) ? pc(d.grp.aTiempo) - pc(d.grp.tardia) : null;
+    $('impChips').innerHTML =
+      chip(`${d.grp.tardia.tot}`, `Tickets con ≥1 tarea tardía (de ${conTareas} con tareas)`, false) +
+      chip(f1(pc(d.grp.tardia)), `Cumplimiento de esos tickets · ${d.grp.tardia.ok}/${d.grp.tardia.tot}`, pc(d.grp.tardia) != null && pc(d.grp.tardia) < META) +
+      chip(f1(pc(d.grp.aTiempo)), `Cumplimiento con tareas a tiempo · ${d.grp.aTiempo.ok}/${d.grp.aTiempo.tot}`, false) +
+      chip(dif == null ? '—' : (dif >= 0 ? '+' : '') + dif.toFixed(1) + ' pts', 'Brecha: a tiempo vs con tarea tardía', dif != null && dif > 5) +
+      chip(`${vencConTardia}/${vencTot}`, 'Tickets vencidos que tenían una tarea tardía', false) +
+      chip(`${vencAjena}`, 'Vencidos con tarea tardía de OTRO especialista', vencAjena > 0);
+
+    const styles = getComputedStyle(document.documentElement);
+    const inkSoft = styles.getPropertyValue('--ink-soft').trim(), inkColor = styles.getPropertyValue('--ink').trim(), border = styles.getPropertyValue('--border').trim();
+    const mono = "'IBM Plex Mono', monospace";
+    const tick = { color: inkSoft, font: { family: mono, size: 11 } };
+
+    // 1) Cumplimiento del ticket según el estado de sus tareas
+    const cats = [['Sin tareas', d.grp.sin, '#8A99A4'], ['Tareas a tiempo', d.grp.aTiempo, '#1F8A5F'], ['Con ≥1 tarea tardía', d.grp.tardia, '#D9433D']];
+    impGrpChart = new Chart($('impGrpCanvas').getContext('2d'), {
+      type: 'bar',
+      data: { labels: cats.map(c => c[0]), datasets: [{ label: '% de tickets que cumplen el SLA', data: cats.map(c => pc(c[1]) == null ? null : Number(pc(c[1]).toFixed(1))), backgroundColor: cats.map(c => c[2]), borderRadius: 4, barPercentage: 0.55 }] },
+      plugins: [{ id: 'impGrpLbl', afterDatasetsDraw(ch){
+        const ctx = ch.ctx, a = ch.chartArea; ctx.save();
+        const y = ch.scales.y.getPixelForValue(META); ctx.setLineDash([6,5]); ctx.strokeStyle = '#1F8A5F'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a.left, y); ctx.lineTo(a.right, y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = '#1F8A5F'; ctx.font = '600 11px ' + mono; ctx.textAlign = 'right'; ctx.fillText('Meta ' + META + '%', a.right, y - 5);
+        ctx.fillStyle = inkColor; ctx.textAlign = 'center'; ctx.font = '600 11.5px ' + mono;
+        ch.getDatasetMeta(0).data.forEach((bar, i) => { const g = cats[i][1], v = pc(g); ctx.fillText(v == null ? 'sin datos' : `${v.toFixed(1)}%  (${g.ok}/${g.tot})`, bar.x, bar.y - 8); });
+        ctx.restore();
+      } }],
+      options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 26, right: 12 } },
+        scales: { y: { min: 0, max: 100, grid: { color: border }, ticks: { ...tick, callback: v => v + '%' } }, x: { grid: { display: false }, ticks: { color: inkColor, font: { size: 12 } } } },
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#16202B', padding: 10, callbacks: { label: c => { const g = cats[c.dataIndex][1]; return `${g.ok} de ${g.tot} tickets cumplen (${c.formattedValue}%)`; } } } } }
+    });
+
+    // 2) Origen
+    const origen = d.origen.map(o => {
+      let top = null; o.afect.forEach((n, esp) => { if (!top || n > top.n) top = { esp, n }; });
+      return { name:o.name, tareas:o.tareas, tickets:o.tickets.size, venc:o.venc.size, ajenos:o.ajenos.size, top };
+    }).sort((a, b) => b.venc - a.venc || b.tareas - a.tareas);
+    $('impOrigen').innerHTML = origen.length
+      ? `<thead><tr><th>Responsable de la tarea</th><th class="r">Tareas tardías</th><th class="r">Tickets afectados</th><th class="r">Tickets vencidos</th><th class="r">% vencidos</th><th class="r">En tickets de otros</th><th>Más afectado</th></tr></thead><tbody>` +
+        origen.map(o => `<tr><td class="nm" title="${escapeHtml(o.name)}">${escapeHtml(o.name)}</td><td class="r">${o.tareas}</td><td class="r">${o.tickets}</td><td class="r"${o.venc ? ' style="color:var(--danger); font-weight:600;"' : ''}>${o.venc}</td><td class="r">${o.tickets ? (o.venc / o.tickets * 100).toFixed(0) + '%' : '—'}</td><td class="r">${o.ajenos}</td><td>${o.top ? escapeHtml(o.top.esp) + ' <span class="vc-n">(' + o.top.n + ')</span>' : '—'}</td></tr>`).join('') + '</tbody>'
+      : '<tbody><tr><td>No hay tareas tardías con este criterio.</td></tr></tbody>';
+
+    // 3) Receptores
+    const rec = d.receptor.filter(r => r.venc > 0).sort((a, b) => (b.ajena - a.ajena) || (b.venc - a.venc));
+    const hRec = Math.max(260, rec.length * 30 + 100); $('impRecBox').style.height = hRec + 'px';
+    if (rec.length){
+      impRecChart = new Chart($('impRecCanvas').getContext('2d'), {
+        type: 'bar',
+        data: { labels: rec.map(r => r.name), datasets: [
+          { label: 'Con tarea tardía de otro especialista', data: rec.map(r => r.ajena), backgroundColor: '#7B4FA6' },
+          { label: 'Solo tarea tardía propia', data: rec.map(r => r.propia), backgroundColor: '#E0A030' },
+          { label: 'Sin tarea tardía (otra causa)', data: rec.map(r => r.sin), backgroundColor: '#8A99A4' } ] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { top: 6, right: 16 } },
+          scales: { x: { stacked: true, grid: { color: border }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Tickets vencidos', color: inkSoft, font: { size: 11 } } }, y: { stacked: true, grid: { display: false }, ticks: tick } },
+          plugins: { legend: { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { size: 11.5 } } }, tooltip: { backgroundColor: '#16202B', padding: 10 } } }
+      });
+    }
+    $('impReceptor').innerHTML = rec.length
+      ? `<thead><tr><th>Dueño del ticket</th><th class="r">Tickets cerrados</th><th class="r">Vencidos</th><th class="r">Con tarea de otro</th><th class="r">Solo tarea propia</th><th class="r">Sin tarea tardía</th><th class="r">% cumpl. actual</th><th class="r" title="Estimación: cumplimiento si los vencidos con tarea tardía de otro especialista se hubieran cumplido">% sin efecto de tareas ajenas</th></tr></thead><tbody>` +
+        rec.map(r => { const act = r.tot ? r.ok / r.tot * 100 : null, pot = r.tot ? (r.ok + r.ajena) / r.tot * 100 : null;
+          return `<tr><td class="nm" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td class="r">${r.tot}</td><td class="r">${r.venc}</td><td class="r"${r.ajena ? ' style="color:#7B4FA6; font-weight:600;"' : ''}>${r.ajena}</td><td class="r">${r.propia}</td><td class="r">${r.sin}</td><td class="r">${f1(act)}</td><td class="r"${pot != null && act != null && pot > act ? ' style="font-weight:600;"' : ''}>${f1(pot)}</td></tr>`; }).join('') + '</tbody>'
+      : '<tbody><tr><td>No hay tickets vencidos con tareas en este rango.</td></tr></tbody>';
+
+    // 4) Cruces
+    const pares = d.pares.sort((a, b) => b.tickets - a.tickets || b.tareas - a.tareas).slice(0, 12);
+    $('impPares').innerHTML = pares.length
+      ? `<thead><tr><th>Tarea tardía de</th><th>→ Ticket vencido de</th><th class="r">Tickets vencidos</th><th class="r">Tareas tardías</th></tr></thead><tbody>` +
+        pares.map(p => `<tr><td class="nm" title="${escapeHtml(p.de)}">${escapeHtml(p.de)}</td><td class="nm" title="${escapeHtml(p.a)}">${escapeHtml(p.a)}</td><td class="r" style="font-weight:600;">${p.tickets}</td><td class="r">${p.tareas}</td></tr>`).join('') + '</tbody>'
+      : '<tbody><tr><td>No hay cruces: ningún ticket vencido tiene tareas tardías de otro especialista.</td></tr></tbody>';
+    const uTxt = umbral < 24 ? umbral + ' horas' : (umbral / 24) + ' días';
+    $('impNota').textContent = `Criterio: tarea tardía = más de ${uTxt} (abierta: hasta hoy). Un ticket con tareas tardías de varios especialistas cuenta en cada uno de ellos. "% sin efecto de tareas ajenas" es una estimación, no un dato real.`;
+  }
+  $('impUmbral').addEventListener('change', () => { try { renderImpacto(); } catch(err){ console.error(err); } });
 
   function renderEspHist(){
     $('espHistBox').classList.toggle('hidden', !espHistOn || !espSel);
