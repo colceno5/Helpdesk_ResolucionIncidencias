@@ -1562,7 +1562,7 @@
           <div id="impDetBody" class="hidden">
             <div class="rk-chips" id="impDetChips"></div>
             <p class="vc-help" id="impDetMsg" style="margin:0 0 8px;"></p>
-            <h4 class="card-detail-title" style="margin:10px 0 4px;">Quiénes ejecutaron las tareas de sus tickets y si cumplieron el tiempo límite <span class="vc-n">(clic en un ejecutor para ver sus tareas)</span></h4>
+            <h4 class="card-detail-title" style="margin:10px 0 4px;">Quiénes ejecutaron las tareas de sus tickets y si estaban dentro del SLA de su ticket <span class="vc-n">(clic en un ejecutor para ver sus tareas)</span></h4>
             <div class="chart-box" id="impDetChartBox" style="height:260px;"><canvas id="impDetCanvas"></canvas></div>
             <div class="table-scroll" style="max-height:320px; margin-top:8px;"><table class="pareto-table" id="impDetOwners"></table></div>
             <p class="vc-help" id="impDetTasksHint" style="margin:10px 0 0;">Haz clic en un ejecutor del gráfico o de la tabla para listar sus tareas en estos tickets.</p>
@@ -3462,6 +3462,7 @@
     const esp = espSel, list = d.porEsp.get(esp);
     $('impDetTitle').textContent = 'Tareas incumplidas en los tickets de ' + esp;
     const fH = h => h == null ? '—' : (h < 48 ? h.toFixed(1) + ' h' : (h / 24).toFixed(1) + ' d');
+    const isLate = (e, k) => e.r.pct != null && e.r.pct > 100;   // criterio: SLA del ticket superado
     const uTxt = d.umbralH < 24 ? d.umbralH + ' horas' : (d.umbralH / 24) + ' días';
 
     // Resumen por ejecutor de tareas
@@ -3471,20 +3472,20 @@
     list.forEach(e => {
       const id = String(e.r.ticket);
       if (!e.r.cumple) nVenc++;
-      if (e.late.length) nConTard++;
+      if (e.tasks.some(k => isLate(e, k))) nConTard++;
       e.tasks.forEach(k => {
         const O = gO(k.owner); O.tareas++; O.tickets.add(id); tareasTotal++;
         if (k.dur != null){ O.durSum += k.dur; O.durN++; if (k.dur > O.durMax) O.durMax = k.dur; }
-        if (k.late){ O.tard++; O.tickTard.add(id); if (!e.r.cumple) O.vencTard.add(id); tardTotal++; if (k.owner !== esp) tardAjenas++; }
+        if (isLate(e, k)){ O.tard++; O.tickTard.add(id); if (!e.r.cumple) O.vencTard.add(id); tardTotal++; if (k.owner !== esp) tardAjenas++; }
       });
     });
     const chip = (n, l, bad) => `<div class="rk-chip${bad ? ' venc' : ''}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
     $('impDetChips').innerHTML =
       chip(list.length, 'Tickets cerrados del especialista') +
       chip(nVenc, 'Tickets vencidos', nVenc > 0) +
-      chip(nConTard, 'Tickets con ≥1 tarea tardía', nConTard > 0) +
-      chip(tardTotal, `Tareas tardías (de ${tareasTotal})`, tardTotal > 0) +
-      chip(tardAjenas, 'Tareas tardías de OTROS especialistas', tardAjenas > 0);
+      chip(tareasTotal, 'Tareas en sus tickets', false) +
+      chip(tardTotal, `Tareas fuera del SLA (de ${tareasTotal})`, tardTotal > 0) +
+      chip(tardAjenas, 'Fuera del SLA de OTROS especialistas', tardAjenas > 0);
     const owners = Array.from(own.values()).sort((a, b) => b.tard - a.tard || b.vencTard.size - a.vencTard.size || b.tareas - a.tareas);
     const styles = getComputedStyle(document.documentElement);
     const inkSoft = styles.getPropertyValue('--ink-soft').trim(), inkColor = styles.getPropertyValue('--ink').trim(), border = styles.getPropertyValue('--border').trim();
@@ -3496,9 +3497,8 @@
     const qn = q => durs.length ? durs[Math.min(durs.length - 1, Math.floor(q * (durs.length - 1) + 0.5))] : null;
     $('impDetMsg').textContent = !tareasTotal
       ? `Los tickets de ${esp} no tienen tareas registradas en este rango.`
-      : `Tiempo límite por tarea: ${uTxt} (el archivo de tareas no trae un plazo propio; se define en el selector de arriba). ` +
-        `Duración de las tareas de estos tickets: mediana ${fH(qn(0.5))} · percentil 90 ${fH(qn(0.9))} · máxima ${fH(qn(1))}.` +
-        (tardTotal ? '' : ' Con este límite ninguna está fuera de plazo; prueba con uno menor.');
+      : `Criterio: cada tarea se evalúa con el % de SLA del ticket al que pertenece (cada ticket tiene su plazo: 8 h, 16 h…); queda fuera si ese ticket superó el 100%. ` +
+        `${tardTotal} de ${tareasTotal} tareas están en tickets vencidos. Duración de las tareas: mediana ${fH(qn(0.5))} · percentil 90 ${fH(qn(0.9))} · máxima ${fH(qn(1))}.`;
 
     if (impExecEsp !== esp){ impExec = null; impExecEsp = esp; }
     if (impExec && !own.has(impExec)) impExec = null;
@@ -3510,8 +3510,8 @@
       impDetChart = new Chart($('impDetCanvas').getContext('2d'), {
         type: 'bar',
         data: { labels: owners.map(o => o.name + (o.name === esp ? ' (él mismo)' : '')), datasets: [
-          { label: 'Dentro del límite', data: owners.map(o => o.tareas - o.tard), backgroundColor: owners.map(o => !hasSel || o.name === impExec ? GREEN : GREEN_L) },
-          { label: 'Fuera del límite', data: owners.map(o => o.tard), backgroundColor: owners.map(o => !hasSel || o.name === impExec ? RED : RED_L) } ] },
+          { label: 'Dentro del SLA', data: owners.map(o => o.tareas - o.tard), backgroundColor: owners.map(o => !hasSel || o.name === impExec ? GREEN : GREEN_L) },
+          { label: 'Fuera del SLA', data: owners.map(o => o.tard), backgroundColor: owners.map(o => !hasSel || o.name === impExec ? RED : RED_L) } ] },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 6, right: 16 } },
           onClick: (ev, els) => { if (els && els.length){ const n = owners[els[0].index].name; impExec = (impExec === n) ? null : n; renderImpDet(); } },
           onHover: (ev, els) => { const c = ev.native && ev.native.target; if (c) c.style.cursor = els.length ? 'pointer' : 'default'; },
@@ -3520,7 +3520,7 @@
       });
     }
     $('impDetOwners').innerHTML = owners.length
-      ? `<thead><tr><th>Ejecutor de la tarea</th><th class="r">Tareas</th><th class="r">Dentro del límite</th><th class="r">Fuera del límite</th><th class="r">% dentro</th><th class="r">Tickets afectados</th><th class="r">Vencidos afectados</th><th class="r">Duración media</th><th class="r">Máxima</th></tr></thead><tbody>` +
+      ? `<thead><tr><th>Ejecutor de la tarea</th><th class="r">Tareas</th><th class="r">Dentro del SLA</th><th class="r">Fuera del SLA</th><th class="r">% dentro</th><th class="r">Tickets afectados</th><th class="r">Vencidos afectados</th><th class="r">Duración media</th><th class="r">Máxima</th></tr></thead><tbody>` +
         owners.map(o => `<tr class="imp-row${o.name === impExec ? ' imp-sel' : ''}" data-owner="${escapeHtml(o.name)}"><td class="nm" title="${escapeHtml(o.name)}">${escapeHtml(o.name)}${o.name === esp ? ' <span class="vc-n">(él mismo)</span>' : ''}</td><td class="r">${o.tareas}</td><td class="r">${o.tareas - o.tard}</td><td class="r"${o.tard ? ' style="color:var(--danger); font-weight:600;"' : ''}>${o.tard}</td><td class="r">${o.tareas ? ((o.tareas - o.tard) / o.tareas * 100).toFixed(0) + '%' : '—'}</td><td class="r">${o.tickTard.size}</td><td class="r"${o.vencTard.size ? ' style="color:var(--danger); font-weight:600;"' : ''}>${o.vencTard.size}</td><td class="r">${o.durN ? fH(o.durSum / o.durN) : '—'}</td><td class="r">${o.durN ? fH(o.durMax) : '—'}</td></tr>`).join('') + '</tbody>'
       : '<tbody><tr><td>Sin tareas en sus tickets.</td></tr></tbody>';
     $('impDetOwners').querySelectorAll('tr.imp-row').forEach(tr => tr.addEventListener('click', () => {
