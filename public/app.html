@@ -1554,9 +1554,11 @@
         <div id="impDetBox" style="margin-top:16px; border:1px solid var(--border); border-radius:var(--radius-m); padding:14px 16px; background:var(--surface);">
           <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px; margin-bottom:6px;">
             <strong class="card-detail-title" id="impDetTitle">Análisis del especialista seleccionado</strong>
-            <span class="vc-help" style="margin:0;">Cambia con la selección de la tabla «Cumplimiento por especialista»</span>
+            <label style="font-size:13px; display:inline-flex; align-items:center; gap:6px;">Dueño del ticket
+              <select class="an-select-inline" id="impDetSel" style="padding:5px 8px; font-size:13px; max-width:300px;"></select>
+            </label>
           </div>
-          <p class="vc-help" id="impDetHint" style="margin:6px 0 0;">Selecciona un especialista en la tabla «Cumplimiento por especialista» para ver quiénes incumplieron las tareas de sus tickets.</p>
+          <p class="vc-help" id="impDetHint" style="margin:6px 0 0;">Selecciona un dueño de ticket (en la tabla «Cumplimiento por especialista», en el gráfico o tabla de arriba, o en la lista) para ver quiénes incumplieron las tareas de sus tickets.</p>
           <div id="impDetBody" class="hidden">
             <div class="rk-chips" id="impDetChips"></div>
             <p class="vc-help" id="impDetMsg" style="margin:0 0 8px;"></p>
@@ -3410,6 +3412,8 @@
           { label: 'Solo tarea tardía propia', data: rec.map(r => r.propia), backgroundColor: '#E0A030' },
           { label: 'Sin tarea tardía (otra causa)', data: rec.map(r => r.sin), backgroundColor: '#8A99A4' } ] },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { top: 6, right: 16 } },
+          onClick: (ev, els) => { if (els && els.length) impPick(rec[els[0].index].name); },
+          onHover: (ev, els) => { const c = ev.native && ev.native.target; if (c) c.style.cursor = els.length ? 'pointer' : 'default'; },
           scales: { x: { stacked: true, grid: { color: border }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Tickets vencidos', color: inkSoft, font: { size: 11 } } }, y: { stacked: true, grid: { display: false }, ticks: tick } },
           plugins: { legend: { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { size: 11.5 } } }, tooltip: { backgroundColor: '#16202B', padding: 10 } } }
       });
@@ -3417,14 +3421,29 @@
     $('impReceptor').innerHTML = rec.length
       ? `<thead><tr><th>Dueño del ticket</th><th class="r">Tickets cerrados</th><th class="r">Vencidos</th><th class="r">Con tarea de otro</th><th class="r">Solo tarea propia</th><th class="r">Sin tarea tardía</th><th class="r">% cumpl. actual</th><th class="r" title="Estimación: cumplimiento si los vencidos con tarea tardía de otro especialista se hubieran cumplido">% sin efecto de tareas ajenas</th></tr></thead><tbody>` +
         rec.map(r => { const act = r.tot ? r.ok / r.tot * 100 : null, pot = r.tot ? (r.ok + r.ajena) / r.tot * 100 : null;
-          return `<tr class="${r.name === espSel ? 'imp-sel' : ''}"><td class="nm" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td class="r">${r.tot}</td><td class="r">${r.venc}</td><td class="r"${r.ajena ? ' style="color:#7B4FA6; font-weight:600;"' : ''}>${r.ajena}</td><td class="r">${r.propia}</td><td class="r">${r.sin}</td><td class="r">${f1(act)}</td><td class="r"${pot != null && act != null && pot > act ? ' style="font-weight:600;"' : ''}>${f1(pot)}</td></tr>`; }).join('') + '</tbody>'
+          return `<tr class="imp-row${r.name === espSel ? ' imp-sel' : ''}" data-name="${escapeHtml(r.name)}"><td class="nm" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td class="r">${r.tot}</td><td class="r">${r.venc}</td><td class="r"${r.ajena ? ' style="color:#7B4FA6; font-weight:600;"' : ''}>${r.ajena}</td><td class="r">${r.propia}</td><td class="r">${r.sin}</td><td class="r">${f1(act)}</td><td class="r"${pot != null && act != null && pot > act ? ' style="font-weight:600;"' : ''}>${f1(pot)}</td></tr>`; }).join('') + '</tbody>'
       : '<tbody><tr><td>No hay tickets vencidos con tareas en este rango.</td></tr></tbody>';
 
+    $('impReceptor').querySelectorAll('tr.imp-row').forEach(tr => tr.addEventListener('click', () => impPick(tr.dataset.name)));
+    const selOpts = d.receptor.filter(r => r.tot > 0).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    $('impDetSel').innerHTML = selOpts.map(r => `<option value="${escapeHtml(r.name)}"${r.name === espSel ? ' selected' : ''}>${escapeHtml(r.name)} (${r.venc} vencidos)</option>`).join('');
     renderImpDet();
 
     const uTxt = umbral < 24 ? umbral + ' horas' : (umbral / 24) + ' días';
     $('impNota').textContent = `Criterio: tarea tardía = más de ${uTxt} (abierta: hasta hoy). Un ticket con tareas tardías de varios especialistas cuenta en cada uno de ellos. "% sin efecto de tareas ajenas" es una estimación, no un dato real.`;
   }
+
+  function impPick(name){
+    if (!name) return;
+    const sc = $('impReceptor') && $('impReceptor').parentElement;
+    const top = sc ? sc.scrollTop : 0;
+    espSel = name;
+    renderEspecialistaCard();               // actualiza tabla principal, seguimiento, histórico y este panel
+    const sc2 = $('impReceptor') && $('impReceptor').parentElement;
+    if (sc2) sc2.scrollTop = top;
+    $('impDetBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  $('impDetSel').addEventListener('change', e => impPick(e.target.value));
 
   function renderImpDet(){
     if (impDetChart){ impDetChart.destroy(); impDetChart = null; }
