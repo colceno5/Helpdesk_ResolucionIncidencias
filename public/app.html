@@ -477,6 +477,11 @@
   .vc-badge.estable{ background:#DDF1E8; color:#17694A; }
   .vc-badge.insuf{ background:#EEF1F3; color:#8A99A4; }
   .vc-warn{ color:var(--danger); font-weight:600; }
+  .pareto-table tr.imp-row{ cursor:pointer; }
+  .pareto-table tr.imp-row:hover td{ background:var(--surface-sunken); }
+  .pareto-table tr.imp-sel td{ background:var(--surface-sunken); font-weight:600; }
+  .pareto-table tr.imp-sel td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
+  .pareto-table tr.imp-dim td{ opacity:.55; }
   .vc-arrow{ font-size:12px; margin-left:4px; font-weight:700; }
   .vc-arrow.up{ color:#1F8A5F; } .vc-arrow.down{ color:#D9433D; } .vc-arrow.flat{ color:#8A99A4; }
   .vc-umbral{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin:10px 0 4px; padding:12px 16px; border:1px solid var(--border); border-radius:12px; background:var(--surface-sunken); }
@@ -1547,6 +1552,25 @@
         <h4 class="card-detail-title" style="margin:20px 0 4px;">3 · Quién recibe el impacto (dueños de los tickets vencidos)</h4>
         <div class="chart-box" id="impRecBox" style="height:420px;"><canvas id="impRecCanvas"></canvas></div>
         <div class="table-scroll" style="max-height:380px; margin-top:10px;"><table class="pareto-table" id="impReceptor"></table></div>
+
+        <div id="impDetBox" style="margin-top:16px; border:1px solid var(--border); border-radius:var(--radius-m); padding:14px 16px; background:var(--surface);">
+          <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px; margin-bottom:6px;">
+            <strong class="card-detail-title" id="impDetTitle">Análisis del especialista seleccionado</strong>
+            <label style="font-size:13px; display:inline-flex; align-items:center; gap:6px;">Dueño del ticket
+              <select class="an-select-inline" id="impDetSel" style="padding:5px 8px; font-size:13px; max-width:300px;"></select>
+            </label>
+          </div>
+          <p class="vc-help" id="impDetHint" style="margin:6px 0 0;">Haz clic en una barra del gráfico, en una fila de la tabla o elige un especialista arriba para ver quiénes incumplieron las tareas de sus tickets.</p>
+          <div id="impDetBody" class="hidden">
+            <div class="rk-chips" id="impDetChips"></div>
+            <p class="vc-help" id="impDetMsg" style="margin:0 0 8px;"></p>
+            <h4 class="card-detail-title" style="margin:10px 0 4px;">Quiénes ejecutaron las tareas de sus tickets</h4>
+            <div class="chart-box" id="impDetChartBox" style="height:260px;"><canvas id="impDetCanvas"></canvas></div>
+            <div class="table-scroll" style="max-height:320px; margin-top:8px;"><table class="pareto-table" id="impDetOwners"></table></div>
+            <h4 class="card-detail-title" style="margin:16px 0 4px;">Tickets vencidos o con tareas tardías</h4>
+            <div class="table-scroll" style="max-height:420px;"><table class="pareto-table" id="impDetTickets"></table></div>
+          </div>
+        </div>
 
         <h4 class="card-detail-title" style="margin:20px 0 4px;">4 · Cruces entre especialistas (tarea tardía de uno → ticket vencido de otro)</h4>
         <div class="table-scroll" style="max-height:340px;"><table class="pareto-table" id="impPares"></table></div>
@@ -3314,7 +3338,7 @@
 
 
   // ---------------- Impacto de las tareas tardías en los tickets ----------------
-  let impGrpChart = null, impRecChart = null;
+  let impGrpChart = null, impRecChart = null, impDetChart = null, impSel = null, impData = null;
   function buildImpacto(umbralH){
     const tickets = allRows.filter(r => r.fechaCierre != null);          // evaluados (cerrados)
     const byId = new Map(tickets.map(r => [String(r.ticket), { r, tasks: [], late: [] }]));
@@ -3322,11 +3346,11 @@
       const e = byId.get(String(t.caso)); if (!e) return;
       const dur = t.dias == null ? null : t.dias * 24;
       const owner = (t.responsable && t.responsable !== '—') ? t.responsable : '(sin responsable)';
-      e.tasks.push({ t, owner, late: dur != null && dur > umbralH });
+      e.tasks.push({ t, owner, dur, late: dur != null && dur > umbralH });
       if (dur != null && dur > umbralH) e.late.push(owner);
     });
     const grp = { sin:{ tot:0, ok:0 }, aTiempo:{ tot:0, ok:0 }, tardia:{ tot:0, ok:0 } };
-    const origen = new Map(), receptor = new Map(), pares = new Map();
+    const origen = new Map(), receptor = new Map(), pares = new Map(), porEsp = new Map();
     const gO = n => { if (!origen.has(n)) origen.set(n, { name:n, tareas:0, tickets:new Set(), venc:new Set(), ajenos:new Set(), afect:new Map() }); return origen.get(n); };
     const gR = n => { if (!receptor.has(n)) receptor.set(n, { name:n, tot:0, ok:0, venc:0, ajena:0, propia:0, sin:0 }); return receptor.get(n); };
     byId.forEach(e => {
@@ -3334,6 +3358,7 @@
       const g = !e.tasks.length ? grp.sin : (e.late.length ? grp.tardia : grp.aTiempo);
       g.tot++; if (r.cumple) g.ok++;
       const R = gR(esp); R.tot++; if (r.cumple) R.ok++;
+      if (!porEsp.has(esp)) porEsp.set(esp, []); porEsp.get(esp).push(e);
       if (!r.cumple){
         R.venc++;
         const otros = e.late.filter(o => o !== esp);
@@ -3347,13 +3372,14 @@
       });
       e.late.forEach(o => { gO(o).tareas++; });
     });
-    return { grp, origen: Array.from(origen.values()), receptor: Array.from(receptor.values()), pares: Array.from(pares.values()), nTickets: tickets.length };
+    return { grp, origen: Array.from(origen.values()), receptor: Array.from(receptor.values()), pares: Array.from(pares.values()), porEsp, umbralH, nTickets: tickets.length };
   }
 
   function renderImpacto(){
     const card = $('impCard'); if (!card) return;
     if (impGrpChart){ impGrpChart.destroy(); impGrpChart = null; }
     if (impRecChart){ impRecChart.destroy(); impRecChart = null; }
+    impData = null;
     const umbral = Number($('impUmbral').value) || 360;
     const d = buildImpacto(umbral);
     const conTareas = d.grp.aTiempo.tot + d.grp.tardia.tot;
@@ -3361,7 +3387,8 @@
     $('impBody').classList.toggle('hidden', conTareas === 0);
     $('impChips').innerHTML = '';
     $('impSub').textContent = conTareas ? `· ${conTareas} tickets con tareas` : '';
-    if (!conTareas || typeof Chart === 'undefined') return;
+    if (!conTareas || typeof Chart === 'undefined'){ renderImpDet(); return; }
+    impData = d;
 
     const pc = g => g.tot ? g.ok / g.tot * 100 : null;
     const f1 = v => v == null ? '—' : v.toFixed(1) + '%';
@@ -3422,6 +3449,8 @@
           { label: 'Solo tarea tardía propia', data: rec.map(r => r.propia), backgroundColor: '#E0A030' },
           { label: 'Sin tarea tardía (otra causa)', data: rec.map(r => r.sin), backgroundColor: '#8A99A4' } ] },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { top: 6, right: 16 } },
+          onClick: (ev, els) => { if (els && els.length) impSelect(rec[els[0].index].name, true); },
+          onHover: (ev, els) => { const c = ev.native && ev.native.target; if (c) c.style.cursor = els.length ? 'pointer' : 'default'; },
           scales: { x: { stacked: true, grid: { color: border }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Tickets vencidos', color: inkSoft, font: { size: 11 } } }, y: { stacked: true, grid: { display: false }, ticks: tick } },
           plugins: { legend: { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { size: 11.5 } } }, tooltip: { backgroundColor: '#16202B', padding: 10 } } }
       });
@@ -3429,8 +3458,13 @@
     $('impReceptor').innerHTML = rec.length
       ? `<thead><tr><th>Dueño del ticket</th><th class="r">Tickets cerrados</th><th class="r">Vencidos</th><th class="r">Con tarea de otro</th><th class="r">Solo tarea propia</th><th class="r">Sin tarea tardía</th><th class="r">% cumpl. actual</th><th class="r" title="Estimación: cumplimiento si los vencidos con tarea tardía de otro especialista se hubieran cumplido">% sin efecto de tareas ajenas</th></tr></thead><tbody>` +
         rec.map(r => { const act = r.tot ? r.ok / r.tot * 100 : null, pot = r.tot ? (r.ok + r.ajena) / r.tot * 100 : null;
-          return `<tr><td class="nm" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td class="r">${r.tot}</td><td class="r">${r.venc}</td><td class="r"${r.ajena ? ' style="color:#7B4FA6; font-weight:600;"' : ''}>${r.ajena}</td><td class="r">${r.propia}</td><td class="r">${r.sin}</td><td class="r">${f1(act)}</td><td class="r"${pot != null && act != null && pot > act ? ' style="font-weight:600;"' : ''}>${f1(pot)}</td></tr>`; }).join('') + '</tbody>'
+          return `<tr class="imp-row${r.name === impSel ? ' imp-sel' : ''}" data-name="${escapeHtml(r.name)}"><td class="nm" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td class="r">${r.tot}</td><td class="r">${r.venc}</td><td class="r"${r.ajena ? ' style="color:#7B4FA6; font-weight:600;"' : ''}>${r.ajena}</td><td class="r">${r.propia}</td><td class="r">${r.sin}</td><td class="r">${f1(act)}</td><td class="r"${pot != null && act != null && pot > act ? ' style="font-weight:600;"' : ''}>${f1(pot)}</td></tr>`; }).join('') + '</tbody>'
       : '<tbody><tr><td>No hay tickets vencidos con tareas en este rango.</td></tr></tbody>';
+
+    $('impReceptor').querySelectorAll('tr.imp-row').forEach(tr => tr.addEventListener('click', () => impSelect(tr.dataset.name, true)));
+    const selOpts = d.receptor.filter(r => r.tot > 0).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    $('impDetSel').innerHTML = '<option value="">Selecciona un especialista…</option>' + selOpts.map(r => `<option value="${escapeHtml(r.name)}"${r.name === impSel ? ' selected' : ''}>${escapeHtml(r.name)} (${r.venc} vencidos)</option>`).join('');
+    renderImpDet();
 
     // 4) Cruces
     const pares = d.pares.sort((a, b) => b.tickets - a.tickets || b.tareas - a.tareas).slice(0, 12);
@@ -3440,6 +3474,93 @@
       : '<tbody><tr><td>No hay cruces: ningún ticket vencido tiene tareas tardías de otro especialista.</td></tr></tbody>';
     const uTxt = umbral < 24 ? umbral + ' horas' : (umbral / 24) + ' días';
     $('impNota').textContent = `Criterio: tarea tardía = más de ${uTxt} (abierta: hasta hoy). Un ticket con tareas tardías de varios especialistas cuenta en cada uno de ellos. "% sin efecto de tareas ajenas" es una estimación, no un dato real.`;
+  }
+
+  function impSelect(name, scroll){
+    impSel = name || null;
+    const d = impData;
+    if (d){
+      document.querySelectorAll('#impReceptor tr.imp-row').forEach(tr => tr.classList.toggle('imp-sel', tr.dataset.name === impSel));
+      $('impDetSel').value = impSel || '';
+    }
+    renderImpDet();
+    if (scroll && impSel) $('impDetBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  $('impDetSel').addEventListener('change', (e) => impSelect(e.target.value, false));
+
+  function renderImpDet(){
+    if (impDetChart){ impDetChart.destroy(); impDetChart = null; }
+    const d = impData, body = $('impDetBody'), hint = $('impDetHint');
+    if (!d || !impSel || !d.porEsp.has(impSel)){
+      body.classList.add('hidden'); hint.classList.remove('hidden');
+      $('impDetTitle').textContent = 'Análisis del especialista seleccionado';
+      return;
+    }
+    hint.classList.add('hidden'); body.classList.remove('hidden');
+    const esp = impSel, list = d.porEsp.get(esp);
+    $('impDetTitle').textContent = 'Tareas incumplidas en los tickets de ' + esp;
+    const fH = h => h == null ? '—' : (h < 48 ? h.toFixed(1) + ' h' : (h / 24).toFixed(1) + ' d');
+    const uTxt = d.umbralH < 24 ? d.umbralH + ' horas' : (d.umbralH / 24) + ' días';
+
+    // Resumen por ejecutor de tareas
+    const own = new Map();
+    const gO = n => { if (!own.has(n)) own.set(n, { name:n, tareas:0, tard:0, tickets:new Set(), tickTard:new Set(), vencTard:new Set(), durSum:0, durN:0 }); return own.get(n); };
+    let nVenc = 0, nConTard = 0, tardAjenas = 0, tardTotal = 0, tareasTotal = 0;
+    list.forEach(e => {
+      const id = String(e.r.ticket);
+      if (!e.r.cumple) nVenc++;
+      if (e.late.length) nConTard++;
+      e.tasks.forEach(k => {
+        const O = gO(k.owner); O.tareas++; O.tickets.add(id); tareasTotal++;
+        if (k.dur != null){ O.durSum += k.dur; O.durN++; }
+        if (k.late){ O.tard++; O.tickTard.add(id); if (!e.r.cumple) O.vencTard.add(id); tardTotal++; if (k.owner !== esp) tardAjenas++; }
+      });
+    });
+    const chip = (n, l, bad) => `<div class="rk-chip${bad ? ' venc' : ''}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+    $('impDetChips').innerHTML =
+      chip(list.length, 'Tickets cerrados del especialista') +
+      chip(nVenc, 'Tickets vencidos', nVenc > 0) +
+      chip(nConTard, 'Tickets con ≥1 tarea tardía', nConTard > 0) +
+      chip(tardTotal, `Tareas tardías (de ${tareasTotal})`, tardTotal > 0) +
+      chip(tardAjenas, 'Tareas tardías de OTROS especialistas', tardAjenas > 0);
+    $('impDetMsg').textContent = !tareasTotal
+      ? `Los tickets de ${esp} no tienen tareas registradas en este rango.`
+      : (!tardTotal ? `Con el criterio actual (tarea tardía = más de ${uTxt}) ninguna tarea de los tickets de ${esp} está tardía. Prueba con un umbral menor en el selector de arriba.`
+        : `Criterio: tarea tardía = más de ${uTxt}. "Tickets vencidos afectados" son los tickets vencidos de ${esp} donde ese ejecutor tuvo al menos una tarea tardía.`);
+
+    const owners = Array.from(own.values()).sort((a, b) => b.tard - a.tard || b.vencTard.size - a.vencTard.size || b.tareas - a.tareas);
+    const styles = getComputedStyle(document.documentElement);
+    const inkSoft = styles.getPropertyValue('--ink-soft').trim(), inkColor = styles.getPropertyValue('--ink').trim(), border = styles.getPropertyValue('--border').trim();
+    const tick = { color: inkSoft, font: { family: "'IBM Plex Mono', monospace", size: 11 } };
+    $('impDetChartBox').classList.toggle('hidden', !owners.length);
+    if (owners.length && typeof Chart !== 'undefined'){
+      $('impDetChartBox').style.height = Math.max(200, owners.length * 32 + 90) + 'px';
+      impDetChart = new Chart($('impDetCanvas').getContext('2d'), {
+        type: 'bar',
+        data: { labels: owners.map(o => o.name + (o.name === esp ? ' (él mismo)' : '')), datasets: [
+          { label: 'Tareas tardías', data: owners.map(o => o.tard), backgroundColor: '#D9433D' },
+          { label: 'Tareas a tiempo', data: owners.map(o => o.tareas - o.tard), backgroundColor: '#1F8A5F' } ] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { top: 6, right: 16 } },
+          scales: { x: { stacked: true, grid: { color: border }, ticks: { ...tick, precision: 0 }, title: { display: true, text: 'Tareas en los tickets de ' + esp, color: inkSoft, font: { size: 11 } } }, y: { stacked: true, grid: { display: false }, ticks: tick } },
+          plugins: { legend: { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { size: 11.5 } } }, tooltip: { backgroundColor: '#16202B', padding: 10 } } }
+      });
+    }
+    $('impDetOwners').innerHTML = owners.length
+      ? `<thead><tr><th>Ejecutor de la tarea</th><th class="r">Tareas</th><th class="r">Tardías</th><th class="r">% tardías</th><th class="r">Tickets afectados</th><th class="r">Vencidos afectados</th><th class="r">Duración media</th></tr></thead><tbody>` +
+        owners.map(o => `<tr class="${o.tard ? '' : 'imp-dim'}"><td class="nm" title="${escapeHtml(o.name)}">${escapeHtml(o.name)}${o.name === esp ? ' <span class="vc-n">(él mismo)</span>' : ''}</td><td class="r">${o.tareas}</td><td class="r"${o.tard ? ' style="color:var(--danger); font-weight:600;"' : ''}>${o.tard}</td><td class="r">${o.tareas ? (o.tard / o.tareas * 100).toFixed(0) + '%' : '—'}</td><td class="r">${o.tickTard.size}</td><td class="r"${o.vencTard.size ? ' style="color:var(--danger); font-weight:600;"' : ''}>${o.vencTard.size}</td><td class="r">${o.durN ? fH(o.durSum / o.durN) : '—'}</td></tr>`).join('') + '</tbody>'
+      : '<tbody><tr><td>Sin tareas en sus tickets.</td></tr></tbody>';
+
+    // Detalle por ticket
+    const tk = list.filter(e => !e.r.cumple || e.late.length).sort((a, b) =>
+      ((!b.r.cumple && b.late.length) - (!a.r.cumple && a.late.length)) || ((!b.r.cumple) - (!a.r.cumple)) || (b.late.length - a.late.length));
+    $('impDetTickets').innerHTML = tk.length
+      ? `<thead><tr><th>Ticket</th><th>Servicio</th><th class="r">% SLA</th><th class="r">Tareas</th><th>Tareas tardías (ejecutor · tarea · duración)</th></tr></thead><tbody>` +
+        tk.map(e => {
+          const r = e.r;
+          const tardias = e.tasks.filter(k => k.late).map(k => `${escapeHtml(k.owner)} · ${escapeHtml(k.t.asunto || k.t.tarea)} · <b>${fH(k.dur)}</b>${k.t.abierta ? ' (abierta)' : ''}`).join('<br>') || '<span class="vc-n">— sin tarea tardía —</span>';
+          return `<tr><td class="mono">${escapeHtml(String(r.ticket))}</td><td class="nm" title="${escapeHtml(r.servicio || '')}">${escapeHtml(r.servicio || '—')}</td><td class="r"><span class="rk-pct${r.cumple ? '' : ' venc'}">${r.pct != null ? r.pct + '%' : (r.cumple ? 'Cumple' : 'Vencido')}</span></td><td class="r">${e.tasks.length}</td><td style="white-space:normal; font-size:12.5px;">${tardias}</td></tr>`;
+        }).join('') + '</tbody>'
+      : '<tbody><tr><td>Ningún ticket vencido ni con tareas tardías.</td></tr></tbody>';
   }
   $('impUmbral').addEventListener('change', () => { try { renderImpacto(); } catch(err){ console.error(err); } });
 
