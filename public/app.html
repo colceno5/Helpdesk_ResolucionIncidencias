@@ -1569,6 +1569,9 @@
             <div id="impDetTasksBox" class="hidden" style="margin-top:14px;">
               <h4 class="card-detail-title" id="impDetTasksTitle" style="margin:0 0 4px;"></h4>
               <div class="table-scroll" style="max-height:420px;"><table class="pareto-table" id="impDetTasks"></table></div>
+              <h4 class="card-detail-title" id="impDetProgTitle" style="margin:16px 0 4px;">Progreso de las tareas</h4>
+              <p class="vc-help" id="impDetProgNote" style="margin:0 0 6px;"></p>
+              <div class="chart-box" id="impDetProgBox" style="height:280px;"><canvas id="impDetProgCanvas"></canvas></div>
             </div>
             <h4 class="card-detail-title" style="margin:16px 0 4px;">Tickets vencidos o con tareas tardías</h4>
             <div class="table-scroll" style="max-height:420px;"><table class="pareto-table" id="impDetTickets"></table></div>
@@ -3302,7 +3305,7 @@
 
 
   // ---------------- Impacto de las tareas tardías en los tickets ----------------
-  let impGrpChart = null, impRecChart = null, impDetChart = null, impData = null, impExec = null, impExecEsp = null;
+  let impGrpChart = null, impRecChart = null, impDetChart = null, impProgChart = null, impData = null, impExec = null, impExecEsp = null;
   function buildImpacto(umbralH){
     const tickets = allRows.filter(r => r.fechaCierre != null);          // evaluados (cerrados)
     const byId = new Map(tickets.map(r => [String(r.ticket), { r, tasks: [], late: [] }]));
@@ -3447,6 +3450,7 @@
 
   function renderImpDet(){
     if (impDetChart){ impDetChart.destroy(); impDetChart = null; }
+    if (impProgChart){ impProgChart.destroy(); impProgChart = null; }
     const d = impData, body = $('impDetBody'), hint = $('impDetHint');
     if (!d || !espSel || !d.porEsp.has(espSel)){
       body.classList.add('hidden'); hint.classList.remove('hidden');
@@ -3539,6 +3543,48 @@
             : (k.late ? `<span style="color:var(--danger); font-weight:600;">Fuera · +${fH(exceso)}</span>` : '<span style="color:#1F8A5F; font-weight:600;">Dentro</span>');
           return `<tr><td class="mono">${escapeHtml(String(e.r.ticket))}</td><td><span class="rk-pct${e.r.cumple ? '' : ' venc'}">${e.r.cumple ? 'Cumple' : 'Vencido'}</span></td><td class="mono">${escapeHtml(String(t.tarea))}</td><td class="nm" title="${escapeHtml(t.asunto || '')}">${escapeHtml(t.asunto || '—')}</td><td>${escapeHtml(t.estado || '—')}</td><td>${fmtDate(t.fechaRegistro)}</td><td>${t.fechaCierre ? fmtDate(t.fechaCierre) : (t.abierta ? 'Abierta' : '—')}</td><td class="r">${fH(k.dur)}</td><td class="r">${fH(d.umbralH)}</td><td>${res}</td></tr>`;
         }).join('') + '</tbody>';
+
+      // Progreso acumulado de las tareas mostradas (registradas vs finalizadas vs fuera del límite)
+      const DAY = 86400000;
+      const evReg = [], evFin = [], evLate = [];
+      let nAbiertas = 0;
+      tareas.forEach(({ k }) => {
+        const t = k.t, fr = toDateSafe(t.fechaRegistro), fc = toDateSafe(t.fechaCierre);
+        if (fr) evReg.push(fr.getTime());
+        if (fc && !t.abierta){ evFin.push(fc.getTime()); if (k.late) evLate.push(fc.getTime()); } else nAbiertas++;
+      });
+      const cum = ev => { ev.sort((a, b) => a - b); return ev.map((x, i) => ({ x, y: i + 1 })); };
+      const sReg = cum(evReg), sFin = cum(evFin), sLate = cum(evLate);
+      const allX = evReg.concat(evFin);
+      const progBox = $('impDetProgBox');
+      progBox.classList.toggle('hidden', !allX.length);
+      $('impDetProgTitle').classList.toggle('hidden', !allX.length);
+      $('impDetProgNote').textContent = allX.length
+        ? `${tareas.length} tareas · ${evFin.length} finalizadas · ${nAbiertas} abiertas · ${fuera} fuera del límite. La brecha entre «registradas» y «finalizadas» son las tareas aún en curso.`
+        : 'Estas tareas no tienen fechas para graficar.';
+      if (allX.length && typeof Chart !== 'undefined'){
+        const x0 = Math.min.apply(null, allX), x1 = Math.max.apply(null, allX);
+        const pad = Math.max(DAY / 2, (x1 - x0) * 0.03);
+        // cada serie se extiende hasta el último instante para que la línea no se corte
+        const ext = (arr) => arr.length ? [{ x: x0 - pad, y: 0 }].concat(arr, [{ x: x1 + pad, y: arr[arr.length - 1].y }]) : [];
+        const fD = v => { const p = peruParts(new Date(v)); return String(p.day).padStart(2, '0') + '/' + String(p.mo + 1).padStart(2, '0'); };
+        impProgChart = new Chart($('impDetProgCanvas').getContext('2d'), {
+          type: 'line',
+          data: { datasets: [
+            { label: 'Registradas (acumulado)', data: ext(sReg), borderColor: '#5B7C99', backgroundColor: 'rgba(91,124,153,.12)', fill: true, stepped: 'after', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 },
+            { label: 'Finalizadas (acumulado)', data: ext(sFin), borderColor: GREEN, backgroundColor: 'rgba(31,138,95,.15)', fill: true, stepped: 'after', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 4 },
+            ...(sLate.length ? [{ label: 'Fuera del límite (acumulado)', data: ext(sLate), borderColor: RED, stepped: 'after', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 }] : [])
+          ] },
+          options: { responsive: true, maintainAspectRatio: false, animation: false, parsing: false, layout: { padding: { top: 6, right: 16 } },
+            interaction: { mode: 'nearest', axis: 'x', intersect: false },
+            scales: {
+              x: { type: 'linear', min: x0 - pad, max: x1 + pad, grid: { color: border }, ticks: { ...tick, maxTicksLimit: 8, callback: v => fD(v) }, title: { display: true, text: 'Fecha (registro / cierre de la tarea)', color: inkSoft, font: { size: 11 } } },
+              y: { beginAtZero: true, grid: { color: border }, ticks: { ...tick, precision: 0, stepSize: 1 }, suggestedMax: tareas.length, title: { display: true, text: 'Tareas acumuladas', color: inkSoft, font: { size: 11 } } }
+            },
+            plugins: { legend: { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { size: 11.5 } } },
+              tooltip: { backgroundColor: '#16202B', padding: 10, callbacks: { title: items => items.length ? fmtDate(new Date(items[0].parsed.x)) : '', label: c => ` ${c.dataset.label}: ${c.parsed.y} de ${tareas.length}` } } } }
+        });
+      }
     }
 
     // Detalle por ticket
