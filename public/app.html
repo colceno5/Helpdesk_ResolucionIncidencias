@@ -3533,65 +3533,64 @@
     if (hasSel){
       const tareas = [];
       list.forEach(e => e.tasks.forEach(k => { if (k.owner === impExec) tareas.push({ e, k }); }));
-      tareas.sort((a, b) => (b.k.late - a.k.late) || ((b.k.dur || 0) - (a.k.dur || 0)));
-      const fuera = tareas.filter(x => x.k.late).length;
-      $('impDetTasksTitle').textContent = `Tareas de ${impExec} en los tickets de ${esp}: ${tareas.length} (${fuera} fuera del límite de ${uTxt})`;
-      $('impDetTasks').innerHTML = `<thead><tr><th>Ticket</th><th>Estado del ticket</th><th>Tarea</th><th>Asunto</th><th>Estado</th><th>Registro</th><th>Cierre</th><th class="r">Duración</th><th class="r">Límite</th><th>Resultado</th></tr></thead><tbody>` +
+      // Criterio por % de SLA del ticket (cada ticket tiene su propio plazo: 8 h, 16 h…): la tarea queda «fuera» si su ticket superó el 100 % del SLA
+      const slaFuera = x => x.e.r.pct != null && x.e.r.pct > 100;
+      tareas.sort((a, b) => (slaFuera(b) - slaFuera(a)) || ((b.e.r.pct || 0) - (a.e.r.pct || 0)) || ((b.k.dur || 0) - (a.k.dur || 0)));
+      const fuera = tareas.filter(slaFuera).length;
+      $('impDetTasksTitle').textContent = `Tareas de ${impExec} en los tickets de ${esp}: ${tareas.length} (${fuera} en tickets que superaron el 100% de SLA)`;
+      $('impDetTasks').innerHTML = `<thead><tr><th>Ticket</th><th>Estado del ticket</th><th>Tarea</th><th>Asunto</th><th>Estado</th><th>Registro</th><th>Cierre</th><th class="r">Duración</th><th class="r">% SLA del ticket</th><th>Resultado</th></tr></thead><tbody>` +
         tareas.slice(0, 500).map(({ e, k }) => {
-          const t = k.t, exceso = k.dur != null ? k.dur - d.umbralH : null;
-          const res = k.dur == null ? '<span class="vc-n">sin fecha</span>'
-            : (k.late ? `<span style="color:var(--danger); font-weight:600;">Fuera · +${fH(exceso)}</span>` : '<span style="color:#1F8A5F; font-weight:600;">Dentro</span>');
-          return `<tr><td class="mono">${escapeHtml(String(e.r.ticket))}</td><td><span class="rk-pct${e.r.cumple ? '' : ' venc'}">${e.r.cumple ? 'Cumple' : 'Vencido'}</span></td><td class="mono">${escapeHtml(String(t.tarea))}</td><td class="nm" title="${escapeHtml(t.asunto || '')}">${escapeHtml(t.asunto || '—')}</td><td>${escapeHtml(t.estado || '—')}</td><td>${fmtDate(t.fechaRegistro)}</td><td>${t.fechaCierre ? fmtDate(t.fechaCierre) : (t.abierta ? 'Abierta' : '—')}</td><td class="r">${fH(k.dur)}</td><td class="r">${fH(d.umbralH)}</td><td>${res}</td></tr>`;
+          const t = k.t, pctS = e.r.pct;
+          const res = pctS == null ? '<span class="vc-n">sin SLA</span>'
+            : (pctS > 100 ? `<span style="color:var(--danger); font-weight:600;">Fuera · +${(pctS - 100).toFixed(0)} pts</span>` : '<span style="color:#1F8A5F; font-weight:600;">Dentro</span>');
+          return `<tr><td class="mono">${escapeHtml(String(e.r.ticket))}</td><td><span class="rk-pct${e.r.cumple ? '' : ' venc'}">${e.r.cumple ? 'Cumple' : 'Vencido'}</span></td><td class="mono">${escapeHtml(String(t.tarea))}</td><td class="nm" title="${escapeHtml(t.asunto || '')}">${escapeHtml(t.asunto || '—')}</td><td>${escapeHtml(t.estado || '—')}</td><td>${fmtDate(t.fechaRegistro)}</td><td>${t.fechaCierre ? fmtDate(t.fechaCierre) : (t.abierta ? 'Abierta' : '—')}</td><td class="r">${fH(k.dur)}</td><td class="r"${pctS != null && pctS > 100 ? ' style="color:var(--danger); font-weight:600;"' : ''}>${pctS != null ? pctS + '%' : '—'}</td><td>${res}</td></tr>`;
         }).join('') + '</tbody>';
 
       const DAY = 86400000;
-      // Rendimiento en el tiempo: cuánto tardó cada tarea en atenderse (registro → cierre), ordenado por fecha de cierre
+      // Rendimiento en el tiempo: duración de cada tarea y % de SLA de su ticket, ordenado por fecha de cierre
       const pts = [];
-      tareas.forEach(({ k }) => {
+      tareas.forEach(({ e, k }) => {
         const t = k.t, fc = toDateSafe(t.fechaCierre);
-        if (fc && !t.abierta && k.dur != null) pts.push({ x: fc.getTime(), h: k.dur, late: k.late, tarea: String(t.tarea), asunto: t.asunto || '' });
+        if (fc && !t.abierta && k.dur != null) pts.push({ x: fc.getTime(), h: k.dur, pct: e.r.pct, fuera: e.r.pct != null && e.r.pct > 100, ticket: String(e.r.ticket), tarea: String(t.tarea), asunto: t.asunto || '' });
       });
       pts.sort((a, b) => a.x - b.x);
       const progBox = $('impDetProgBox');
       progBox.classList.toggle('hidden', !pts.length);
       $('impDetProgTitle').classList.toggle('hidden', !pts.length);
-      $('impDetProgTitle').textContent = 'Rendimiento en el tiempo: duración de atención de las tareas';
+      $('impDetProgTitle').textContent = 'Rendimiento en el tiempo: duración de las tareas y % de SLA de su ticket';
       if (!pts.length){
         $('impDetProgNote').textContent = 'Estas tareas no tienen fecha de cierre y duración para graficar.';
       } else {
         const dataMax = Math.max(...pts.map(q => q.h));
         const inDays = dataMax >= 48, div = inDays ? 24 : 1, unit = inDays ? 'd' : 'h';
-        const fU = fH;                                   // mismo formato que la tabla (h si <48 h, si no d)
-        const showLimit = d.umbralH <= dataMax * 3;      // si el límite está muy por encima, aplastaría la escala
         const avg = pts.reduce((a, q) => a + q.h, 0) / pts.length;
-        const half = Math.floor(pts.length / 2);
-        const first = pts.slice(0, half).reduce((a, q) => a + q.h, 0) / Math.max(1, half);
-        const last = pts.slice(half).reduce((a, q) => a + q.h, 0) / Math.max(1, pts.length - half);
-        const trend = pts.length < 4 ? '' : (last < first * 0.9 ? ' Tendencia: mejorando (cada vez tardan menos).' : (last > first * 1.1 ? ' Tendencia: empeorando (cada vez tardan más).' : ' Tendencia: estable.'));
-        $('impDetProgNote').textContent = `${pts.length} tareas cerradas · duración media ${fU(avg)} · máxima ${fU(Math.max(...pts.map(q => q.h)))} · límite ${fU(d.umbralH)}` + (showLimit ? '.' : ' (muy por encima de todas las tareas, no se dibuja).') + trend;
-        // media móvil de 3 tareas para ver la tendencia
-        const mov = pts.map((q, i) => { const w = pts.slice(Math.max(0, i - 2), i + 1); return { x: q.x, y: w.reduce((a, z) => a + z.h, 0) / w.length / div }; });
+        const conPct = pts.filter(q => q.pct != null);
+        const nFuera = pts.filter(q => q.fuera).length;
+        $('impDetProgNote').textContent = `${pts.length} tareas cerradas · duración media ${fH(avg)} · máxima ${fH(dataMax)} · ${nFuera} en tickets que superaron el 100% de SLA. ` +
+          'Línea azul = duración de la tarea (eje izquierdo). Línea naranja = % de SLA del ticket al que pertenece (eje derecho; sobre la línea roja del 100% el ticket incumplió).';
         const x0 = pts[0].x, x1 = pts[pts.length - 1].x, pad = Math.max(DAY / 2, (x1 - x0) * 0.04);
         const fD = v => { const pp = peruParts(new Date(v)); return String(pp.day).padStart(2, '0') + '/' + String(pp.mo + 1).padStart(2, '0'); };
+        const pctMax = Math.max(120, ...conPct.map(q => q.pct)) * 1.1;
         if (typeof Chart !== 'undefined'){
           impProgChart = new Chart($('impDetProgCanvas').getContext('2d'), {
             type: 'line',
             data: { datasets: [
-              { label: 'Duración de cada tarea', data: pts.map(q => ({ x: q.x, y: q.h / div })), borderColor: '#5B7C99', backgroundColor: 'rgba(91,124,153,.10)', fill: true, borderWidth: 2, tension: 0, pointRadius: 4.5, pointHoverRadius: 6,
-                pointBackgroundColor: pts.map(q => q.late ? RED : GREEN), pointBorderColor: '#fff', pointBorderWidth: 1 },
-              { label: 'Media móvil (3 tareas)', data: mov, borderColor: '#E0952B', borderWidth: 2.5, borderDash: [6, 4], tension: 0.35, pointRadius: 0, pointHoverRadius: 0, fill: false },
-              { label: 'Límite (' + fU(d.umbralH) + ')', data: showLimit ? [{ x: x0 - pad, y: d.umbralH / div }, { x: x1 + pad, y: d.umbralH / div }] : [], borderColor: RED, borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, pointHoverRadius: 0, fill: false }
+              { label: 'Duración de la tarea', yAxisID: 'y', data: pts.map(q => ({ x: q.x, y: q.h / div })), borderColor: '#5B7C99', backgroundColor: 'rgba(91,124,153,.10)', fill: true, borderWidth: 2, tension: 0, pointRadius: 4.5, pointHoverRadius: 6,
+                pointBackgroundColor: pts.map(q => q.fuera ? RED : GREEN), pointBorderColor: '#fff', pointBorderWidth: 1, order: 2 },
+              { label: '% de SLA del ticket', yAxisID: 'y1', data: conPct.map(q => ({ x: q.x, y: q.pct })), borderColor: '#E0952B', borderWidth: 2.5, borderDash: [6, 4], tension: 0, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: '#E0952B', fill: false, order: 1 },
+              { label: 'SLA 100%', yAxisID: 'y1', data: [{ x: x0 - pad, y: 100 }, { x: x1 + pad, y: 100 }], borderColor: RED, borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, pointHoverRadius: 0, fill: false, order: 3 }
             ] },
-            options: { responsive: true, maintainAspectRatio: false, animation: false, parsing: false, layout: { padding: { top: 6, right: 16 } },
+            options: { responsive: true, maintainAspectRatio: false, animation: false, parsing: false, layout: { padding: { top: 6, right: 8 } },
               interaction: { mode: 'nearest', intersect: true },
               scales: {
                 x: { type: 'linear', min: x0 - pad, max: x1 + pad, grid: { color: border }, ticks: { ...tick, maxTicksLimit: 8, callback: v => fD(v) }, title: { display: true, text: 'Fecha de cierre de la tarea', color: inkSoft, font: { size: 11 } } },
-                y: { beginAtZero: true, grid: { color: border }, ticks: { ...tick, callback: v => (Number.isInteger(v) ? v : v.toFixed(1)) + ' ' + unit }, title: { display: true, text: 'Tiempo de atención (' + (inDays ? 'días' : 'horas') + ')', color: inkSoft, font: { size: 11 } } }
+                y: { position: 'left', beginAtZero: true, grid: { color: border }, ticks: { ...tick, callback: v => (Number.isInteger(v) ? v : v.toFixed(1)) + ' ' + unit }, title: { display: true, text: 'Duración (' + (inDays ? 'días' : 'horas') + ')', color: inkSoft, font: { size: 11 } } },
+                y1: { position: 'right', beginAtZero: true, max: pctMax, grid: { drawOnChartArea: false }, ticks: { ...tick, callback: v => v + '%' }, title: { display: true, text: '% de SLA del ticket', color: inkSoft, font: { size: 11 } } }
               },
               plugins: { legend: { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { size: 11.5 } } },
                 tooltip: { backgroundColor: '#16202B', padding: 10, filter: it => it.datasetIndex !== 2,
                   callbacks: { title: items => items.length ? fmtDate(new Date(items[0].parsed.x)) : '',
-                    label: c => { if (c.datasetIndex === 0){ const q = pts[c.dataIndex]; return [` ${q.tarea}: ${fU(q.h)} (${q.late ? 'fuera del límite' : 'dentro'})`, ` ${q.asunto}`]; } return ` ${c.dataset.label}: ${fU(c.parsed.y * div)}`; } } } } }
+                    label: c => { if (c.datasetIndex === 0){ const q = pts[c.dataIndex]; return [` ${q.tarea} (${q.ticket}): ${fH(q.h)}`, ` ${q.asunto}`]; } const q = conPct[c.dataIndex]; return ` Ticket ${q.ticket}: ${q.pct}% de SLA (${q.fuera ? 'incumplido' : 'cumplido'})`; } } } } }
           });
         }
       }
