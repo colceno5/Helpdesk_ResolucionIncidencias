@@ -3544,46 +3544,56 @@
           return `<tr><td class="mono">${escapeHtml(String(e.r.ticket))}</td><td><span class="rk-pct${e.r.cumple ? '' : ' venc'}">${e.r.cumple ? 'Cumple' : 'Vencido'}</span></td><td class="mono">${escapeHtml(String(t.tarea))}</td><td class="nm" title="${escapeHtml(t.asunto || '')}">${escapeHtml(t.asunto || '—')}</td><td>${escapeHtml(t.estado || '—')}</td><td>${fmtDate(t.fechaRegistro)}</td><td>${t.fechaCierre ? fmtDate(t.fechaCierre) : (t.abierta ? 'Abierta' : '—')}</td><td class="r">${fH(k.dur)}</td><td class="r">${fH(d.umbralH)}</td><td>${res}</td></tr>`;
         }).join('') + '</tbody>';
 
-      // Progreso acumulado de las tareas mostradas (registradas vs finalizadas vs fuera del límite)
       const DAY = 86400000;
-      const evReg = [], evFin = [], evLate = [];
-      let nAbiertas = 0;
+      // Rendimiento en el tiempo: cuánto tardó cada tarea en atenderse (registro → cierre), ordenado por fecha de cierre
+      const pts = [];
       tareas.forEach(({ k }) => {
-        const t = k.t, fr = toDateSafe(t.fechaRegistro), fc = toDateSafe(t.fechaCierre);
-        if (fr) evReg.push(fr.getTime());
-        if (fc && !t.abierta){ evFin.push(fc.getTime()); if (k.late) evLate.push(fc.getTime()); } else nAbiertas++;
+        const t = k.t, fc = toDateSafe(t.fechaCierre);
+        if (fc && !t.abierta && k.dur != null) pts.push({ x: fc.getTime(), h: k.dur, late: k.late, tarea: String(t.tarea), asunto: t.asunto || '' });
       });
-      const cum = ev => { ev.sort((a, b) => a - b); return ev.map((x, i) => ({ x, y: i + 1 })); };
-      const sReg = cum(evReg), sFin = cum(evFin), sLate = cum(evLate);
-      const allX = evReg.concat(evFin);
+      pts.sort((a, b) => a.x - b.x);
       const progBox = $('impDetProgBox');
-      progBox.classList.toggle('hidden', !allX.length);
-      $('impDetProgTitle').classList.toggle('hidden', !allX.length);
-      $('impDetProgNote').textContent = allX.length
-        ? `${tareas.length} tareas · ${evFin.length} finalizadas · ${nAbiertas} abiertas · ${fuera} fuera del límite. La brecha entre «registradas» y «finalizadas» son las tareas aún en curso.`
-        : 'Estas tareas no tienen fechas para graficar.';
-      if (allX.length && typeof Chart !== 'undefined'){
-        const x0 = Math.min.apply(null, allX), x1 = Math.max.apply(null, allX);
-        const pad = Math.max(DAY / 2, (x1 - x0) * 0.03);
-        // cada serie se extiende hasta el último instante para que la línea no se corte
-        const ext = (arr) => arr.length ? [{ x: x0 - pad, y: 0 }].concat(arr, [{ x: x1 + pad, y: arr[arr.length - 1].y }]) : [];
-        const fD = v => { const p = peruParts(new Date(v)); return String(p.day).padStart(2, '0') + '/' + String(p.mo + 1).padStart(2, '0'); };
-        impProgChart = new Chart($('impDetProgCanvas').getContext('2d'), {
-          type: 'line',
-          data: { datasets: [
-            { label: 'Registradas (acumulado)', data: ext(sReg), borderColor: '#5B7C99', backgroundColor: 'rgba(91,124,153,.12)', fill: true, stepped: 'after', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 },
-            { label: 'Finalizadas (acumulado)', data: ext(sFin), borderColor: GREEN, backgroundColor: 'rgba(31,138,95,.15)', fill: true, stepped: 'after', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 4 },
-            ...(sLate.length ? [{ label: 'Fuera del límite (acumulado)', data: ext(sLate), borderColor: RED, stepped: 'after', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 }] : [])
-          ] },
-          options: { responsive: true, maintainAspectRatio: false, animation: false, parsing: false, layout: { padding: { top: 6, right: 16 } },
-            interaction: { mode: 'nearest', axis: 'x', intersect: false },
-            scales: {
-              x: { type: 'linear', min: x0 - pad, max: x1 + pad, grid: { color: border }, ticks: { ...tick, maxTicksLimit: 8, callback: v => fD(v) }, title: { display: true, text: 'Fecha (registro / cierre de la tarea)', color: inkSoft, font: { size: 11 } } },
-              y: { beginAtZero: true, grid: { color: border }, ticks: { ...tick, precision: 0, stepSize: 1 }, suggestedMax: tareas.length, title: { display: true, text: 'Tareas acumuladas', color: inkSoft, font: { size: 11 } } }
-            },
-            plugins: { legend: { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { size: 11.5 } } },
-              tooltip: { backgroundColor: '#16202B', padding: 10, callbacks: { title: items => items.length ? fmtDate(new Date(items[0].parsed.x)) : '', label: c => ` ${c.dataset.label}: ${c.parsed.y} de ${tareas.length}` } } } }
-        });
+      progBox.classList.toggle('hidden', !pts.length);
+      $('impDetProgTitle').classList.toggle('hidden', !pts.length);
+      $('impDetProgTitle').textContent = 'Rendimiento en el tiempo: duración de atención de las tareas';
+      if (!pts.length){
+        $('impDetProgNote').textContent = 'Estas tareas no tienen fecha de cierre y duración para graficar.';
+      } else {
+        const dataMax = Math.max(...pts.map(q => q.h));
+        const inDays = dataMax >= 48, div = inDays ? 24 : 1, unit = inDays ? 'd' : 'h';
+        const fU = fH;                                   // mismo formato que la tabla (h si <48 h, si no d)
+        const showLimit = d.umbralH <= dataMax * 3;      // si el límite está muy por encima, aplastaría la escala
+        const avg = pts.reduce((a, q) => a + q.h, 0) / pts.length;
+        const half = Math.floor(pts.length / 2);
+        const first = pts.slice(0, half).reduce((a, q) => a + q.h, 0) / Math.max(1, half);
+        const last = pts.slice(half).reduce((a, q) => a + q.h, 0) / Math.max(1, pts.length - half);
+        const trend = pts.length < 4 ? '' : (last < first * 0.9 ? ' Tendencia: mejorando (cada vez tardan menos).' : (last > first * 1.1 ? ' Tendencia: empeorando (cada vez tardan más).' : ' Tendencia: estable.'));
+        $('impDetProgNote').textContent = `${pts.length} tareas cerradas · duración media ${fU(avg)} · máxima ${fU(Math.max(...pts.map(q => q.h)))} · límite ${fU(d.umbralH)}` + (showLimit ? '.' : ' (muy por encima de todas las tareas, no se dibuja).') + trend;
+        // media móvil de 3 tareas para ver la tendencia
+        const mov = pts.map((q, i) => { const w = pts.slice(Math.max(0, i - 2), i + 1); return { x: q.x, y: w.reduce((a, z) => a + z.h, 0) / w.length / div }; });
+        const x0 = pts[0].x, x1 = pts[pts.length - 1].x, pad = Math.max(DAY / 2, (x1 - x0) * 0.04);
+        const fD = v => { const pp = peruParts(new Date(v)); return String(pp.day).padStart(2, '0') + '/' + String(pp.mo + 1).padStart(2, '0'); };
+        if (typeof Chart !== 'undefined'){
+          impProgChart = new Chart($('impDetProgCanvas').getContext('2d'), {
+            type: 'line',
+            data: { datasets: [
+              { label: 'Duración de cada tarea', data: pts.map(q => ({ x: q.x, y: q.h / div })), borderColor: '#5B7C99', backgroundColor: 'rgba(91,124,153,.10)', fill: true, borderWidth: 2, tension: 0, pointRadius: 4.5, pointHoverRadius: 6,
+                pointBackgroundColor: pts.map(q => q.late ? RED : GREEN), pointBorderColor: '#fff', pointBorderWidth: 1 },
+              { label: 'Media móvil (3 tareas)', data: mov, borderColor: '#E0952B', borderWidth: 2.5, borderDash: [6, 4], tension: 0.35, pointRadius: 0, pointHoverRadius: 0, fill: false },
+              { label: 'Límite (' + fU(d.umbralH) + ')', data: showLimit ? [{ x: x0 - pad, y: d.umbralH / div }, { x: x1 + pad, y: d.umbralH / div }] : [], borderColor: RED, borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, pointHoverRadius: 0, fill: false }
+            ] },
+            options: { responsive: true, maintainAspectRatio: false, animation: false, parsing: false, layout: { padding: { top: 6, right: 16 } },
+              interaction: { mode: 'nearest', intersect: true },
+              scales: {
+                x: { type: 'linear', min: x0 - pad, max: x1 + pad, grid: { color: border }, ticks: { ...tick, maxTicksLimit: 8, callback: v => fD(v) }, title: { display: true, text: 'Fecha de cierre de la tarea', color: inkSoft, font: { size: 11 } } },
+                y: { beginAtZero: true, grid: { color: border }, ticks: { ...tick, callback: v => (Number.isInteger(v) ? v : v.toFixed(1)) + ' ' + unit }, title: { display: true, text: 'Tiempo de atención (' + (inDays ? 'días' : 'horas') + ')', color: inkSoft, font: { size: 11 } } }
+              },
+              plugins: { legend: { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { size: 11.5 } } },
+                tooltip: { backgroundColor: '#16202B', padding: 10, filter: it => it.datasetIndex !== 2,
+                  callbacks: { title: items => items.length ? fmtDate(new Date(items[0].parsed.x)) : '',
+                    label: c => { if (c.datasetIndex === 0){ const q = pts[c.dataIndex]; return [` ${q.tarea}: ${fU(q.h)} (${q.late ? 'fuera del límite' : 'dentro'})`, ` ${q.asunto}`]; } return ` ${c.dataset.label}: ${fU(c.parsed.y * div)}`; } } } } }
+          });
+        }
       }
     }
 
