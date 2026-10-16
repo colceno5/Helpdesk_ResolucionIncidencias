@@ -3567,17 +3567,17 @@
         const conPct = pts.filter(q => q.pct != null);
         const nFuera = pts.filter(q => q.fuera).length;
         $('impDetProgNote').textContent = `${pts.length} tareas cerradas · duración media ${fH(avg)} · máxima ${fH(dataMax)} · ${nFuera} en tickets que superaron el 100% de SLA. ` +
-          'Línea azul = duración de la tarea (eje izquierdo). Línea naranja = % de SLA del ticket al que pertenece (eje derecho; sobre la línea roja del 100% el ticket incumplió).';
+          'Lo principal es el tiempo: línea azul = duración de cada tarea (eje izquierdo; punto rojo = su ticket superó el SLA). Como referencia, la línea naranja fina = % de SLA del ticket (eje derecho en escala logarítmica; sobre la línea roja del 100% el ticket incumplió).';
         const x0 = pts[0].x, x1 = pts[pts.length - 1].x, pad = Math.max(DAY / 2, (x1 - x0) * 0.04);
         const fD = v => { const pp = peruParts(new Date(v)); return String(pp.day).padStart(2, '0') + '/' + String(pp.mo + 1).padStart(2, '0'); };
-        const pctMax = Math.max(120, ...conPct.map(q => q.pct)) * 1.1;
+        const pctTop = Math.pow(10, Math.ceil(Math.log10(Math.max(200, ...conPct.map(q => q.pct)))));
         if (typeof Chart !== 'undefined'){
           impProgChart = new Chart($('impDetProgCanvas').getContext('2d'), {
             type: 'line',
             data: { datasets: [
-              { label: 'Duración de la tarea', yAxisID: 'y', data: pts.map(q => ({ x: q.x, y: q.h / div })), borderColor: '#5B7C99', backgroundColor: 'rgba(91,124,153,.10)', fill: true, borderWidth: 2, tension: 0, pointRadius: 4.5, pointHoverRadius: 6,
-                pointBackgroundColor: pts.map(q => q.fuera ? RED : GREEN), pointBorderColor: '#fff', pointBorderWidth: 1, order: 2 },
-              { label: '% de SLA del ticket', yAxisID: 'y1', data: conPct.map(q => ({ x: q.x, y: q.pct })), borderColor: '#E0952B', borderWidth: 2.5, borderDash: [6, 4], tension: 0, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: '#E0952B', fill: false, order: 1 },
+              { label: 'Duración de la tarea', yAxisID: 'y', data: pts.map(q => ({ x: q.x, y: q.h / div })), borderColor: '#3F6485', backgroundColor: 'rgba(63,100,133,.16)', fill: true, borderWidth: 3, tension: 0, pointRadius: 6, pointHoverRadius: 8,
+                pointBackgroundColor: pts.map(q => q.fuera ? RED : GREEN), pointBorderColor: '#fff', pointBorderWidth: 1.5, order: 1 },
+              { label: '% de SLA del ticket', yAxisID: 'y1', data: conPct.map(q => ({ x: q.x, y: q.pct })), borderColor: 'rgba(224,149,43,.65)', borderWidth: 1.5, borderDash: [4, 4], tension: 0, pointRadius: 2.5, pointHoverRadius: 5, pointBackgroundColor: 'rgba(224,149,43,.85)', fill: false, order: 2 },
               { label: 'SLA 100%', yAxisID: 'y1', data: [{ x: x0 - pad, y: 100 }, { x: x1 + pad, y: 100 }], borderColor: RED, borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, pointHoverRadius: 0, fill: false, order: 3 }
             ] },
             options: { responsive: true, maintainAspectRatio: false, animation: false, parsing: false, layout: { padding: { top: 6, right: 8 } },
@@ -3585,12 +3585,12 @@
               scales: {
                 x: { type: 'linear', min: x0 - pad, max: x1 + pad, grid: { color: border }, ticks: { ...tick, maxTicksLimit: 8, callback: v => fD(v) }, title: { display: true, text: 'Fecha de cierre de la tarea', color: inkSoft, font: { size: 11 } } },
                 y: { position: 'left', beginAtZero: true, grid: { color: border }, ticks: { ...tick, callback: v => (Number.isInteger(v) ? v : v.toFixed(1)) + ' ' + unit }, title: { display: true, text: 'Duración (' + (inDays ? 'días' : 'horas') + ')', color: inkSoft, font: { size: 11 } } },
-                y1: { position: 'right', beginAtZero: true, max: pctMax, grid: { drawOnChartArea: false }, ticks: { ...tick, callback: v => v + '%' }, title: { display: true, text: '% de SLA del ticket', color: inkSoft, font: { size: 11 } } }
+                y1: { position: 'right', type: 'logarithmic', min: 10, max: pctTop, grid: { drawOnChartArea: false }, ticks: { ...tick, callback: v => ([10, 100, 1000, 10000].includes(v) ? v + '%' : '') }, title: { display: true, text: '% de SLA del ticket (escala log)', color: inkSoft, font: { size: 11 } } }
               },
               plugins: { legend: { position: 'bottom', labels: { padding: 14, color: inkColor, boxWidth: 10, boxHeight: 10, font: { size: 11.5 } } },
                 tooltip: { backgroundColor: '#16202B', padding: 10, filter: it => it.datasetIndex !== 2,
                   callbacks: { title: items => items.length ? fmtDate(new Date(items[0].parsed.x)) : '',
-                    label: c => { if (c.datasetIndex === 0){ const q = pts[c.dataIndex]; return [` ${q.tarea} (${q.ticket}): ${fH(q.h)}`, ` ${q.asunto}`]; } const q = conPct[c.dataIndex]; return ` Ticket ${q.ticket}: ${q.pct}% de SLA (${q.fuera ? 'incumplido' : 'cumplido'})`; } } } } }
+                    label: c => { if (c.datasetIndex === 0){ const q = pts[c.dataIndex]; return [` ${q.tarea} (${q.ticket}): ${fH(q.h)}`, ` SLA del ticket: ${q.pct != null ? q.pct + '% (' + (q.fuera ? 'incumplido' : 'cumplido') + ')' : 'sin SLA'}`, ` ${q.asunto}`]; } const q = conPct[c.dataIndex]; return ` Ticket ${q.ticket}: ${q.pct}% de SLA (${q.fuera ? 'incumplido' : 'cumplido'})`; } } } } }
           });
         }
       }
